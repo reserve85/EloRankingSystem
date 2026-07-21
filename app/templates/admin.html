@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Admin - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-header d-print-none mb-4">
+  <h2>Admin Dashboard</h2>
+</div>
+
+<ul class="nav nav-tabs" id="admin-tabs" role="tablist">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-players">Players</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-users">Users</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-matches">Matches</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-club">Club Settings</a></li>
+</ul>
+
+<div class="tab-content mt-3">
+  <!-- Players Tab -->
+  <div class="tab-pane active" id="tab-players">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title">Players</h3>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#player-modal" onclick="resetPlayerForm()">+ Add Player</button>
+      </div>
+      <div class="card-body">
+        <table id="players-table" class="table table-vcenter table-hover table-striped" style="width:100%">
+          <thead><tr><th>ID</th><th>Name</th><th>Start Elo</th><th>Current Elo</th><th>Status</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Users Tab -->
+  <div class="tab-pane" id="tab-users">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title">Users</h3>
+        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#user-modal" onclick="resetUserForm()">+ Add User</button>
+      </div>
+      <div class="card-body">
+        <table id="users-table" class="table table-vcenter table-hover table-striped" style="width:100%">
+          <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Active</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Matches Tab -->
+  <div class="tab-pane" id="tab-matches">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Match History</h3></div>
+      <div class="card-body">
+        <table id="matches-table" class="table table-vcenter table-hover table-striped" style="width:100%">
+          <thead><tr><th>ID</th><th>Date</th><th>Player A</th><th>Player B</th><th>Winner</th><th>Elo +/-</th><th>Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- Club Settings Tab -->
+  <div class="tab-pane" id="tab-club">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Club Settings</h3></div>
+      <div class="card-body">
+        <div id="club-success" class="alert alert-success d-none"></div>
+        <div id="club-error" class="alert alert-danger d-none"></div>
+        <div class="mb-3"><label class="form-label">Club Name</label><input type="text" id="club-name" class="form-control"></div>
+        <div class="mb-3"><label class="form-label">Default Elo</label><input type="number" id="club-default-elo" class="form-control"></div>
+        <div class="mb-3"><label class="form-label">K Factor</label><input type="number" id="club-k-factor" class="form-control"></div>
+        <div class="mb-3"><label class="form-label">Inactivity Months</label><input type="number" id="club-inactivity" class="form-control"></div>
+        <button class="btn btn-primary" onclick="saveClubSettings()">Save Settings</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Player Modal -->
+<div class="modal fade" id="player-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="player-modal-title">Add Player</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <form id="player-form">
+      <input type="hidden" id="player-edit-id">
+      <div class="mb-3"><label class="form-label">Name</label><input type="text" id="player-name" class="form-control" required></div>
+      <div class="mb-3"><label class="form-label">Start Elo</label><input type="number" id="player-start-elo" class="form-control" value="1200"></div>
+    </form>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" onclick="savePlayer()">Save</button></div>
+</div></div></div>
+
+<!-- User Modal -->
+<div class="modal fade" id="user-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title" id="user-modal-title">Add User</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <form id="user-form">
+      <input type="hidden" id="user-edit-id">
+      <div class="mb-3"><label class="form-label">Username</label><input type="text" id="user-username" class="form-control" required></div>
+      <div class="mb-3"><label class="form-label">Password</label><input type="password" id="user-password" class="form-control"></div>
+      <div class="mb-3"><label class="form-label">Role</label>
+        <select id="user-role" class="form-select"><option value="USER">USER</option><option value="ADMIN">ADMIN</option></select>
+      </div>
+    </form>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button class="btn btn-primary" onclick="saveUser()">Save</button></div>
+</div></div></div>
+{% endblock %}
+{% block extra_js %}
+<script>
+// --- Players ---
+function resetPlayerForm() { document.getElementById('player-edit-id').value=''; document.getElementById('player-name').value=''; document.getElementById('player-start-elo').value='1200'; document.getElementById('player-modal-title').textContent='Add Player'; }
+async function loadPlayers() {
+  const resp = await fetch('/players/?include_disabled=true');
+  if (!resp.ok) return;
+  const players = await resp.json();
+  const tbody = document.querySelector('#players-table tbody'); tbody.innerHTML = '';
+  players.forEach(p => {
+    const status = p.disabled ? '<span class="badge bg-red">Disabled</span>' : '<span class="badge bg-green">Active</span>';
+    tbody.innerHTML += '<tr><td>'+p.id+'</td><td>'+p.name+'</td><td>'+p.start_elo+'</td><td>'+p.current_elo.toFixed(1)+'</td><td>'+status+'</td><td>'
+      +'<button class="btn btn-sm btn-ghost-blue" onclick="editPlayer('+p.id+')">Edit</button> '
+      +(p.disabled ? '<button class="btn btn-sm btn-ghost-green" onclick="reactivatePlayer('+p.id+')">Reactivate</button>'
+        : '<button class="btn btn-sm btn-ghost-red" onclick="disablePlayer('+p.id+')">Disable</button>')
+      +'</td></tr>';
+  });
+  if ($.fn.DataTable.isDataTable('#players-table')) { $('#players-table').DataTable().destroy(); }
+  $('#players-table').DataTable({ paging: true, pageLength: 25, order: [[0,'asc']], searching: true });
+}
+async function savePlayer() {
+  const id = document.getElementById('player-edit-id').value;
+  const name = document.getElementById('player-name').value;
+  const startElo = parseInt(document.getElementById('player-start-elo').value) || 1200;
+  const body = { name: name, start_elo: startElo };
+  const url = id ? '/players/'+id : '/players/';
+  const method = id ? 'PUT' : 'POST';
+  const resp = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  if (resp.ok) { bootstrap.Modal.getInstance(document.getElementById('player-modal')).hide(); loadPlayers(); }
+}
+function editPlayer(id) {
+  fetch('/players/'+id).then(r=>r.json()).then(p => {
+    document.getElementById('player-edit-id').value = p.id;
+    document.getElementById('player-name').value = p.name;
+    document.getElementById('player-start-elo').value = p.start_elo;
+    document.getElementById('player-modal-title').textContent = 'Edit Player';
+    new bootstrap.Modal(document.getElementById('player-modal')).show();
+  });
+}
+async function disablePlayer(id) { await fetch('/players/'+id+'/disable', {method:'POST'}); loadPlayers(); }
+async function reactivatePlayer(id) { await fetch('/players/'+id+'/reactivate', {method:'POST'}); loadPlayers(); }
+
+// --- Users ---
+function resetUserForm() { document.getElementById('user-edit-id').value=''; document.getElementById('user-username').value=''; document.getElementById('user-password').value=''; document.getElementById('user-role').value='USER'; document.getElementById('user-modal-title').textContent='Add User'; }
+async function loadUsers() {
+  const resp = await fetch('/users/');
+  if (!resp.ok) return;
+  const users = await resp.json();
+  const tbody = document.querySelector('#users-table tbody'); tbody.innerHTML = '';
+  users.forEach(u => {
+    const status = u.active ? '<span class="badge bg-green">Active</span>' : '<span class="badge bg-red">Disabled</span>';
+    tbody.innerHTML += '<tr><td>'+u.id+'</td><td>'+u.username+'</td><td><span class="badge bg-blue">'+u.role+'</span></td><td>'+status+'</td><td>'
+      +(u.role !== 'SYSTEM' ? '<button class="btn btn-sm btn-ghost-blue" onclick="editUser('+u.id+')">Edit</button> '
+      +(u.active ? '<button class="btn btn-sm btn-ghost-red" onclick="toggleUser('+u.id+',false)">Disable</button>'
+        : '<button class="btn btn-sm btn-ghost-green" onclick="toggleUser('+u.id+',true)">Enable</button>') : 'Protected')
+      +'</td></tr>';
+  });
+  if ($.fn.DataTable.isDataTable('#users-table')) { $('#users-table').DataTable().destroy(); }
+  $('#users-table').DataTable({ paging: true, pageLength: 25, order: [[0,'asc']], searching: true });
+}
+async function saveUser() {
+  const id = document.getElementById('user-edit-id').value;
+  const username = document.getElementById('user-username').value;
+  const password = document.getElementById('user-password').value;
+  const role = document.getElementById('user-role').value;
+  if (id) {
+    const body = { role: role };
+    if (password) body.password = password;
+    await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  } else {
+    await fetch('/users/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,password,role}) });
+  }
+  bootstrap.Modal.getInstance(document.getElementById('user-modal')).hide(); loadUsers();
+}
+function editUser(id) {
+  fetch('/users/'+id).then(r=>r.json()).then(u => {
+    document.getElementById('user-edit-id').value = u.id;
+    document.getElementById('user-username').value = u.username;
+    document.getElementById('user-password').value = '';
+    document.getElementById('user-role').value = u.role;
+    document.getElementById('user-modal-title').textContent = 'Edit User';
+    new bootstrap.Modal(document.getElementById('user-modal')).show();
+  });
+}
+async function toggleUser(id, active) {
+  await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({active}) });
+  loadUsers();
+}
+
+// --- Matches ---
+async function loadMatches() {
+  const resp = await fetch('/matches/');
+  if (!resp.ok) return;
+  const matches = await resp.json();
+  const resp2 = await fetch('/players/?include_disabled=true');
+  const players = resp2.ok ? await resp2.json() : [];
+  const pmap = {}; players.forEach(p => pmap[p.id] = p.name);
+  const tbody = document.querySelector('#matches-table tbody'); tbody.innerHTML = '';
+  matches.forEach(m => {
+    const cls = m.elo_change_a > 0 ? 'text-green' : 'text-red';
+    tbody.innerHTML += '<tr><td>'+m.id+'</td><td>'+m.date+'</td><td>'+pmap[m.player_a_id]+'</td><td>'+pmap[m.player_b_id]+'</td><td>'
+      +pmap[m.winner_id]+'</td><td class="'+cls+'">'+(m.elo_change_a>=0?'+':'')+m.elo_change_a.toFixed(1)+'</td><td>'
+      +'<button class="btn btn-sm btn-ghost-red" onclick="deleteMatch('+m.id+')">Delete</button></td></tr>';
+  });
+  if ($.fn.DataTable.isDataTable('#matches-table')) { $('#matches-table').DataTable().destroy(); }
+  $('#matches-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true });
+}
+async function deleteMatch(id) { if (confirm('Delete this match?')) { await fetch('/matches/'+id, {method:'DELETE'}); loadMatches(); } }
+
+// --- Club Settings ---
+async function loadClubSettings() {
+  const resp = await fetch('/settings/');
+  if (!resp.ok) return;
+  const s = await resp.json();
+  document.getElementById('club-name').value = s.club_name || '';
+  document.getElementById('club-default-elo').value = s.default_elo || 1200;
+  document.getElementById('club-k-factor').value = s.k_factor || 32;
+  document.getElementById('club-inactivity').value = s.inactivity_months || 3;
+}
+async function saveClubSettings() {
+  const body = { club_name: document.getElementById('club-name').value, default_elo: parseInt(document.getElementById('club-default-elo').value),
+    k_factor: parseFloat(document.getElementById('club-k-factor').value), inactivity_months: parseInt(document.getElementById('club-inactivity').value) };
+  const resp = await fetch('/settings/', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const sEl = document.getElementById('club-success'), eEl = document.getElementById('club-error');
+  sEl.classList.add('d-none'); eEl.classList.add('d-none');
+  if (resp.ok) { sEl.textContent='Settings saved!'; sEl.classList.remove('d-none'); }
+  else { eEl.textContent='Failed to save'; eEl.classList.remove('d-none'); }
+}
+
+// Init
+loadPlayers(); loadUsers(); loadMatches(); loadClubSettings();
+</script>
+{% endblock %}

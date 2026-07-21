@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-header d-print-none mb-4">
+  <h2>Dashboard</h2>
+</div>
+<div class="row">
+  <div class="col-lg-5">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Add Match</h3></div>
+      <div class="card-body">
+        <div id="match-success" class="alert alert-success d-none"></div>
+        <div id="match-error" class="alert alert-danger d-none"></div>
+        <form id="add-match-form">
+          <div class="mb-3">
+            <label class="form-label">Date</label>
+            <input type="date" name="date" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Player A</label>
+            <select name="player_a_id" class="form-select" id="player-a-select" required>
+              <option value="">Select player...</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Player B</label>
+            <select name="player_b_id" class="form-select" id="player-b-select" required>
+              <option value="">Select player...</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Result</label>
+            <select name="winner_id" class="form-select" id="winner-select" required>
+              <option value="">Select winner...</option>
+            </select>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">Save Match</button>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-7">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Current Ranking</h3></div>
+      <div class="card-body">
+        <table id="ranking-table" class="table table-vcenter table-hover table-striped" style="width:100%">
+          <thead><tr><th>#</th><th>Player</th><th>Elo</th><th>+/-</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.querySelector('input[name="date"]').valueAsDate = new Date();
+async function loadPlayers() {
+  const resp = await fetch('/players/active');
+  if (!resp.ok) return;
+  const players = await resp.json();
+  const selA = document.getElementById('player-a-select');
+  const selB = document.getElementById('player-b-select');
+  players.forEach(p => { selA.add(new Option(p.name, p.id)); selB.add(new Option(p.name, p.id)); });
+  selA.addEventListener('change', updateWinnerOptions);
+  selB.addEventListener('change', updateWinnerOptions);
+}
+function updateWinnerOptions() {
+  const a = document.getElementById('player-a-select');
+  const b = document.getElementById('player-b-select');
+  const w = document.getElementById('winner-select');
+  w.innerHTML = '<option value="">Select winner...</option>';
+  if (a.value) w.add(new Option(a.options[a.selectedIndex].text + ' wins', a.value));
+  if (b.value) w.add(new Option(b.options[b.selectedIndex].text + ' wins', b.value));
+}
+document.getElementById('add-match-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const fd = new FormData(this);
+  const errEl = document.getElementById('match-error');
+  const sucEl = document.getElementById('match-success');
+  errEl.classList.add('d-none'); sucEl.classList.add('d-none');
+  const body = { date: fd.get('date'), player_a_id: parseInt(fd.get('player_a_id')),
+    player_b_id: parseInt(fd.get('player_b_id')), winner_id: parseInt(fd.get('winner_id')) };
+  const resp = await fetch('/matches/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+  if (resp.ok) { sucEl.textContent = 'Match saved!'; sucEl.classList.remove('d-none'); this.reset();
+    document.querySelector('input[name="date"]').valueAsDate = new Date(); loadRanking(); }
+  else { const data = await resp.json(); errEl.textContent = data.detail || 'Failed'; errEl.classList.remove('d-none'); }
+});
+async function loadRanking() {
+  const today = new Date(); const from = today.toISOString().slice(0,8)+'01'; const to = today.toISOString().slice(0,10);
+  const resp = await fetch('/rankings/?from_date='+from+'&to_date='+to);
+  if (!resp.ok) return;
+  const data = await resp.json();
+  const tbody = document.querySelector('#ranking-table tbody');
+  tbody.innerHTML = '';
+  data.entries.forEach(e => {
+    const cls = e.elo_change > 0 ? 'text-green' : e.elo_change < 0 ? 'text-red' : '';
+    tbody.innerHTML += '<tr><td>'+e.position+'</td><td>'+e.player_name+'</td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+cls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td></tr>';
+  });
+}
+loadPlayers(); loadRanking();
+</script>
+{% endblock %}

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block title %}Login - Elo Ranking System{% endblock %}
+{% block content %}
+<div class="row d-flex flex-column align-items-center justify-content-center" style="min-height: 80vh;">
+  <div class="col-md-5 col-lg-4">
+    <div class="card card-md">
+      <div class="card-body">
+        <h2 class="h2 text-center mb-4">{{ app_name }}</h2>
+        <div id="error-alert" class="alert alert-danger d-none" role="alert"></div>
+        <form id="login-form" autocomplete="off">
+          <div class="mb-3">
+            <label class="form-label">Username</label>
+            <input type="text" name="username" class="form-control" placeholder="Your username" autocomplete="username" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Password</label>
+            <input type="password" name="password" class="form-control" placeholder="Your password" autocomplete="current-password" required>
+          </div>
+          <div class="form-footer">
+            <button type="submit" class="btn btn-primary w-100">Sign in</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+document.getElementById('login-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const formData = new FormData(this);
+  const alertEl = document.getElementById('error-alert');
+  alertEl.classList.add('d-none');
+  try {
+    const resp = await fetch('/auth/login', {
+      method: 'POST',
+      body: formData,
+      redirect: 'follow'
+    });
+    if (resp.ok) {
+      window.location.href = '/ui/dashboard';
+    } else {
+      const data = await resp.json();
+      alertEl.textContent = data.detail || 'Login failed';
+      alertEl.classList.remove('d-none');
+    }
+  } catch (err) {
+    alertEl.textContent = 'Connection error';
+    alertEl.classList.remove('d-none');
+  }
+});
+</script>
+{% endblock %}

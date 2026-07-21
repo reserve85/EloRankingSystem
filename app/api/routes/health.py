@@ -16,11 +16,3 @@ async def health_check():
     }
 
 
-@router.get("/")
-async def root():
-    """Root endpoint."""
-    return {
-        "application": "Elo Ranking System",
-        "version": "0.1.0",
-        "docs": "/docs",
-    }
