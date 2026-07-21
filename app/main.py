@@ -16,6 +16,7 @@ from app.api.routes.matches import router as matches_router
 from app.api.routes.rankings import router as rankings_router
 from app.api.routes.users import router as users_router
 from app.api.routes.settings import router as settings_router
+from app.api.routes.reports import router as reports_router
 from app.api.routes.ui import router as ui_router
 from app.auth.service import provision_system_user
 
@@ -55,6 +56,7 @@ app.include_router(matches_router)
 app.include_router(rankings_router)
 app.include_router(users_router)
 app.include_router(settings_router)
+app.include_router(reports_router)
 
 # Include UI router
 app.include_router(ui_router)
