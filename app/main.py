@@ -4,17 +4,26 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.orm import Session
 
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import SessionLocal, init_db
 from app.api.routes.health import router as health_router
+from app.api.routes.auth import router as auth_router
+from app.auth.service import provision_system_user
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown events."""
-    # Startup
+    # Startup: create tables and provision system user
     init_db()
+    db: Session = SessionLocal()
+    try:
+        provision_system_user(db)
+    finally:
+        db.close()
+
     yield
     # Shutdown
 
@@ -33,3 +42,4 @@ app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
 # Include routers
 app.include_router(health_router)
+app.include_router(auth_router)
