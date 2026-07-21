@@ -6,7 +6,7 @@ from typing import Optional
 
 import yaml
 from pydantic_settings import BaseSettings
-from pydantic import Field
+from pydantic import Field, ConfigDict
 
 
 # Base directory of the project
@@ -74,10 +74,11 @@ class Settings(BaseSettings):
         default=str(BASE_DIR / "backups"), alias="BACKUP_DIR"
     )
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        populate_by_name = True
+    model_config = ConfigDict(
+        env_file=".env",
+        env_file_encoding="utf-8",
+        populate_by_name=True,
+    )
 
 
 def get_settings() -> Settings:
