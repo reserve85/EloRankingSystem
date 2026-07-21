@@ -88,21 +88,35 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 
 ## Configuration
 
+Configuration is loaded with the following priority (highest wins):
+
+1. **Environment variables** (set in shell)
+2. **`.env` file** values
+3. **`config.yaml`** values
+4. **Default values** defined in the application
+
 ### Environment Variables (.env)
+
+Copy `.env.example` to `.env` and adjust as needed:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
+| `APP_NAME` | Application name | `Elo Ranking System` |
 | `APP_ENV` | Application environment | `development` |
 | `APP_DEBUG` | Debug mode | `false` |
+| `CONFIG_PATH` | Path to config.yaml | `config.yaml` |
 | `DATABASE_URL` | Database connection string | `sqlite:///./data/database.db` |
-| `JWT_SECRET` | JWT signing secret | `change_me` |
-| `JWT_ALGORITHM` | JWT algorithm | `HS256` |
-| `ACCESS_TOKEN_LIFETIME_MINUTES` | Token lifetime | `480` |
-| `COOKIE_SECURE` | Secure cookie flag | `false` |
-| `COOKIE_HTTPONLY` | HttpOnly cookie flag | `true` |
-| `COOKIE_SAMESITE` | SameSite policy | `lax` |
+| `DEFAULT_ELO` | Default Elo rating for new players | `1200` |
+| `K_FACTOR` | Elo K-factor (rating sensitivity) | `32` |
+| `INACTIVITY_MONTHS` | Months before player is considered inactive | `3` |
 | `SYSTEM_USER_USERNAME` | System admin username | `system` |
 | `SYSTEM_USER_PASSWORD` | System admin password | `change_me` |
+| `JWT_SECRET` | JWT signing secret | `change_me` |
+| `JWT_ALGORITHM` | JWT algorithm | `HS256` |
+| `ACCESS_TOKEN_LIFETIME_MINUTES` | Token lifetime in minutes | `480` |
+| `COOKIE_SECURE` | Secure cookie flag | `false` |
+| `COOKIE_HTTPONLY` | HttpOnly cookie flag | `true` |
+| `COOKIE_SAMESITE` | SameSite cookie policy | `lax` |
 | `DATA_DIR` | Data storage path | `./data` |
 | `UPLOAD_DIR` | Upload storage path | `./uploads` |
 | `LOG_DIR` | Log storage path | `./logs` |
@@ -110,7 +124,20 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 
 ### YAML Configuration (config.yaml)
 
-See `config.yaml.example` for the full configuration reference.
+Copy `config.yaml.example` to `config.yaml` and adjust club-specific settings. The YAML file is organized into sections:
+
+| Section | Keys | Description |
+|---------|------|-------------|
+| `app` | `name`, `environment`, `debug` | Application identity |
+| `elo` | `default_rating`, `k_factor` | Elo system parameters |
+| `ranking` | `inactivity_months` | Inactive player threshold |
+| `system_user` | `username`, `password` | Host administrator credentials |
+| `security` | `jwt_secret`, `jwt_algorithm`, `access_token_lifetime_minutes`, `cookie_secure`, `cookie_httponly`, `cookie_samesite` | Authentication & security |
+| `storage` | `data_dir`, `upload_dir`, `log_dir`, `backup_dir` | File storage paths |
+
+Values in `.env` or environment variables always override values in `config.yaml`.
+
+See `config.yaml.example` for the full reference.
 
 ## Development Setup
 
