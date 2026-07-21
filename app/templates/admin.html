@@ -32,16 +32,48 @@
 
   <!-- Users Tab -->
   <div class="tab-pane" id="tab-users">
-    <div class="card">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h3 class="card-title">Users</h3>
-        <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#user-modal" onclick="resetUserForm()">+ Add User</button>
+    <div class="row">
+      <div class="col-lg-8">
+        <div class="card">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <h3 class="card-title">Users</h3>
+            <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#user-modal" onclick="resetUserForm()">+ Add User</button>
+          </div>
+          <div class="card-body">
+            <table id="users-table" class="table table-vcenter table-hover table-striped" style="width:100%">
+              <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Active</th><th>Actions</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </div>
-      <div class="card-body">
-        <table id="users-table" class="table table-vcenter table-hover table-striped" style="width:100%">
-          <thead><tr><th>ID</th><th>Username</th><th>Role</th><th>Active</th><th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
+      <div class="col-lg-4">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Reset User Password</h3></div>
+          <div class="card-body">
+            <div id="reset-pw-success" class="alert alert-success d-none"></div>
+            <div id="reset-pw-error" class="alert alert-danger d-none"></div>
+            <div id="reset-pw-errors" class="d-none"><ul class="mb-0 text-danger small"></ul></div>
+            <form id="reset-password-form">
+              <div class="mb-3">
+                <label class="form-label">Select User</label>
+                <select name="user_id" class="form-select" id="reset-pw-user" required>
+                  <option value="">Select user...</option>
+                </select>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">New Password</label>
+                <input type="password" name="new_password" class="form-control" required minlength="8">
+                <div class="form-hint text-muted">Min 8 chars, uppercase + lowercase + number</div>
+              </div>
+              <div class="mb-3">
+                <label class="form-label">Confirm New Password</label>
+                <input type="password" name="confirm_new_password" class="form-control" required minlength="8">
+              </div>
+              <button type="submit" class="btn btn-warning w-100">Reset Password</button>
+            </form>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -265,7 +297,43 @@ async function loadAuditLogs() {
   $('#audit-table').DataTable({ paging: true, pageLength: 50, order: [[0,'desc']], searching: true });
 }
 
+// --- Reset Password ---
+async function loadResetUsers() {
+  const resp = await fetch('/users/');
+  if (!resp.ok) return;
+  const users = await resp.json();
+  const sel = document.getElementById('reset-pw-user');
+  sel.innerHTML = '<option value="">Select user...</option>';
+  users.forEach(u => { sel.add(new Option(u.username + ' (' + u.role + ')', u.id)); });
+}
+document.getElementById('reset-password-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const fd = new FormData(this);
+  const sucEl = document.getElementById('reset-pw-success');
+  const errEl = document.getElementById('reset-pw-error');
+  const errsEl = document.getElementById('reset-pw-errors');
+  sucEl.classList.add('d-none'); errEl.classList.add('d-none'); errsEl.classList.add('d-none');
+  const body = {
+    user_id: parseInt(fd.get('user_id')),
+    new_password: fd.get('new_password'),
+    confirm_new_password: fd.get('confirm_new_password')
+  };
+  const resp = await fetch('/password/reset', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+  const data = await resp.json();
+  if (data.success) {
+    sucEl.textContent = data.message; sucEl.classList.remove('d-none');
+    this.reset();
+  } else {
+    errEl.textContent = data.message; errEl.classList.remove('d-none');
+    if (data.errors && data.errors.length) {
+      const ul = errsEl.querySelector('ul'); ul.innerHTML = '';
+      data.errors.forEach(err => { ul.innerHTML += '<li>' + err + '</li>'; });
+      errsEl.classList.remove('d-none');
+    }
+  }
+});
+
 // Init
-loadPlayers(); loadUsers(); loadMatches(); loadClubSettings(); loadAuditLogs();
+loadPlayers(); loadUsers(); loadMatches(); loadClubSettings(); loadAuditLogs(); loadResetUsers();
 </script>
 {% endblock %}

@@ -1,6 +1,6 @@
 """Match SQLAlchemy model."""
 
-from datetime import datetime, date
+from datetime import datetime
 from typing import Optional
 
 from sqlalchemy import (
@@ -27,7 +27,7 @@ class Match(Base):
     __tablename__ = "matches"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    date: Mapped[date] = mapped_column(Date, nullable=False, index=True)
+    date: Mapped[datetime] = mapped_column(Date, nullable=False, index=True)
 
     # Player references
     player_a_id: Mapped[int] = mapped_column(
