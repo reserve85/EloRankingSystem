@@ -74,7 +74,7 @@
         </div>
         <div class="col-12 col-lg-auto mt-3 mt-lg-0">
           <ul class="list-inline list-inline-dots mb-0">
-            <li class="list-inline-item">{{ app_name }}</li>
+            <li class="list-inline-item">{{ app_name }}{% if version_info %} &middot; v{{ version_info.version }} ({{ version_info.git_commit }}) &middot; Build {{ version_info.build_date }}{% endif %}</li>
           </ul>
         </div>
       </div>

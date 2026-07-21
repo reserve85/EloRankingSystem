@@ -75,16 +75,74 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 
 ### Docker Deployment
 
-1. Build and start:
+#### Quick Start with Docker
+
+1. Copy configuration files:
    ```bash
+   cp .env.example .env
+   cp config.yaml.example config.yaml
+   ```
+
+2. Edit `.env` and `config.yaml` with your settings. **Change default passwords!**
+
+3. Build and start:
+   ```bash
+   docker compose build
    docker compose up -d
    ```
 
-2. Open `http://localhost:8000`
+4. View logs:
+   ```bash
+   docker compose logs -f
+   ```
 
-3. Login with the configured system user credentials.
+5. Open `http://localhost:8000`
 
-> **Important:** Change the default system user password immediately after first login.
+6. Login with the configured system user credentials (default: `system` / `change_me`).
+
+7. **Change the default system user password immediately after first login.**
+
+#### Using GitHub Container Registry Image
+
+The pre-built image is available at:
+```
+ghcr.io/reserve85/Elo_Ranking_System:main
+```
+
+The `docker-compose.yml` is already configured to use this image. Only `docker compose up -d` is needed (no build required).
+
+#### Docker Volumes
+
+All data is persisted in Docker named volumes:
+
+| Volume | Container Path | Purpose |
+|--------|---------------|---------|
+| `elo_data` | `/data` | SQLite database |
+| `elo_uploads` | `/uploads` | Club logo uploads |
+| `elo_logs` | `/logs` | Application logs |
+| `elo_backups` | `/backups` | Backup files |
+
+#### Version Display
+
+The running version is displayed in the UI footer:
+```
+v0.1.0 (a1b2c3d) - Build 2025-07-21
+```
+
+To build with version info:
+```bash
+GIT_COMMIT=$(git rev-parse --short HEAD) \
+BUILD_DATE=$(date +%Y-%m-%d) \
+APP_VERSION=0.1.0 \
+docker compose build
+```
+
+#### Stopping and Restarting
+
+```bash
+docker compose down    # Stop
+docker compose up -d   # Start
+```
 
 ## Configuration
 

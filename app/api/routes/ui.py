@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.version import get_version_info
 from app.core.templates import templates
 from app.auth.dependencies import get_current_user, require_admin
 from app.models.user import User
@@ -19,7 +20,7 @@ def login_page(request: Request):
     return templates.TemplateResponse(
         request,
         "login.html",
-        {"app_name": settings.app_name},
+        {"app_name": settings.app_name, "version_info": get_version_info()},
     )
 
 
@@ -32,6 +33,7 @@ def dashboard_page(request: Request, current_user: User = Depends(get_current_us
         {
             "user": current_user,
             "app_name": settings.app_name,
+            "version_info": get_version_info(),
         },
     )
 
@@ -45,6 +47,7 @@ def admin_page(request: Request, current_user: User = Depends(require_admin)):
         {
             "user": current_user,
             "app_name": settings.app_name,
+            "version_info": get_version_info(),
         },
     )
 

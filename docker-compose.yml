@@ -1,0 +1,33 @@
+services:
+  elo:
+    image: ghcr.io/reserve85/Elo_Ranking_System:main
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GIT_COMMIT: ${GIT_COMMIT:-unknown}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
+        APP_VERSION: ${APP_VERSION:-0.1.0}
+    ports:
+      - "8000:8000"
+    volumes:
+      - elo_data:/data
+      - elo_uploads:/uploads
+      - elo_logs:/logs
+      - elo_backups:/backups
+      - ./config.yaml:/app/config.yaml:ro
+    env_file:
+      - .env
+    restart: unless-stopped
+    environment:
+      - DATA_DIR=/data
+      - UPLOAD_DIR=/uploads
+      - LOG_DIR=/logs
+      - BACKUP_DIR=/backups
+      - DATABASE_URL=sqlite:///data/database.db
+
+volumes:
+  elo_data:
+  elo_uploads:
+  elo_logs:
+  elo_backups:
