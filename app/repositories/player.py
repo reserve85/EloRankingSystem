@@ -25,14 +25,14 @@ class PlayerRepository:
         """
         query = self.db.query(Player)
         if not include_disabled:
-            query = query.filter(Player.disabled == False)
+            query = query.filter(Player.disabled.is_(False))
         return query.order_by(Player.name).all()
 
     def get_active(self) -> list[Player]:
         """Get all active, non-disabled players."""
         return (
             self.db.query(Player)
-            .filter(Player.active == True, Player.disabled == False)
+            .filter(Player.active.is_(True), Player.disabled.is_(False))
             .order_by(Player.name)
             .all()
         )

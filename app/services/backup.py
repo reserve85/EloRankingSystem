@@ -1,6 +1,5 @@
 """Backup and restore service."""
 
-import os
 import shutil
 import zipfile
 from datetime import datetime, timezone

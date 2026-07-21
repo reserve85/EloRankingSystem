@@ -2,14 +2,13 @@
 
 import io
 import zipfile
-from datetime import datetime, timezone
 
 import pytest
 
 from app.models.user import User, UserRole
 from app.models.audit_log import AuditLog
 from app.auth.password import hash_password
-from app.services.backup import _sanitize_path, create_backup, get_backup_download
+from app.services.backup import _sanitize_path
 
 
 def _login_as(client, db_session, username, password, role):

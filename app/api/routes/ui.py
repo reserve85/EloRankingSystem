@@ -2,9 +2,7 @@
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
 
-from app.core.database import get_db
 from app.core.config import settings
 from app.core.version import get_version_info
 from app.core.templates import templates

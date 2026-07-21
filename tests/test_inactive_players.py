@@ -14,7 +14,6 @@ Disabled ≠ Inactive:
 
 from datetime import date, timedelta
 
-import pytest
 
 from app.models.player import Player
 from app.models.user import User, UserRole
@@ -112,9 +111,9 @@ class TestInactivePlayerHiddenFromRanking:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        active = _create_player(db_session, "Active", elo=1200,
+        _create_player(db_session, "Active", elo=1200,
                                 last_match=date.today() - timedelta(days=5))
-        inactive = _create_player(db_session, "Inactive", elo=1300,
+        _create_player(db_session, "Inactive", elo=1300,
                                   last_match=date.today() - timedelta(days=120))
 
         resp = _get_ranking(
@@ -132,7 +131,7 @@ class TestInactivePlayerHiddenFromRanking:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        inactive = _create_player(db_session, "Inactive", elo=1300,
+        _create_player(db_session, "Inactive", elo=1300,
                                   last_match=date.today() - timedelta(days=120))
 
         resp = _get_ranking(
@@ -149,7 +148,7 @@ class TestInactivePlayerHiddenFromRanking:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        inactive = _create_player(db_session, "Inactive", elo=1350,
+        _create_player(db_session, "Inactive", elo=1350,
                                   last_match=date.today() - timedelta(days=120))
 
         resp = _get_ranking(
@@ -170,7 +169,7 @@ class TestInactivePlayerSelectable:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
-        inactive = _create_player(db_session, "Inactive", elo=1200,
+        _create_player(db_session, "Inactive", elo=1200,
                                   last_match=date.today() - timedelta(days=120))
 
         # get_all_players returns all non-disabled players
@@ -183,7 +182,7 @@ class TestInactivePlayerSelectable:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
-        inactive = _create_player(db_session, "Inactive", elo=1200,
+        _create_player(db_session, "Inactive", elo=1200,
                                   last_match=date.today() - timedelta(days=120))
 
         # Active players list (not disabled)
@@ -321,7 +320,7 @@ class TestDisabledVsInactive:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        inactive = _create_player(db_session, "Inactive", elo=1200,
+        _create_player(db_session, "Inactive", elo=1200,
                                   last_match=date.today() - timedelta(days=120))
 
         resp = _get_ranking(
@@ -350,7 +349,7 @@ class TestDisabledVsInactive:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
-        inactive = _create_player(db_session, "Inactive", elo=1200,
+        _create_player(db_session, "Inactive", elo=1200,
                                   last_match=date.today() - timedelta(days=120))
 
         resp = client.get("/players/active")
@@ -363,7 +362,7 @@ class TestDisabledVsInactive:
         disabled = _create_player(db_session, "Disabled", elo=1200)
         disabled.disabled = True
         db_session.commit()
-        opponent = _create_player(db_session, "Opponent", elo=1200)
+        _create_player(db_session, "Opponent", elo=1200)
 
         # Disabled player can still technically be sent in API,
         # but the business rule is enforced by UI/service layer

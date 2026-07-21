@@ -1,6 +1,6 @@
 """Match schemas for input/output validation."""
 
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -59,7 +59,7 @@ class MatchCreate(BaseModel):
 class MatchUpdate(BaseModel):
     """Schema for updating a match (ADMIN/SYSTEM only)."""
 
-    date: Optional[datetime] = None
+    date: Optional[date] = None
     player1_score: Optional[int] = Field(default=None, ge=0, le=5)
     player2_score: Optional[int] = Field(default=None, ge=0, le=5)
 

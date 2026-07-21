@@ -1,9 +1,9 @@
 """Tests for database models and session management."""
 
-from datetime import date, datetime, timezone
+from datetime import date
 
 import pytest
-from sqlalchemy import inspect, text
+from sqlalchemy import inspect
 
 from app.models import User, UserRole, Player, Match, ClubSettings, AuditLog
 

@@ -1,9 +1,7 @@
 """Tests for ranking generation."""
 
-from datetime import date, timedelta
-from unittest.mock import patch
+from datetime import date
 
-import pytest
 
 from app.models.player import Player
 from app.models.user import User, UserRole
@@ -218,7 +216,7 @@ class TestPositionChange:
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         pa = _create_player(db_session, "Alice", elo=1200)
         pb = _create_player(db_session, "Bob", elo=1200)
-        pc = _create_player(db_session, "Charlie", elo=1200)
+        _create_player(db_session, "Charlie", elo=1200)
 
         # Charlie is ranked above Alice by name at equal Elo
         # Alice wins a match, moving above Charlie
@@ -237,7 +235,7 @@ class TestPositionChange:
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         pa = _create_player(db_session, "Alice", elo=1300)
         pb = _create_player(db_session, "Bob", elo=1100)
-        pc = _create_player(db_session, "Charlie", elo=1200)
+        _create_player(db_session, "Charlie", elo=1200)
 
         # Alice loses to Bob (upset)
         _create_match(client, pa.id, pb.id, pb.id, "2025-06-15")
@@ -323,8 +321,8 @@ class TestInactivePlayers:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        pa = _create_player(db_session, "Active Alice", elo=1300)
-        pb = _create_player(db_session, "Active Bob", elo=1200)
+        _create_player(db_session, "Active Alice", elo=1300)
+        _create_player(db_session, "Active Bob", elo=1200)
         pc = _create_player(db_session, "Inactive Charlie", elo=1100)
 
         # Give Charlie a very old last_match_date

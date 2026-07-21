@@ -1,9 +1,7 @@
 """Tests for UI templates and page rendering."""
 
-import pytest
 
 from app.models.user import User, UserRole
-from app.models.player import Player
 from app.auth.password import hash_password
 
 

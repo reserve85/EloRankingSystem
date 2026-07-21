@@ -4,7 +4,6 @@ When a match is added, edited, or deleted, the complete affected timeline
 must be recalculated chronologically.
 """
 
-from datetime import date
 
 import pytest
 
@@ -124,7 +123,7 @@ class TestRecalculationOnDelete:
 
         # Capture Elo after both matches
         elo_a_before_delete = _get_player_elo(client, pa.id)
-        elo_b_before_delete = _get_player_elo(client, pb.id)
+        _get_player_elo(client, pb.id)
         assert elo_a_before_delete > 1200  # Alice won twice
 
         # Now delete match 1
@@ -132,7 +131,7 @@ class TestRecalculationOnDelete:
 
         # After deletion, match 2 should be recalculated as if it were the first match
         elo_a_after = _get_player_elo(client, pa.id)
-        elo_b_after = _get_player_elo(client, pb.id)
+        _get_player_elo(client, pb.id)
 
         # Alice won one match from 1200 base, not two
         assert elo_a_after < elo_a_before_delete
@@ -228,7 +227,7 @@ class TestRecalculationOnEdit:
         client.put(f"/matches/{m1_id}", json={"player1_score": 0, "player2_score": 3})
 
         elo_a_after = _get_player_elo(client, pa.id)
-        elo_b_after = _get_player_elo(client, pb.id)
+        _get_player_elo(client, pb.id)
 
         # Alice now lost match 1 and won match 2
         # Her Elo should be lower than before

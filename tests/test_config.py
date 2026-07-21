@@ -1,10 +1,7 @@
 """Tests for centralized configuration handling."""
 
 import os
-import tempfile
-from pathlib import Path
 
-import pytest
 import yaml
 
 from app.core.config import (

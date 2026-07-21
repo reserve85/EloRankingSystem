@@ -1,15 +1,11 @@
 """Tests for authentication and authorization."""
 
-import pytest
-from fastapi.testclient import TestClient
 
-from app.core.database import Base, get_db
 from app.models.user import User, UserRole
 from app.auth.password import hash_password, verify_password, password_needs_rehash
 from app.auth.jwt import create_access_token, decode_access_token
 from app.auth.service import authenticate_user, create_login_response, provision_system_user
-from app.auth.dependencies import get_current_user, require_role, require_system, require_admin, require_user
-from app.main import app
+from app.auth.dependencies import require_system
 
 
 # ── Password Hashing Tests ──────────────────────────────────────────────

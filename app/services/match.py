@@ -13,7 +13,7 @@ Best-of-5 scoring:
 
 from datetime import date
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.match import Match

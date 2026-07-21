@@ -1,6 +1,5 @@
 """Tests for audit logging."""
 
-import pytest
 
 from app.models.user import User, UserRole
 from app.models.player import Player

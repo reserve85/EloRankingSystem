@@ -1,6 +1,6 @@
 """User SQLAlchemy model."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from enum import Enum as PyEnum
 
 from sqlalchemy import Boolean, DateTime, Enum, Integer, String, func

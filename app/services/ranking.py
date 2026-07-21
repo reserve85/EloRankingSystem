@@ -7,7 +7,6 @@ Default range is the current month.
 from datetime import date, datetime, timezone
 from typing import Optional
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -115,7 +114,7 @@ class RankingService:
         Returns:
             List of eligible players.
         """
-        query = self.db.query(Player).filter(Player.disabled == False)
+        query = self.db.query(Player).filter(Player.disabled.is_(False))
 
         if not include_inactive:
             # Exclude inactive players (no match in last N months)

@@ -1,6 +1,5 @@
 """Tests for password change and reset functionality."""
 
-import pytest
 
 from app.models.user import User, UserRole
 from app.models.audit_log import AuditLog
@@ -382,7 +381,7 @@ class TestPasswordReset:
 
     def test_admin_cannot_reset_system_user(self, client, db_session):
         """ADMIN should not be able to reset SYSTEM user password."""
-        admin = _login_as(client, db_session, "admin", "Admin1234", UserRole.ADMIN)
+        _login_as(client, db_session, "admin", "Admin1234", UserRole.ADMIN)
         sys_user = _create_user_db(db_session, "system2", "SysPass1234", UserRole.SYSTEM)
 
         resp = client.post("/password/reset", json={

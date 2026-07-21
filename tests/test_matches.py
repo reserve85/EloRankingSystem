@@ -1,6 +1,5 @@
 """Tests for match management - service, routes, permissions, and Elo persistence."""
 
-from datetime import date
 
 import pytest
 
