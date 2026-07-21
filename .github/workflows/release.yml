@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  build-and-publish:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract version from tag
+        id: version
+        run: echo "VERSION=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/reserve85/Elo_Ranking_System:main
+            ghcr.io/reserve85/Elo_Ranking_System:${{ steps.version.outputs.VERSION }}
+            ghcr.io/reserve85/Elo_Ranking_System:${{ github.sha }}
+          build-args: |
+            GIT_COMMIT=${{ github.sha }}
+            BUILD_DATE=${{ github.event.release.created_at }}
+            APP_VERSION=${{ steps.version.outputs.VERSION }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Create release artifact
+        run: |
+          echo "Release ${{ steps.version.outputs.VERSION }}" > release_info.txt
+          echo "Git SHA: ${{ github.sha }}" >> release_info.txt
+          echo "Build Date: ${{ github.event.release.created_at }}" >> release_info.txt
+          echo "Image: ghcr.io/reserve85/Elo_Ranking_System:${{ steps.version.outputs.VERSION }}" >> release_info.txt
+
+      - name: Upload release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-info-${{ steps.version.outputs.VERSION }}
+          path: release_info.txt

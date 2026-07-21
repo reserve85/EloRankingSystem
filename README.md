@@ -260,6 +260,58 @@ docker-compose.yml    # Docker Compose configuration
 .gitignore            # Git ignore rules
 ```
 
+## GitHub Actions / CI/CD
+
+The project includes three GitHub Actions workflows:
+
+### test.yml — Tests on Push/PR
+
+Triggers on every push to `main` and on pull requests:
+
+1. Installs Python dependencies
+2. Runs linter (`ruff`)
+3. Runs all tests (`pytest`)
+
+Pull requests must pass all tests before merge.
+
+### docker-publish.yml — Docker Image Build
+
+Triggers on push to `main` and on version tags (`v*`):
+
+1. Builds the Docker image with version metadata (GIT_COMMIT, BUILD_DATE, APP_VERSION)
+2. Publishes to GitHub Container Registry: `ghcr.io/reserve85/Elo_Ranking_System:main`
+3. Uses GitHub Actions cache for faster builds
+
+### release.yml — Release Publishing
+
+Triggers when a GitHub release is published:
+
+1. Builds Docker image with release version
+2. Publishes to GHCR with three tags:
+   - `ghcr.io/reserve85/Elo_Ranking_System:main`
+   - `ghcr.io/reserve85/Elo_Ranking_System:<version>`
+   - `ghcr.io/reserve85/Elo_Ranking_System:<git-sha>`
+3. Uploads release info artifact
+
+### Release Process
+
+1. Create a new tag:
+   ```bash
+   git tag v1.0.0
+   git push origin v1.0.0
+   ```
+
+2. Create a GitHub release from the tag.
+
+3. The release workflow automatically:
+   - Builds and publishes the Docker image
+   - Tags it with the version number
+   - Uploads release artifacts
+
+### Required GitHub Secrets
+
+No custom secrets are required. The workflows use the built-in `GITHUB_TOKEN` for GHCR authentication.
+
 ## Security Notes
 
 - All passwords are hashed using Argon2
@@ -268,6 +320,7 @@ docker-compose.yml    # Docker Compose configuration
 - Role-based access control is enforced on the backend
 - Never commit `.env`, `config.yaml`, or database files
 - Change all default passwords before deploying to production
+- GitHub Actions secrets (`GITHUB_TOKEN`) are used automatically
 
 ## License
 
