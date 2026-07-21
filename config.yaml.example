@@ -1,0 +1,29 @@
+app:
+  name: Elo Ranking System
+  environment: development
+  debug: true
+
+elo:
+  default_rating: 1200
+  k_factor: 32
+
+ranking:
+  inactivity_months: 3
+
+system_user:
+  username: system
+  password: change_me
+
+security:
+  jwt_secret: change_me
+  jwt_algorithm: HS256
+  access_token_lifetime_minutes: 480
+  cookie_secure: true
+  cookie_httponly: true
+  cookie_samesite: strict
+
+storage:
+  data_dir: /data
+  upload_dir: /uploads
+  log_dir: /logs
+  backup_dir: /backups
