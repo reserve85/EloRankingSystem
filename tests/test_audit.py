@@ -171,7 +171,8 @@ class TestMatchAudit:
             "date": "2025-06-01",
             "player_a_id": pa.id,
             "player_b_id": pb.id,
-            "winner_id": pa.id,
+            "player1_score": 3,
+            "player2_score": 0,
         })
 
         logs = _get_audit_logs(db_session, "MATCH_CREATED")
@@ -187,7 +188,8 @@ class TestMatchAudit:
             "date": "2025-06-01",
             "player_a_id": pa.id,
             "player_b_id": pb.id,
-            "winner_id": pa.id,
+            "player1_score": 3,
+            "player2_score": 0,
         })
         match_id = resp.json()["id"]
         client.delete(f"/matches/{match_id}")
@@ -206,11 +208,12 @@ class TestMatchAudit:
             "date": "2025-06-01",
             "player_a_id": pa.id,
             "player_b_id": pb.id,
-            "winner_id": pa.id,
+            "player1_score": 3,
+            "player2_score": 0,
         })
         match_id = resp.json()["id"]
 
-        client.put(f"/matches/{match_id}", json={"winner_id": pb.id})
+        client.put(f"/matches/{match_id}", json={"player1_score": 0, "player2_score": 3})
 
         logs = _get_audit_logs(db_session, "MATCH_UPDATED")
         assert len(logs) >= 1
@@ -225,7 +228,8 @@ class TestMatchAudit:
             "date": "2025-06-01",
             "player_a_id": pa.id,
             "player_b_id": pb.id,
-            "winner_id": pa.id,
+            "player1_score": 3,
+            "player2_score": 0,
         })
 
         logs = _get_audit_logs(db_session, "RANKING_RECALCULATED")

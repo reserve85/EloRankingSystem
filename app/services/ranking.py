@@ -56,6 +56,7 @@ class RankingService:
         for player in players:
             elo_at_start = self._get_elo_at_date(player, from_date, before=True)
             elo_at_end = self._get_elo_at_date(player, to_date, before=False)
+            total_matches = self._get_total_match_count(player.id)
 
             entries.append({
                 "player_id": player.id,
@@ -63,6 +64,7 @@ class RankingService:
                 "elo_rating": elo_at_end,
                 "elo_change": elo_at_end - elo_at_start,
                 "start_elo": elo_at_start,
+                "total_matches": total_matches,
             })
 
         # Sort by current Elo descending for end-of-period ranking
@@ -91,6 +93,7 @@ class RankingService:
                 elo_rating=entry["elo_rating"],
                 elo_change=entry["elo_change"],
                 position_change=position_change,
+                total_matches=entry["total_matches"],
             ))
 
         return RankingResponse(
@@ -174,3 +177,17 @@ class RankingService:
         if match.player_a_id == player.id:
             return match.elo_after_a
         return match.elo_after_b
+
+    def _get_total_match_count(self, player_id: int) -> int:
+        """Get the total lifetime match count for a player.
+
+        Args:
+            player_id: The player's ID.
+
+        Returns:
+            Total number of matches involving this player.
+        """
+        count = self.db.query(Match).filter(
+            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
+        ).count()
+        return count

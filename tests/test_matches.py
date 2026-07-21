@@ -44,12 +44,15 @@ def _create_player(db_session, name="Player", elo=1200):
 
 
 def _create_match_via_api(client, player_a_id, player_b_id, winner_id, match_date="2025-06-01"):
-    """Create a match via the API."""
+    """Create a match via the API using Best-of-5 scores."""
+    score_a = 3 if winner_id == player_a_id else 0
+    score_b = 3 if winner_id == player_b_id else 0
     return client.post("/matches/", json={
         "date": match_date,
         "player_a_id": player_a_id,
         "player_b_id": player_b_id,
-        "winner_id": winner_id,
+        "player1_score": score_a,
+        "player2_score": score_b,
     })
 
 
@@ -98,7 +101,8 @@ class TestMatchCreation:
             "date": "2025-06-01",
             "player_a_id": 1,
             "player_b_id": 2,
-            "winner_id": 1,
+            "player1_score": 3,
+            "player2_score": 0,
         })
         assert response.status_code == 401
 
@@ -164,7 +168,8 @@ class TestMatchValidation:
             "date": "not-a-date",
             "player_a_id": pa.id,
             "player_b_id": pb.id,
-            "winner_id": pa.id,
+            "player1_score": 3,
+            "player2_score": 0,
         })
         assert response.status_code == 422
 

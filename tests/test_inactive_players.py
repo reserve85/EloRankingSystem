@@ -205,7 +205,8 @@ class TestInactivePlayerSelectable:
             "date": str(date.today()),
             "player_a_id": inactive.id,
             "player_b_id": opponent.id,
-            "winner_id": inactive.id,
+            "player1_score": 3,
+            "player2_score": 0,
         })
         assert resp.status_code == 201
 
@@ -237,7 +238,8 @@ class TestInactivePlayerReactivated:
             "date": str(date.today()),
             "player_a_id": inactive.id,
             "player_b_id": opponent.id,
-            "winner_id": inactive.id,
+            "player1_score": 3,
+            "player2_score": 0,
         })
 
         # After match: appears in active ranking
@@ -263,7 +265,8 @@ class TestInactivePlayerReactivated:
             "date": today_str,
             "player_a_id": inactive.id,
             "player_b_id": opponent.id,
-            "winner_id": inactive.id,
+            "player1_score": 3,
+            "player2_score": 0,
         })
 
         resp = client.get(f"/players/{inactive.id}")
@@ -284,7 +287,8 @@ class TestInactivePlayerReactivated:
             "date": str(date.today()),
             "player_a_id": inactive.id,
             "player_b_id": opponent.id,
-            "winner_id": inactive.id,
+            "player1_score": 3,
+            "player2_score": 0,
         })
         match_data = resp.json()
         assert match_data["elo_before_a"] == 1350.0

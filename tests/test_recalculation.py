@@ -49,11 +49,14 @@ def _create_player(db_session, name="Player", elo=1200):
 
 def _create_match_api(client, pa_id, pb_id, winner_id, match_date="2025-06-01"):
     """Create a match via API and return JSON."""
+    score_a = 3 if winner_id == pa_id else 0
+    score_b = 3 if winner_id == pb_id else 0
     resp = client.post("/matches/", json={
         "date": match_date,
         "player_a_id": pa_id,
         "player_b_id": pb_id,
-        "winner_id": winner_id,
+        "player1_score": score_a,
+        "player2_score": score_b,
     })
     return resp
 
@@ -221,8 +224,8 @@ class TestRecalculationOnEdit:
 
         elo_a_before = _get_player_elo(client, pa.id)
 
-        # Change match 1: Bob wins instead
-        client.put(f"/matches/{m1_id}", json={"winner_id": pb.id})
+        # Change match 1: Bob wins instead (0:3)
+        client.put(f"/matches/{m1_id}", json={"player1_score": 0, "player2_score": 3})
 
         elo_a_after = _get_player_elo(client, pa.id)
         elo_b_after = _get_player_elo(client, pb.id)
@@ -249,8 +252,8 @@ class TestRecalculationOnEdit:
         m2_before = client.get(f"/matches/{m2_id}").json()
         m2_elo_before_a_orig = m2_before["elo_before_a"]
 
-        # Change match 1: Bob wins
-        client.put(f"/matches/{m1_id}", json={"winner_id": pb.id})
+        # Change match 1: Bob wins (0:3)
+        client.put(f"/matches/{m1_id}", json={"player1_score": 0, "player2_score": 3})
 
         # Match 2 now recalculated with Alice starting from lower Elo
         m2_after = client.get(f"/matches/{m2_id}").json()

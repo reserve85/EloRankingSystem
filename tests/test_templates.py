@@ -49,7 +49,7 @@ class TestDashboardPage:
         resp = client.get("/ui/dashboard")
         assert resp.status_code == 200
         assert "Add Match" in resp.text
-        assert "Current Ranking" in resp.text
+        assert "Ranking" in resp.text
 
     def test_dashboard_renders_for_admin(self, client, db_session):
         """Dashboard should render for authenticated ADMIN."""

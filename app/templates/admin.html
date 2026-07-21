@@ -52,7 +52,7 @@
       <div class="card-header"><h3 class="card-title">Match History</h3></div>
       <div class="card-body">
         <table id="matches-table" class="table table-vcenter table-hover table-striped" style="width:100%">
-          <thead><tr><th>ID</th><th>Date</th><th>Player A</th><th>Player B</th><th>Winner</th><th>Elo +/-</th><th>Actions</th></tr></thead>
+          <thead><tr><th>ID</th><th>Date</th><th>Player A</th><th>Player B</th><th>Score</th><th>Winner</th><th>Elo +/-</th><th>Actions</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -217,8 +217,9 @@ async function loadMatches() {
   const tbody = document.querySelector('#matches-table tbody'); tbody.innerHTML = '';
   matches.forEach(m => {
     const cls = m.elo_change_a > 0 ? 'text-green' : 'text-red';
-    tbody.innerHTML += '<tr><td>'+m.id+'</td><td>'+m.date+'</td><td>'+pmap[m.player_a_id]+'</td><td>'+pmap[m.player_b_id]+'</td><td>'
-      +pmap[m.winner_id]+'</td><td class="'+cls+'">'+(m.elo_change_a>=0?'+':'')+m.elo_change_a.toFixed(1)+'</td><td>'
+    const score = (m.player1_score != null && m.player2_score != null) ? m.player1_score + ':' + m.player2_score : '-';
+    tbody.innerHTML += '<tr><td>'+m.id+'</td><td>'+m.date+'</td><td>'+pmap[m.player_a_id]+'</td><td>'+pmap[m.player_b_id]+'</td><td><strong>'+score+'</strong></td><td>'
+      +'<span class="badge bg-green-lt">'+pmap[m.winner_id]+'</span></td><td class="'+cls+'">'+(m.elo_change_a>=0?'+':'')+m.elo_change_a.toFixed(1)+'</td><td>'
       +'<button class="btn btn-sm btn-ghost-red" onclick="deleteMatch('+m.id+')">Delete</button></td></tr>';
   });
   if ($.fn.DataTable.isDataTable('#matches-table')) { $('#matches-table').DataTable().destroy(); }

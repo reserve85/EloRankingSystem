@@ -44,12 +44,15 @@ def _create_player(db_session, name="Player", elo=1200):
 
 
 def _create_match(client, pa_id, pb_id, winner_id, match_date):
-    """Create a match via API."""
+    """Create a match via API using Best-of-5 scores."""
+    score_a = 3 if winner_id == pa_id else 0
+    score_b = 3 if winner_id == pb_id else 0
     return client.post("/matches/", json={
         "date": match_date,
         "player_a_id": pa_id,
         "player_b_id": pb_id,
-        "winner_id": winner_id,
+        "player1_score": score_a,
+        "player2_score": score_b,
     })
 
 
