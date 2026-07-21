@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.auth.dependencies import require_admin, require_user
 from app.models.user import User
-from app.schemas.match import MatchCreate, MatchResponse
+from app.schemas.match import MatchCreate, MatchUpdate, MatchResponse
 from app.services.match import MatchService
 
 router = APIRouter(prefix="/matches", tags=["matches"])
@@ -47,6 +47,18 @@ def get_match(
     """Get a match by ID. All authenticated users."""
     service = MatchService(db)
     return service.get_match(match_id)
+
+
+@router.put("/{match_id}", response_model=MatchResponse)
+def update_match(
+    match_id: int,
+    data: MatchUpdate,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Update a match. Requires ADMIN or SYSTEM role."""
+    service = MatchService(db)
+    return service.update_match(match_id, data, updated_by=current_user.id)
 
 
 @router.delete("/{match_id}", status_code=status.HTTP_200_OK)
