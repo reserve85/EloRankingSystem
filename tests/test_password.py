@@ -401,15 +401,28 @@ class TestPasswordReset:
 class TestPasswordUI:
     """Tests for password management UI elements."""
 
-    def test_dashboard_has_change_password_form(self, client, db_session):
-        """Dashboard should contain change password form."""
+    def test_change_password_page_exists(self, client, db_session):
+        """Change password page should be accessible from header."""
         _login_as(client, db_session, "user1", "Test1234", UserRole.USER)
-        resp = client.get("/ui/dashboard")
+        resp = client.get("/ui/change-password")
+        assert resp.status_code == 200
         assert "change-password-form" in resp.text
         assert "current_password" in resp.text
         assert "new_password" in resp.text
         assert "confirm_new_password" in resp.text
         assert "Change Password" in resp.text
+
+    def test_header_has_change_password_link(self, client, db_session):
+        """Header dropdown should contain change password link."""
+        _login_as(client, db_session, "user1", "Test1234", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "/ui/change-password" in resp.text
+
+    def test_dashboard_no_change_password_form(self, client, db_session):
+        """Dashboard should NOT contain change password form."""
+        _login_as(client, db_session, "user1", "Test1234", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "change-password-form" not in resp.text
 
     def test_admin_has_reset_password_form(self, client, db_session):
         """Admin panel should contain reset password form."""

@@ -84,35 +84,6 @@
   </div>
 </div>
 
-<div class="row mb-4">
-  <div class="col-lg-5">
-    <div class="card">
-      <div class="card-header"><h3 class="card-title">Change Password</h3></div>
-      <div class="card-body">
-        <div id="pw-success" class="alert alert-success d-none"></div>
-        <div id="pw-error" class="alert alert-danger d-none"></div>
-        <div id="pw-errors" class="d-none"><ul class="mb-0 text-danger small"></ul></div>
-        <form id="change-password-form">
-          <div class="mb-3">
-            <label class="form-label">Current Password</label>
-            <input type="password" name="current_password" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">New Password</label>
-            <input type="password" name="new_password" class="form-control" required minlength="8">
-            <div class="form-hint text-muted">Min 8 chars, uppercase + lowercase + number</div>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Confirm New Password</label>
-            <input type="password" name="confirm_new_password" class="form-control" required minlength="8">
-          </div>
-          <button type="submit" class="btn btn-warning w-100">Change Password</button>
-        </form>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="row">
   <div class="col-12">
     <div class="card">
@@ -241,32 +212,5 @@ async function loadMatches() {
 
 loadPlayers().then(() => { loadRanking(); loadMatches(); });
 
-// --- Change Password ---
-document.getElementById('change-password-form').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const fd = new FormData(this);
-  const sucEl = document.getElementById('pw-success');
-  const errEl = document.getElementById('pw-error');
-  const errsEl = document.getElementById('pw-errors');
-  sucEl.classList.add('d-none'); errEl.classList.add('d-none'); errsEl.classList.add('d-none');
-  const body = {
-    current_password: fd.get('current_password'),
-    new_password: fd.get('new_password'),
-    confirm_new_password: fd.get('confirm_new_password')
-  };
-  const resp = await fetch('/password/change', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
-  const data = await resp.json();
-  if (data.success) {
-    sucEl.textContent = data.message; sucEl.classList.remove('d-none');
-    this.reset();
-  } else {
-    errEl.textContent = data.message; errEl.classList.remove('d-none');
-    if (data.errors && data.errors.length) {
-      const ul = errsEl.querySelector('ul'); ul.innerHTML = '';
-      data.errors.forEach(err => { ul.innerHTML += '<li>' + err + '</li>'; });
-      errsEl.classList.remove('d-none');
-    }
-  }
-});
 </script>
 {% endblock %}

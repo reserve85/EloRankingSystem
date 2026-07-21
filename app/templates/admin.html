@@ -103,6 +103,18 @@
         <div class="mb-3"><label class="form-label">K Factor</label><input type="number" id="club-k-factor" class="form-control"></div>
         <div class="mb-3"><label class="form-label">Inactivity Months</label><input type="number" id="club-inactivity" class="form-control"></div>
         <button class="btn btn-primary" onclick="saveClubSettings()">Save Settings</button>
+        <hr class="my-4">
+        <h4>Club Logo</h4>
+        <div class="mb-3">
+          <div id="logo-preview" class="mb-2"><img id="logo-img" src="" alt="No logo" style="max-height:80px;display:none;" class="rounded"></div>
+          <form id="logo-form" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".png,.svg,.jpg,.jpeg" class="form-control mb-2" required>
+            <button type="submit" class="btn btn-outline-primary btn-sm">Upload Logo</button>
+          </form>
+          <div id="logo-success" class="alert alert-success mt-2 d-none"></div>
+          <div id="logo-error" class="alert alert-danger mt-2 d-none"></div>
+          <div class="form-hint text-muted">PNG, SVG, JPG. Max 2MB.</div>
+        </div>
       </div>
     </div>
   </div>
@@ -333,7 +345,35 @@ document.getElementById('reset-password-form').addEventListener('submit', async 
   }
 });
 
+// --- Logo Upload ---
+document.getElementById('logo-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const fd = new FormData(this);
+  const sucEl = document.getElementById('logo-success');
+  const errEl = document.getElementById('logo-error');
+  sucEl.classList.add('d-none'); errEl.classList.add('d-none');
+  const resp = await fetch('/settings/logo', { method: 'POST', body: fd });
+  const data = await resp.json();
+  if (resp.ok) {
+    sucEl.textContent = 'Logo uploaded!'; sucEl.classList.remove('d-none');
+    loadLogo();
+  } else {
+    errEl.textContent = data.detail || 'Upload failed'; errEl.classList.remove('d-none');
+  }
+});
+async function loadLogo() {
+  try {
+    const resp = await fetch('/settings/logo');
+    if (resp.ok) {
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const img = document.getElementById('logo-img');
+      img.src = url; img.style.display = 'block';
+    }
+  } catch(e) {}
+}
+
 // Init
-loadPlayers(); loadUsers(); loadMatches(); loadClubSettings(); loadAuditLogs(); loadResetUsers();
+loadPlayers(); loadUsers(); loadMatches(); loadClubSettings(); loadAuditLogs(); loadResetUsers(); loadLogo();
 </script>
 {% endblock %}

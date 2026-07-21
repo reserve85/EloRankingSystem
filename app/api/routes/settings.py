@@ -1,6 +1,9 @@
 """Club settings API routes."""
 
-from fastapi import APIRouter, Depends, Request
+import os
+import uuid
+from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -27,6 +30,7 @@ class SettingsResponse(BaseModel):
     default_elo: int
     k_factor: float
     inactivity_months: int
+    club_logo_path: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -41,6 +45,80 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(req
         db.commit()
         db.refresh(settings)
     return settings
+
+
+@router.post("/logo", response_model=SettingsResponse)
+async def upload_logo(
+    request: Request,
+    file: UploadFile = File(...),
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Upload club logo. Requires ADMIN or SYSTEM role."""
+    ip, ua = get_client_info(request)
+
+    # Validate file extension
+    allowed_extensions = {".png", ".svg", ".jpg", ".jpeg"}
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in allowed_extensions:
+        raise HTTPException(status_code=400, detail=f"Invalid file type '{ext}'. Allowed: {', '.join(allowed_extensions)}")
+
+    # Validate MIME type
+    allowed_mimes = {"image/png", "image/svg+xml", "image/jpeg", "image/jpg"}
+    if file.content_type not in allowed_mimes:
+        raise HTTPException(status_code=400, detail=f"Invalid content type '{file.content_type}'")
+
+    # Read and validate size (max 2MB)
+    content = await file.read()
+    if len(content) > 2 * 1024 * 1024:
+        raise HTTPException(status_code=400, detail="File too large. Maximum size: 2MB")
+
+    # Save file
+    upload_dir = os.path.join("uploads")
+    os.makedirs(upload_dir, exist_ok=True)
+    safe_name = f"club_logo_{uuid.uuid4().hex}{ext}"
+    file_path = os.path.join(upload_dir, safe_name)
+
+    # Delete old logo if exists
+    settings = db.query(ClubSettings).first()
+    if settings is None:
+        settings = ClubSettings()
+        db.add(settings)
+        db.commit()
+        db.refresh(settings)
+
+    if settings.club_logo_path and os.path.exists(settings.club_logo_path):
+        try:
+            os.remove(settings.club_logo_path)
+        except OSError:
+            pass
+
+    with open(file_path, "wb") as f:
+        f.write(content)
+
+    old_path = settings.club_logo_path
+    settings.club_logo_path = file_path
+    db.commit()
+    db.refresh(settings)
+
+    log_event(
+        db, action="CLUB_LOGO_UPLOADED", entity_type="club_settings",
+        entity_id=settings.id, user_id=current_user.id, username=current_user.username,
+        old_value={"club_logo_path": old_path}, new_value={"club_logo_path": file_path},
+        ip_address=ip, user_agent=ua,
+    )
+
+    return settings
+
+
+@router.get("/logo")
+def get_logo(current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Download the club logo. Requires authentication."""
+    settings = db.query(ClubSettings).first()
+    if settings is None or not settings.club_logo_path or not os.path.exists(settings.club_logo_path):
+        raise HTTPException(status_code=404, detail="No logo uploaded")
+
+    return FileResponse(settings.club_logo_path, media_type="image/*")
 
 
 @router.put("/", response_model=SettingsResponse)

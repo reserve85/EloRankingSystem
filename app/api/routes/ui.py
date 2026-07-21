@@ -50,6 +50,20 @@ def admin_page(request: Request, current_user: User = Depends(require_admin)):
     )
 
 
+@router.get("/change-password")
+def change_password_page(request: Request, current_user: User = Depends(get_current_user)):
+    """Render the change password page. All authenticated users."""
+    return templates.TemplateResponse(
+        request,
+        "change_password.html",
+        {
+            "user": current_user,
+            "app_name": settings.app_name,
+            "version_info": get_version_info(),
+        },
+    )
+
+
 @router.get("/logout")
 def logout_redirect(request: Request):
     """Clear auth cookie and redirect to login."""
