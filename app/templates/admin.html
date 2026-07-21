@@ -10,6 +10,7 @@
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-users">Users</a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-matches">Matches</a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-club">Club Settings</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-audit">Audit Log</a></li>
 </ul>
 
 <div class="tab-content mt-3">
@@ -70,6 +71,18 @@
         <div class="mb-3"><label class="form-label">K Factor</label><input type="number" id="club-k-factor" class="form-control"></div>
         <div class="mb-3"><label class="form-label">Inactivity Months</label><input type="number" id="club-inactivity" class="form-control"></div>
         <button class="btn btn-primary" onclick="saveClubSettings()">Save Settings</button>
+      </div>
+    </div>
+  </div>
+  <!-- Audit Log Tab -->
+  <div class="tab-pane" id="tab-audit">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">Audit Log</h3></div>
+      <div class="card-body">
+        <table id="audit-table" class="table table-vcenter table-hover table-striped" style="width:100%">
+          <thead><tr><th>ID</th><th>Timestamp</th><th>User</th><th>Action</th><th>Entity</th><th>Entity ID</th><th>Details</th></tr></thead>
+          <tbody></tbody>
+        </table>
       </div>
     </div>
   </div>
@@ -233,7 +246,25 @@ async function saveClubSettings() {
   else { eEl.textContent='Failed to save'; eEl.classList.remove('d-none'); }
 }
 
+// --- Audit Log ---
+async function loadAuditLogs() {
+  const resp = await fetch('/audit/?limit=200');
+  if (!resp.ok) return;
+  const logs = await resp.json();
+  const tbody = document.querySelector('#audit-table tbody'); tbody.innerHTML = '';
+  logs.forEach(l => {
+    const ts = l.timestamp ? l.timestamp.replace('T', ' ').slice(0, 19) : '';
+    const actionBadge = '<span class="badge bg-blue-lt">' + l.action + '</span>';
+    const entity = l.entity_type || '';
+    const entityId = l.entity_id || '';
+    const details = l.new_value ? l.new_value.slice(0, 80) : (l.old_value ? l.old_value.slice(0, 80) : '');
+    tbody.innerHTML += '<tr><td>'+l.id+'</td><td>'+ts+'</td><td>'+(l.username||'')+'</td><td>'+actionBadge+'</td><td>'+entity+'</td><td>'+entityId+'</td><td class="text-muted small">'+details+'</td></tr>';
+  });
+  if ($.fn.DataTable.isDataTable('#audit-table')) { $('#audit-table').DataTable().destroy(); }
+  $('#audit-table').DataTable({ paging: true, pageLength: 50, order: [[0,'desc']], searching: true });
+}
+
 // Init
-loadPlayers(); loadUsers(); loadMatches(); loadClubSettings();
+loadPlayers(); loadUsers(); loadMatches(); loadClubSettings(); loadAuditLogs();
 </script>
 {% endblock %}

@@ -1,12 +1,13 @@
 """Club settings API routes."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.auth.dependencies import require_admin
 from app.models.user import User
 from app.models.club_settings import ClubSettings
+from app.services.audit import log_event, get_client_info
 from pydantic import BaseModel
 from typing import Optional
 
@@ -35,7 +36,6 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(req
     """Get club settings. Requires ADMIN or SYSTEM role."""
     settings = db.query(ClubSettings).first()
     if settings is None:
-        # Create default settings
         settings = ClubSettings()
         db.add(settings)
         db.commit()
@@ -44,7 +44,7 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(req
 
 
 @router.put("/", response_model=SettingsResponse)
-def update_settings(data: SettingsUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
+def update_settings(request: Request, data: SettingsUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     """Update club settings. Requires ADMIN or SYSTEM role."""
     settings = db.query(ClubSettings).first()
     if settings is None:
@@ -52,6 +52,14 @@ def update_settings(data: SettingsUpdate, db: Session = Depends(get_db), current
         db.add(settings)
         db.commit()
         db.refresh(settings)
+
+    old = {
+        "club_name": settings.club_name,
+        "default_elo": settings.default_elo,
+        "k_factor": settings.k_factor,
+        "inactivity_months": settings.inactivity_months,
+    }
+
     if data.club_name is not None:
         settings.club_name = data.club_name
     if data.default_elo is not None:
@@ -62,4 +70,19 @@ def update_settings(data: SettingsUpdate, db: Session = Depends(get_db), current
         settings.inactivity_months = data.inactivity_months
     db.commit()
     db.refresh(settings)
+
+    new = {
+        "club_name": settings.club_name,
+        "default_elo": settings.default_elo,
+        "k_factor": settings.k_factor,
+        "inactivity_months": settings.inactivity_months,
+    }
+
+    ip, ua = get_client_info(request)
+    log_event(
+        db, action="CLUB_SETTINGS_CHANGED", entity_type="club_settings",
+        entity_id=settings.id, user_id=current_user.id, username=current_user.username,
+        old_value=old, new_value=new,
+        ip_address=ip, user_agent=ua,
+    )
     return settings

@@ -1,6 +1,6 @@
 """Player management API routes."""
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -8,12 +8,14 @@ from app.auth.dependencies import require_admin, require_user
 from app.models.user import User
 from app.schemas.player import PlayerCreate, PlayerUpdate, PlayerResponse
 from app.services.player import PlayerService
+from app.services.audit import log_event, get_client_info
 
 router = APIRouter(prefix="/players", tags=["players"])
 
 
 @router.post("/", response_model=PlayerResponse, status_code=status.HTTP_201_CREATED)
 def create_player(
+    request: Request,
     data: PlayerCreate,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
@@ -21,6 +23,14 @@ def create_player(
     """Create a new player. Requires ADMIN or SYSTEM role."""
     service = PlayerService(db)
     player = service.create_player(data)
+    ip, ua = get_client_info(request)
+    log_event(
+        db, action="PLAYER_CREATED", entity_type="player",
+        entity_id=player.id, user_id=current_user.id,
+        username=current_user.username,
+        new_value={"name": player.name, "start_elo": player.start_elo},
+        ip_address=ip, user_agent=ua,
+    )
     return player
 
 
@@ -59,32 +69,63 @@ def get_player(
 @router.put("/{player_id}", response_model=PlayerResponse)
 def update_player(
     player_id: int,
+    request: Request,
     data: PlayerUpdate,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Update a player. Requires ADMIN or SYSTEM role."""
     service = PlayerService(db)
-    return service.update_player(player_id, data)
+    player = service.get_player(player_id)
+    old = {"name": player.name, "start_elo": player.start_elo}
+    player = service.update_player(player_id, data)
+    ip, ua = get_client_info(request)
+    log_event(
+        db, action="PLAYER_UPDATED", entity_type="player",
+        entity_id=player.id, user_id=current_user.id,
+        username=current_user.username,
+        old_value=old,
+        new_value={"name": player.name, "start_elo": player.start_elo},
+        ip_address=ip, user_agent=ua,
+    )
+    return player
 
 
 @router.post("/{player_id}/disable", response_model=PlayerResponse)
 def disable_player(
     player_id: int,
+    request: Request,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Disable a player. Requires ADMIN or SYSTEM role."""
     service = PlayerService(db)
-    return service.disable_player(player_id)
+    player = service.disable_player(player_id)
+    ip, ua = get_client_info(request)
+    log_event(
+        db, action="PLAYER_DISABLED", entity_type="player",
+        entity_id=player.id, user_id=current_user.id,
+        username=current_user.username,
+        ip_address=ip, user_agent=ua,
+    )
+    return player
 
 
 @router.post("/{player_id}/reactivate", response_model=PlayerResponse)
 def reactivate_player(
     player_id: int,
+    request: Request,
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
     """Reactivate a disabled player. Requires ADMIN or SYSTEM role."""
     service = PlayerService(db)
-    return service.reactivate_player(player_id)
+    player = service.reactivate_player(player_id)
+    ip, ua = get_client_info(request)
+    log_event(
+        db, action="PLAYER_REACTIVATED", entity_type="player",
+        entity_id=player.id, user_id=current_user.id,
+        username=current_user.username,
+        ip_address=ip, user_agent=ua,
+    )
+    return player
