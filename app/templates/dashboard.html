@@ -13,28 +13,29 @@
         <div id="match-success" class="alert alert-success d-none"></div>
         <div id="match-error" class="alert alert-danger d-none"></div>
         <form id="add-match-form">
-          <div class="mb-3">
-            <label class="form-label">Date</label>
-            <input type="date" name="date" class="form-control" required>
+          <!-- Row 1: Player Selection -->
+          <div class="row g-2 mb-3">
+            <div class="col-6">
+              <label class="form-label">Player 1</label>
+              <select name="player_a_id" class="form-select" id="player-a-select" required>
+                <option value="">Select player...</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Player 2</label>
+              <select name="player_b_id" class="form-select" id="player-b-select" required>
+                <option value="">Select player...</option>
+              </select>
+            </div>
           </div>
+
+          <!-- Row 2: Score -->
           <div class="mb-3">
-            <label class="form-label">Player A</label>
-            <select name="player_a_id" class="form-select" id="player-a-select" required>
-              <option value="">Select player...</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Player B</label>
-            <select name="player_b_id" class="form-select" id="player-b-select" required>
-              <option value="">Select player...</option>
-            </select>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Result (Best of 5)</label>
+            <label class="form-label">Score (Best of 5)</label>
             <div class="row g-2">
               <div class="col-6">
                 <select name="player1_score" class="form-select" id="score-a" required>
-                  <option value="">Score A</option>
+                  <option value="">P1 Score</option>
                   <option value="0">0</option>
                   <option value="1">1</option>
                   <option value="2">2</option>
@@ -43,7 +44,7 @@
               </div>
               <div class="col-6">
                 <select name="player2_score" class="form-select" id="score-b" required>
-                  <option value="">Score B</option>
+                  <option value="">P2 Score</option>
                   <option value="0">0</option>
                   <option value="1">1</option>
                   <option value="2">2</option>
@@ -53,6 +54,78 @@
             </div>
             <div class="form-hint text-muted">One player must score 3 to win. Valid: 3:0, 3:1, 3:2, 2:3, 1:3, 0:3</div>
           </div>
+
+          <!-- Row 3: Date -->
+          <div class="mb-3">
+            <label class="form-label">Date</label>
+            <input type="date" name="date" class="form-control" required>
+          </div>
+
+          <!-- Dart Statistics (optional) -->
+          <details class="mb-3">
+            <summary class="form-label text-primary" style="cursor:pointer">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-1" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+              Dart Statistics <span class="text-muted small">(optional)</span>
+            </summary>
+
+            <!-- Row 3: 180s -->
+            <div class="border rounded p-2 mb-2 mt-2">
+              <label class="form-label fw-bold small mb-2">180s</label>
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="text-muted small mb-1" id="p1-name-180">Player 1</div>
+                  <div class="input-group input-group-sm">
+                    <button type="button" class="btn btn-outline-secondary" onclick="adjustCounter('p1-180s',-1)">−</button>
+                    <input type="number" class="form-control text-center" id="p1-180s" value="0" min="0" style="max-width:60px">
+                    <button type="button" class="btn btn-outline-secondary" onclick="adjustCounter('p1-180s',1)">+</button>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small mb-1" id="p2-name-180">Player 2</div>
+                  <div class="input-group input-group-sm">
+                    <button type="button" class="btn btn-outline-secondary" onclick="adjustCounter('p2-180s',-1)">−</button>
+                    <input type="number" class="form-control text-center" id="p2-180s" value="0" min="0" style="max-width:60px">
+                    <button type="button" class="btn btn-outline-secondary" onclick="adjustCounter('p2-180s',1)">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 4: High Finishes -->
+            <div class="border rounded p-2 mb-2">
+              <label class="form-label fw-bold small mb-2">High Finishes <span class="text-muted fw-normal">({{ hf_min }}–{{ hf_max }})</span></label>
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="text-muted small mb-1" id="p1-name-hf">Player 1</div>
+                  <div id="p1-hf-list"></div>
+                  <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addHfEntry('p1')">+ Add</button>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small mb-1" id="p2-name-hf">Player 2</div>
+                  <div id="p2-hf-list"></div>
+                  <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addHfEntry('p2')">+ Add</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Row 5: Low Darts -->
+            <div class="border rounded p-2 mb-2">
+              <label class="form-label fw-bold small mb-2">Low Darts <span class="text-muted fw-normal">({{ ld_min }}–{{ ld_max }})</span></label>
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="text-muted small mb-1" id="p1-name-ld">Player 1</div>
+                  <div id="p1-ld-list"></div>
+                  <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addLdEntry('p1')">+ Add</button>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small mb-1" id="p2-name-ld">Player 2</div>
+                  <div id="p2-ld-list"></div>
+                  <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addLdEntry('p2')">+ Add</button>
+                </div>
+              </div>
+            </div>
+          </details>
+
           <button type="submit" class="btn btn-primary w-100">Save Match</button>
         </form>
       </div>
@@ -141,6 +214,75 @@ async function loadPlayers() {
   });
 }
 
+// --- Statistics helpers ---
+function adjustCounter(id, delta) {
+  const el = document.getElementById(id);
+  const val = Math.max(0, (parseInt(el.value) || 0) + delta);
+  el.value = val;
+}
+
+function addHfEntry(player) {
+  const container = document.getElementById(player + '-hf-list');
+  const div = document.createElement('div');
+  div.className = 'input-group input-group-sm mb-1';
+  div.innerHTML = '<input type="number" class="form-control hf-input" min="{{ hf_min }}" max="{{ hf_max }}" placeholder="{{ hf_min }}–{{ hf_max }}" data-player="' + player + '">'
+    + '<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">−</button>';
+  container.appendChild(div);
+}
+
+function addLdEntry(player) {
+  const container = document.getElementById(player + '-ld-list');
+  const div = document.createElement('div');
+  div.className = 'input-group input-group-sm mb-1';
+  div.innerHTML = '<input type="number" class="form-control ld-input" min="{{ ld_min }}" max="{{ ld_max }}" placeholder="{{ ld_min }}–{{ ld_max }}" data-player="' + player + '">'
+    + '<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">−</button>';
+  container.appendChild(div);
+}
+
+function updatePlayerLabels() {
+  const nameA = document.getElementById('player-a-select').selectedOptions[0]?.text || 'Player 1';
+  const nameB = document.getElementById('player-b-select').selectedOptions[0]?.text || 'Player 2';
+  const labelA = nameA !== 'Select player...' ? nameA : 'Player 1';
+  const labelB = nameB !== 'Select player...' ? nameB : 'Player 2';
+  ['p1-name-180','p1-name-hf','p1-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = labelA; });
+  ['p2-name-180','p2-name-hf','p2-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = labelB; });
+}
+
+document.getElementById('player-a-select').addEventListener('change', updatePlayerLabels);
+document.getElementById('player-b-select').addEventListener('change', updatePlayerLabels);
+
+function getStatsFromForm() {
+  const stats = {};
+  // 180s
+  const p1_180s = parseInt(document.getElementById('p1-180s').value) || 0;
+  const p2_180s = parseInt(document.getElementById('p2-180s').value) || 0;
+  if (p1_180s > 0) stats.player_a_180s = p1_180s;
+  if (p2_180s > 0) stats.player_b_180s = p2_180s;
+
+  // High finishes
+  const hfA = [...document.querySelectorAll('#p1-hf-list .hf-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v));
+  const hfB = [...document.querySelectorAll('#p2-hf-list .hf-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v));
+  if (hfA.length > 0) stats.player_a_high_finishes = hfA;
+  if (hfB.length > 0) stats.player_b_high_finishes = hfB;
+
+  // Low darts
+  const ldA = [...document.querySelectorAll('#p1-ld-list .ld-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v));
+  const ldB = [...document.querySelectorAll('#p2-ld-list .ld-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v));
+  if (ldA.length > 0) stats.player_a_low_darts = ldA;
+  if (ldB.length > 0) stats.player_b_low_darts = ldB;
+
+  return stats;
+}
+
+function resetStatsForm() {
+  document.getElementById('p1-180s').value = 0;
+  document.getElementById('p2-180s').value = 0;
+  document.getElementById('p1-hf-list').innerHTML = '';
+  document.getElementById('p2-hf-list').innerHTML = '';
+  document.getElementById('p1-ld-list').innerHTML = '';
+  document.getElementById('p2-ld-list').innerHTML = '';
+}
+
 document.getElementById('add-match-form').addEventListener('submit', async function(e) {
   e.preventDefault();
   const fd = new FormData(this);
@@ -152,7 +294,8 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
     player_a_id: parseInt(fd.get('player_a_id')),
     player_b_id: parseInt(fd.get('player_b_id')),
     player1_score: parseInt(fd.get('player1_score')),
-    player2_score: parseInt(fd.get('player2_score'))
+    player2_score: parseInt(fd.get('player2_score')),
+    ...getStatsFromForm()
   };
   const resp = await fetch('/matches/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
   if (resp.ok) {
@@ -160,8 +303,16 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
     this.reset(); document.querySelector('input[name="date"]').valueAsDate = new Date();
     document.getElementById('score-a').value = '';
     document.getElementById('score-b').value = '';
+    resetStatsForm();
     loadRanking(); loadMatches();
-  } else { const data = await resp.json(); errEl.textContent = data.detail || 'Failed'; errEl.classList.remove('d-none'); }
+  } else {
+    const data = await resp.json();
+    let msg = data.detail || 'Failed';
+    if (data.detail && Array.isArray(data.detail)) {
+      msg = data.detail.map(e => e.msg || JSON.stringify(e)).join(', ');
+    }
+    errEl.textContent = msg; errEl.classList.remove('d-none');
+  }
 });
 
 document.getElementById('ranking-from').addEventListener('change', loadRanking);

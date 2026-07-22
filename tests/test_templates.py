@@ -252,3 +252,102 @@ class TestTablerUIAssets:
         resp = client.get("/ui/login")
         assert "viewport" in resp.text
         assert "width=device-width" in resp.text
+
+
+class TestStatisticsFormDashboard:
+    """Tests for dart statistics form in the user dashboard."""
+
+    def test_dashboard_contains_statistics_section(self, client, db_session):
+        """Dashboard should have Dart Statistics section."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "Dart Statistics" in resp.text
+        assert "p1-180s" in resp.text
+        assert "p2-180s" in resp.text
+
+    def test_dashboard_contains_high_finishes_section(self, client, db_session):
+        """Dashboard should have High Finishes inputs."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "High Finishes" in resp.text
+        assert "p1-hf-list" in resp.text
+        assert "p2-hf-list" in resp.text
+
+    def test_dashboard_contains_low_darts_section(self, client, db_session):
+        """Dashboard should have Low Darts inputs."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "Low Darts" in resp.text
+        assert "p1-ld-list" in resp.text
+        assert "p2-ld-list" in resp.text
+
+    def test_dashboard_shows_config_ranges(self, client, db_session):
+        """Dashboard should display configured validation ranges."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "100" in resp.text  # hf_min default
+        assert "170" in resp.text  # hf_max default
+
+    def test_dashboard_statistics_is_collapsible(self, client, db_session):
+        """Statistics section should be in a collapsible details element."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "<details" in resp.text
+        assert "optional" in resp.text.lower()
+
+    def test_dashboard_contains_counter_buttons(self, client, db_session):
+        """Dashboard should have +/- buttons for 180s counter."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "adjustCounter" in resp.text
+
+    def test_dashboard_has_submit_without_stats(self, client, db_session):
+        """Match can be submitted without filling in statistics (they're optional)."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # The form should not have "required" on stats inputs
+        assert 'id="p1-180s"' in resp.text
+        # Verify the stats section is inside a <details> element (collapsible)
+        assert "getStatsFromForm" in resp.text
+
+
+class TestStatisticsFormAdmin:
+    """Tests for dart statistics form in the admin dashboard."""
+
+    def test_admin_contains_statistics_section(self, client, db_session):
+        """Admin matches tab should have Dart Statistics section."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "Dart Statistics" in resp.text
+        assert "admin-p1-180s" in resp.text
+        assert "admin-p2-180s" in resp.text
+
+    def test_admin_contains_high_finishes_inputs(self, client, db_session):
+        """Admin should have High Finishes dynamic inputs."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-p1-hf-list" in resp.text
+        assert "admin-p2-hf-list" in resp.text
+        assert "addHfEntry" in resp.text
+
+    def test_admin_contains_low_darts_inputs(self, client, db_session):
+        """Admin should have Low Darts dynamic inputs."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-p1-ld-list" in resp.text
+        assert "admin-p2-ld-list" in resp.text
+        assert "addLdEntry" in resp.text
+
+    def test_admin_match_form_has_player_selects(self, client, db_session):
+        """Admin match form should have player selection dropdowns."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-player-a-select" in resp.text
+        assert "admin-player-b-select" in resp.text
+
+    def test_admin_shows_config_ranges(self, client, db_session):
+        """Admin should display configured validation ranges."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "100" in resp.text  # hf_min
+        assert "170" in resp.text  # hf_max

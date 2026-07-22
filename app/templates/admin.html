@@ -80,13 +80,140 @@
 
   <!-- Matches Tab -->
   <div class="tab-pane" id="tab-matches">
-    <div class="card">
-      <div class="card-header"><h3 class="card-title">Match History</h3></div>
-      <div class="card-body">
-        <table id="matches-table" class="table table-vcenter table-hover table-striped" style="width:100%">
-          <thead><tr><th>ID</th><th>Date</th><th>Player A</th><th>Player B</th><th>Score</th><th>Winner</th><th>Elo +/-</th><th>Actions</th></tr></thead>
-          <tbody></tbody>
-        </table>
+    <div class="row mb-4">
+      <div class="col-lg-5">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Add Match</h3></div>
+          <div class="card-body">
+            <div id="admin-match-success" class="alert alert-success d-none"></div>
+            <div id="admin-match-error" class="alert alert-danger d-none"></div>
+            <form id="admin-add-match-form">
+              <!-- Row 1: Player Selection -->
+              <div class="row g-2 mb-3">
+                <div class="col-6">
+                  <label class="form-label">Player 1</label>
+                  <select name="player_a_id" class="form-select" id="admin-player-a-select" required>
+                    <option value="">Select player...</option>
+                  </select>
+                </div>
+                <div class="col-6">
+                  <label class="form-label">Player 2</label>
+                  <select name="player_b_id" class="form-select" id="admin-player-b-select" required>
+                    <option value="">Select player...</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Row 2: Score -->
+              <div class="mb-3">
+                <label class="form-label">Score (Best of 5)</label>
+                <div class="row g-2">
+                  <div class="col-6">
+                    <select name="player1_score" class="form-select" id="admin-score-a" required>
+                      <option value="">P1 Score</option>
+                      <option value="0">0</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                    </select>
+                  </div>
+                  <div class="col-6">
+                    <select name="player2_score" class="form-select" id="admin-score-b" required>
+                      <option value="">P2 Score</option>
+                      <option value="0">0</option>
+                      <option value="1">1</option>
+                      <option value="2">2</option>
+                      <option value="3">3</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-hint text-muted">One player must score 3 to win.</div>
+              </div>
+
+              <!-- Row 3: Date -->
+              <div class="mb-3">
+                <label class="form-label">Date</label>
+                <input type="date" name="date" class="form-control" required>
+              </div>
+
+              <!-- Dart Statistics (optional) -->
+              <details class="mb-3">
+                <summary class="form-label text-primary" style="cursor:pointer">
+                  <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-1" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+                  Dart Statistics <span class="text-muted small">(optional)</span>
+                </summary>
+
+                <div class="border rounded p-2 mb-2 mt-2">
+                  <label class="form-label fw-bold small mb-2">180s</label>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <div class="text-muted small mb-1" id="admin-p1-name-180">Player 1</div>
+                      <div class="input-group input-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" onclick="adjustCounter('admin-p1-180s',-1)">−</button>
+                        <input type="number" class="form-control text-center" id="admin-p1-180s" value="0" min="0" style="max-width:60px">
+                        <button type="button" class="btn btn-outline-secondary" onclick="adjustCounter('admin-p1-180s',1)">+</button>
+                      </div>
+                    </div>
+                    <div class="col-6">
+                      <div class="text-muted small mb-1" id="admin-p2-name-180">Player 2</div>
+                      <div class="input-group input-group-sm">
+                        <button type="button" class="btn btn-outline-secondary" onclick="adjustCounter('admin-p2-180s',-1)">−</button>
+                        <input type="number" class="form-control text-center" id="admin-p2-180s" value="0" min="0" style="max-width:60px">
+                        <button type="button" class="btn btn-outline-secondary" onclick="adjustCounter('admin-p2-180s',1)">+</button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="border rounded p-2 mb-2">
+                  <label class="form-label fw-bold small mb-2">High Finishes <span class="text-muted fw-normal">({{ hf_min }}–{{ hf_max }})</span></label>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <div class="text-muted small mb-1" id="admin-p1-name-hf">Player 1</div>
+                      <div id="admin-p1-hf-list"></div>
+                      <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addHfEntry('admin-p1')">+ Add</button>
+                    </div>
+                    <div class="col-6">
+                      <div class="text-muted small mb-1" id="admin-p2-name-hf">Player 2</div>
+                      <div id="admin-p2-hf-list"></div>
+                      <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addHfEntry('admin-p2')">+ Add</button>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="border rounded p-2 mb-2">
+                  <label class="form-label fw-bold small mb-2">Low Darts <span class="text-muted fw-normal">({{ ld_min }}–{{ ld_max }})</span></label>
+                  <div class="row g-2">
+                    <div class="col-6">
+                      <div class="text-muted small mb-1" id="admin-p1-name-ld">Player 1</div>
+                      <div id="admin-p1-ld-list"></div>
+                      <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addLdEntry('admin-p1')">+ Add</button>
+                    </div>
+                    <div class="col-6">
+                      <div class="text-muted small mb-1" id="admin-p2-name-ld">Player 2</div>
+                      <div id="admin-p2-ld-list"></div>
+                      <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addLdEntry('admin-p2')">+ Add</button>
+                    </div>
+                  </div>
+                </div>
+              </details>
+
+              <button type="submit" class="btn btn-primary w-100">Save Match</button>
+            </form>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-lg-7">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Match History</h3></div>
+          <div class="card-body">
+            <table id="matches-table" class="table table-vcenter table-hover table-striped" style="width:100%">
+              <thead><tr><th>ID</th><th>Date</th><th>Player A</th><th>Player B</th><th>Score</th><th>Winner</th><th>Elo +/-</th><th>Actions</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
+        </div>
       </div>
     </div>
   </div>
@@ -373,7 +500,119 @@ async function loadLogo() {
   } catch(e) {}
 }
 
+// --- Admin Add Match with Statistics ---
+async function loadAdminMatchPlayers() {
+  const resp = await fetch('/players/active');
+  if (!resp.ok) return;
+  const players = await resp.json();
+  const selA = document.getElementById('admin-player-a-select');
+  const selB = document.getElementById('admin-player-b-select');
+  selA.innerHTML = '<option value="">Select player...</option>';
+  selB.innerHTML = '<option value="">Select player...</option>';
+  players.forEach(p => {
+    selA.add(new Option(p.name, p.id));
+    selB.add(new Option(p.name, p.id));
+  });
+}
+
+function adjustCounter(id, delta) {
+  const el = document.getElementById(id);
+  const val = Math.max(0, (parseInt(el.value) || 0) + delta);
+  el.value = val;
+}
+
+function addHfEntry(prefix) {
+  const container = document.getElementById(prefix + '-hf-list');
+  const div = document.createElement('div');
+  div.className = 'input-group input-group-sm mb-1';
+  div.innerHTML = '<input type="number" class="form-control hf-input" min="{{ hf_min }}" max="{{ hf_max }}" placeholder="{{ hf_min }}–{{ hf_max }}">'
+    + '<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">−</button>';
+  container.appendChild(div);
+}
+
+function addLdEntry(prefix) {
+  const container = document.getElementById(prefix + '-ld-list');
+  const div = document.createElement('div');
+  div.className = 'input-group input-group-sm mb-1';
+  div.innerHTML = '<input type="number" class="form-control ld-input" min="{{ ld_min }}" max="{{ ld_max }}" placeholder="{{ ld_min }}–{{ ld_max }}">'
+    + '<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">−</button>';
+  container.appendChild(div);
+}
+
+function getAdminStatsFromForm() {
+  const stats = {};
+  const p1_180s = parseInt(document.getElementById('admin-p1-180s').value) || 0;
+  const p2_180s = parseInt(document.getElementById('admin-p2-180s').value) || 0;
+  if (p1_180s > 0) stats.player_a_180s = p1_180s;
+  if (p2_180s > 0) stats.player_b_180s = p2_180s;
+
+  const hfA = [...document.querySelectorAll('#admin-p1-hf-list .hf-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v));
+  const hfB = [...document.querySelectorAll('#admin-p2-hf-list .hf-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v));
+  if (hfA.length > 0) stats.player_a_high_finishes = hfA;
+  if (hfB.length > 0) stats.player_b_high_finishes = hfB;
+
+  const ldA = [...document.querySelectorAll('#admin-p1-ld-list .ld-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v));
+  const ldB = [...document.querySelectorAll('#admin-p2-ld-list .ld-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v));
+  if (ldA.length > 0) stats.player_a_low_darts = ldA;
+  if (ldB.length > 0) stats.player_b_low_darts = ldB;
+
+  return stats;
+}
+
+function resetAdminStatsForm() {
+  document.getElementById('admin-p1-180s').value = 0;
+  document.getElementById('admin-p2-180s').value = 0;
+  document.getElementById('admin-p1-hf-list').innerHTML = '';
+  document.getElementById('admin-p2-hf-list').innerHTML = '';
+  document.getElementById('admin-p1-ld-list').innerHTML = '';
+  document.getElementById('admin-p2-ld-list').innerHTML = '';
+}
+
+function updateAdminPlayerLabels() {
+  const nameA = document.getElementById('admin-player-a-select').selectedOptions[0]?.text || 'Player 1';
+  const nameB = document.getElementById('admin-player-b-select').selectedOptions[0]?.text || 'Player 2';
+  const labelA = nameA !== 'Select player...' ? nameA : 'Player 1';
+  const labelB = nameB !== 'Select player...' ? nameB : 'Player 2';
+  ['admin-p1-name-180','admin-p1-name-hf','admin-p1-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = labelA; });
+  ['admin-p2-name-180','admin-p2-name-hf','admin-p2-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = labelB; });
+}
+
+document.getElementById('admin-player-a-select').addEventListener('change', updateAdminPlayerLabels);
+document.getElementById('admin-player-b-select').addEventListener('change', updateAdminPlayerLabels);
+
+document.getElementById('admin-add-match-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const fd = new FormData(this);
+  const errEl = document.getElementById('admin-match-error');
+  const sucEl = document.getElementById('admin-match-success');
+  errEl.classList.add('d-none'); sucEl.classList.add('d-none');
+  const body = {
+    date: fd.get('date'),
+    player_a_id: parseInt(fd.get('player_a_id')),
+    player_b_id: parseInt(fd.get('player_b_id')),
+    player1_score: parseInt(fd.get('player1_score')),
+    player2_score: parseInt(fd.get('player2_score')),
+    ...getAdminStatsFromForm()
+  };
+  const resp = await fetch('/matches/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+  if (resp.ok) {
+    sucEl.textContent = 'Match saved!'; sucEl.classList.remove('d-none');
+    this.reset(); document.querySelector('#admin-add-match-form input[name="date"]').valueAsDate = new Date();
+    document.getElementById('admin-score-a').value = '';
+    document.getElementById('admin-score-b').value = '';
+    resetAdminStatsForm();
+    loadMatches();
+  } else {
+    const data = await resp.json();
+    let msg = data.detail || 'Failed';
+    if (data.detail && Array.isArray(data.detail)) {
+      msg = data.detail.map(e => e.msg || JSON.stringify(e)).join(', ');
+    }
+    errEl.textContent = msg; errEl.classList.remove('d-none');
+  }
+});
+
 // Init
-loadPlayers(); loadUsers(); loadMatches(); loadClubSettings(); loadAuditLogs(); loadResetUsers(); loadLogo();
+loadPlayers(); loadUsers(); loadMatches(); loadClubSettings(); loadAuditLogs(); loadResetUsers(); loadLogo(); loadAdminMatchPlayers();
 </script>
 {% endblock %}

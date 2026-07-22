@@ -32,6 +32,10 @@ def dashboard_page(request: Request, current_user: User = Depends(get_current_us
             "user": current_user,
             "app_name": settings.app_name,
             "version_info": get_version_info(),
+            "hf_min": settings.high_finish_min,
+            "hf_max": settings.high_finish_max,
+            "ld_min": settings.low_darts_min,
+            "ld_max": settings.low_darts_max,
         },
     )
 
@@ -46,6 +50,10 @@ def admin_page(request: Request, current_user: User = Depends(require_admin)):
             "user": current_user,
             "app_name": settings.app_name,
             "version_info": get_version_info(),
+            "hf_min": settings.high_finish_min,
+            "hf_max": settings.high_finish_max,
+            "ld_min": settings.low_darts_min,
+            "ld_max": settings.low_darts_max,
         },
     )
 
