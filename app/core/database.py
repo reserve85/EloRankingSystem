@@ -57,7 +57,7 @@ def init_db() -> None:
     import logging
     from alembic.config import Config
     from alembic import command
-    from sqlalchemy import inspect, text
+    from sqlalchemy import inspect
 
     logger = logging.getLogger(__name__)
 

@@ -19,13 +19,29 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    with op.batch_alter_table('matches', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('player_a_180s', sa.Integer(), nullable=False, server_default='0'))
-        batch_op.add_column(sa.Column('player_b_180s', sa.Integer(), nullable=False, server_default='0'))
-        batch_op.add_column(sa.Column('player_a_high_finishes', sa.JSON(), nullable=True))
-        batch_op.add_column(sa.Column('player_b_high_finishes', sa.JSON(), nullable=True))
-        batch_op.add_column(sa.Column('player_a_low_darts', sa.JSON(), nullable=True))
-        batch_op.add_column(sa.Column('player_b_low_darts', sa.JSON(), nullable=True))
+    from sqlalchemy import inspect
+    bind = op.get_bind()
+    inspector = inspect(bind)
+    existing_columns = {col['name'] for col in inspector.get_columns('matches')}
+
+    columns_to_add = []
+    if 'player_a_180s' not in existing_columns:
+        columns_to_add.append(sa.Column('player_a_180s', sa.Integer(), nullable=False, server_default='0'))
+    if 'player_b_180s' not in existing_columns:
+        columns_to_add.append(sa.Column('player_b_180s', sa.Integer(), nullable=False, server_default='0'))
+    if 'player_a_high_finishes' not in existing_columns:
+        columns_to_add.append(sa.Column('player_a_high_finishes', sa.JSON(), nullable=True))
+    if 'player_b_high_finishes' not in existing_columns:
+        columns_to_add.append(sa.Column('player_b_high_finishes', sa.JSON(), nullable=True))
+    if 'player_a_low_darts' not in existing_columns:
+        columns_to_add.append(sa.Column('player_a_low_darts', sa.JSON(), nullable=True))
+    if 'player_b_low_darts' not in existing_columns:
+        columns_to_add.append(sa.Column('player_b_low_darts', sa.JSON(), nullable=True))
+
+    if columns_to_add:
+        with op.batch_alter_table('matches', schema=None) as batch_op:
+            for col in columns_to_add:
+                batch_op.add_column(col)
 
 
 def downgrade() -> None:
