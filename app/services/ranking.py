@@ -190,3 +190,67 @@ class RankingService:
             (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
         ).count()
         return count
+
+    def get_player_statistics(
+        self,
+        player_id: int,
+        from_date: Optional[date] = None,
+        to_date: Optional[date] = None,
+    ) -> dict:
+        """Get dart statistics for a player (period and all-time).
+
+        Args:
+            player_id: The player's ID.
+            from_date: Start of period filter (None = no lower bound).
+            to_date: End of period filter (None = no upper bound).
+
+        Returns:
+            Dict with 'period' and 'all_time' statistics.
+        """
+        # Get all matches for this player
+        all_matches = self.db.query(Match).filter(
+            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
+        ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
+
+        if not all_matches:
+            return {
+                "player_id": player_id,
+                "period": {"total_180s": 0, "high_finishes": [], "low_darts": []},
+                "all_time": {"total_180s": 0, "high_finishes": [], "low_darts": []},
+            }
+
+        # Period matches
+        period_matches = all_matches
+        if from_date is not None:
+            period_matches = [m for m in period_matches if m.date >= from_date]
+        if to_date is not None:
+            period_matches = [m for m in period_matches if m.date <= to_date]
+
+        def _aggregate(matches: list[Match], pid: int) -> dict:
+            total_180s = 0
+            high_finishes: list[int] = []
+            low_darts: list[int] = []
+            for m in matches:
+                if m.player_a_id == pid:
+                    total_180s += m.player_a_180s or 0
+                    if m.player_a_high_finishes:
+                        high_finishes.extend(m.player_a_high_finishes)
+                    if m.player_a_low_darts:
+                        low_darts.extend(m.player_a_low_darts)
+                else:
+                    total_180s += m.player_b_180s or 0
+                    if m.player_b_high_finishes:
+                        high_finishes.extend(m.player_b_high_finishes)
+                    if m.player_b_low_darts:
+                        low_darts.extend(m.player_b_low_darts)
+            return {
+                "total_180s": total_180s,
+                "high_finishes": sorted(high_finishes, reverse=True),
+                "low_darts": sorted(low_darts),
+            }
+
+        return {
+            "player_id": player_id,
+            "period": _aggregate(period_matches, player_id),
+            "all_time": _aggregate(all_matches, player_id),
+        }

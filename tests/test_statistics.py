@@ -6,7 +6,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base, get_db
-from app.models.user import User
+from app.models.user import User, UserRole
 from app.models.player import Player
 from app.models.match import Match
 from app.models.audit_log import AuditLog
@@ -67,6 +67,21 @@ def _create_players(db_session):
 def _login(client, username="admin", password="AdminPass123"):
     resp = client.post("/auth/login", data={"username": username, "password": password})
     assert resp.status_code == 200
+
+
+def _login_as(client, db_session, username, password, role):
+    """Create a user and log in, returning the user."""
+    user = User(
+        username=username,
+        password_hash=hash_password(password),
+        role=role,
+        active=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    client.post("/auth/login", data={"username": username, "password": password})
+    return user
 
 
 # ── High Finish Validation ─────────────────────────────────────────────
@@ -829,4 +844,175 @@ class TestMigration:
         assert match.player_b_high_finishes is None or match.player_b_high_finishes == []
         assert match.player_a_low_darts is None or match.player_a_low_darts == []
         assert match.player_b_low_darts is None or match.player_b_low_darts == []
+
+
+# ── Player Statistics Aggregation ─────────────────────────────────────
+
+class TestPlayerStatisticsEndpoint:
+    """Test the player statistics API endpoint."""
+
+    def test_endpoint_requires_auth(self, client, db_session):
+        """Player stats endpoint requires authentication."""
+        resp = client.get("/rankings/player-stats/1")
+        assert resp.status_code == 401
+
+    def test_endpoint_returns_404_for_unknown_player(self, client, db_session):
+        """Endpoint returns 404 for non-existent player."""
+        _create_user(db_session)
+        _login(client)
+        resp = client.get("/rankings/player-stats/999")
+        assert resp.status_code == 404
+
+    def test_endpoint_returns_structure(self, client, db_session):
+        """Endpoint returns period and all_time structure."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["player_id"] == pa.id
+        assert "player_name" in data
+        assert "period" in data
+        assert "all_time" in data
+        assert "total_180s" in data["period"]
+        assert "high_finishes" in data["period"]
+        assert "low_darts" in data["period"]
+
+    def test_all_time_aggregation(self, client, db_session):
+        """All-time stats aggregate across all matches."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        # Match 1
+        client.post("/matches/", json={
+            "date": "2026-07-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_180s": 2,
+            "player_a_high_finishes": [120, 140],
+            "player_a_low_darts": [9, 12],
+        })
+        # Match 2
+        client.post("/matches/", json={
+            "date": "2026-07-15",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 1,
+            "player_a_180s": 1,
+            "player_a_high_finishes": [100],
+            "player_a_low_darts": [15],
+        })
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}")
+        assert resp.status_code == 200
+        at = resp.json()["all_time"]
+        assert at["total_180s"] == 3
+        assert sorted(at["high_finishes"], reverse=True) == [140, 120, 100]
+        assert sorted(at["low_darts"]) == [9, 12, 15]
+
+    def test_period_filtering(self, client, db_session):
+        """Period stats only include matches within date range."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        # Match in period
+        client.post("/matches/", json={
+            "date": "2026-07-10",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_180s": 2,
+            "player_a_high_finishes": [150],
+        })
+        # Match outside period
+        client.post("/matches/", json={
+            "date": "2026-06-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_180s": 5,
+            "player_a_high_finishes": [170],
+        })
+
+        # Query with period filter
+        resp = client.get(
+            f"/rankings/player-stats/{pa.id}?from_date=2026-07-01&to_date=2026-07-31"
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        # Period should only include July match
+        assert data["period"]["total_180s"] == 2
+        assert data["period"]["high_finishes"] == [150]
+        # All-time should include both
+        assert data["all_time"]["total_180s"] == 7
+        assert sorted(data["all_time"]["high_finishes"], reverse=True) == [170, 150]
+
+    def test_player_b_stats_aggregation(self, client, db_session):
+        """Player B statistics are aggregated correctly."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        client.post("/matches/", json={
+            "date": "2026-07-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 0, "player2_score": 3,
+            "player_b_180s": 3,
+            "player_b_high_finishes": [130, 160],
+            "player_b_low_darts": [10, 11],
+        })
+
+        resp = client.get(f"/rankings/player-stats/{pb.id}")
+        assert resp.status_code == 200
+        at = resp.json()["all_time"]
+        assert at["total_180s"] == 3
+        assert sorted(at["high_finishes"], reverse=True) == [160, 130]
+        assert sorted(at["low_darts"]) == [10, 11]
+
+    def test_empty_statistics(self, client, db_session):
+        """Player with no matches returns zero stats."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["period"]["total_180s"] == 0
+        assert data["period"]["high_finishes"] == []
+        assert data["period"]["low_darts"] == []
+        assert data["all_time"]["total_180s"] == 0
+
+
+# ── Player Statistics UI Rendering ────────────────────────────────────
+
+class TestPlayerStatsRendering:
+    """Tests for player statistics modal in the UI."""
+
+    def test_dashboard_has_player_stats_modal(self, client, db_session):
+        """Dashboard should have player statistics modal."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "player-stats-modal" in resp.text
+        assert "Period Statistics" in resp.text
+        assert "All-Time Statistics" in resp.text
+
+    def test_dashboard_ranking_names_are_clickable(self, client, db_session):
+        """Dashboard ranking player names should be clickable links."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "showPlayerStats" in resp.text
+
+    def test_dashboard_stats_modal_shows_period_and_alltime_fields(self, client, db_session):
+        """Player stats modal should have period and all-time stat fields."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "ps-period-180s" in resp.text
+        assert "ps-period-hf" in resp.text
+        assert "ps-period-ld" in resp.text
+        assert "ps-alltime-180s" in resp.text
+        assert "ps-alltime-hf" in resp.text
+        assert "ps-alltime-ld" in resp.text
+
 

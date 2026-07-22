@@ -186,6 +186,45 @@
   </div>
 </div>
 
+<!-- Player Statistics Modal -->
+<div class="modal fade" id="player-stats-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header">
+    <h5 class="modal-title" id="player-stats-title">Player Statistics</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  </div>
+  <div class="modal-body">
+    <div class="row g-3">
+      <!-- Period Stats -->
+      <div class="col-12 col-md-6">
+        <div class="card card-sm">
+          <div class="card-header"><h4 class="card-title">Period Statistics</h4></div>
+          <div class="card-body">
+            <table class="table table-sm mb-0">
+              <tr><td class="text-muted">Total 180s</td><td id="ps-period-180s">0</td></tr>
+              <tr><td class="text-muted">High Finishes</td><td id="ps-period-hf">-</td></tr>
+              <tr><td class="text-muted">Low Darts</td><td id="ps-period-ld">-</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- All-time Stats -->
+      <div class="col-12 col-md-6">
+        <div class="card card-sm">
+          <div class="card-header"><h4 class="card-title">All-Time Statistics</h4></div>
+          <div class="card-body">
+            <table class="table table-sm mb-0">
+              <tr><td class="text-muted">Total 180s</td><td id="ps-alltime-180s">0</td></tr>
+              <tr><td class="text-muted">High Finishes</td><td id="ps-alltime-hf">-</td></tr>
+              <tr><td class="text-muted">Low Darts</td><td id="ps-alltime-ld">-</td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+</div></div></div>
+
 <!-- Match Detail Modal -->
 <div class="modal fade" id="match-detail-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
   <div class="modal-header">
@@ -382,7 +421,7 @@ async function loadRanking() {
     const eloCls = e.elo_change > 0 ? 'text-green' : e.elo_change < 0 ? 'text-red' : '';
     const posCls = e.position_change > 0 ? 'text-green' : e.position_change < 0 ? 'text-red' : '';
     const posStr = e.position_change > 0 ? '+' + e.position_change : e.position_change < 0 ? '' + e.position_change : '-';
-    tbody.innerHTML += '<tr><td>'+e.position+'</td><td>'+e.player_name+'</td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+e.total_matches+'</td></tr>';
+    tbody.innerHTML += '<tr><td>'+e.position+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+e.player_name+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+e.total_matches+'</td></tr>';
   });
 }
 
@@ -459,6 +498,29 @@ function showMatchDetail(idx) {
   document.getElementById('modal-p2-elo').className = m.elo_change_b >= 0 ? 'text-green' : 'text-red';
 
   new bootstrap.Modal(document.getElementById('match-detail-modal')).show();
+}
+
+async function showPlayerStats(playerId) {
+  const from = document.getElementById('ranking-from').value;
+  const to = document.getElementById('ranking-to').value;
+  let url = '/rankings/player-stats/' + playerId + '?';
+  if (from) url += 'from_date=' + from + '&';
+  if (to) url += 'to_date=' + to;
+  const resp = await fetch(url);
+  if (!resp.ok) return;
+  const stats = await resp.json();
+  document.getElementById('player-stats-title').textContent = stats.player_name + ' — Statistics';
+  // Period
+  const p = stats.period;
+  document.getElementById('ps-period-180s').textContent = p.total_180s;
+  document.getElementById('ps-period-hf').textContent = p.high_finishes.length ? p.high_finishes.join(', ') : '-';
+  document.getElementById('ps-period-ld').textContent = p.low_darts.length ? p.low_darts.join(', ') : '-';
+  // All-time
+  const a = stats.all_time;
+  document.getElementById('ps-alltime-180s').textContent = a.total_180s;
+  document.getElementById('ps-alltime-hf').textContent = a.high_finishes.length ? a.high_finishes.join(', ') : '-';
+  document.getElementById('ps-alltime-ld').textContent = a.low_darts.length ? a.low_darts.join(', ') : '-';
+  new bootstrap.Modal(document.getElementById('player-stats-modal')).show();
 }
 
 loadPlayers().then(() => { loadRanking(); loadMatches(); });
