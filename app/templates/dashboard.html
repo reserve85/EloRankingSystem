@@ -281,7 +281,14 @@ const today = new Date();
 const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
 function fmt(d) {
   // Use server timezone for date formatting to avoid UTC offset issues
-  return d.toLocaleDateString('en-CA', {timeZone: serverTimezone});
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: serverTimezone,
+    year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(d);
+  const y = parts.find(p => p.type === 'year').value;
+  const m = parts.find(p => p.type === 'month').value;
+  const dd = parts.find(p => p.type === 'day').value;
+  return y + '-' + m + '-' + dd;
 }
 document.querySelector('input[name="date"]').value = fmt(today);
 document.getElementById('ranking-from').value = fmt(firstOfMonth);
