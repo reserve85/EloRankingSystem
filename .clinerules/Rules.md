@@ -3,7 +3,7 @@
 You are implementing this project based on MASTER_CONTEXT.md.
 
 ## General Rules
-- Read MASTER_CONTEXT.md completely before making changes.
+- Read "Master_Context_File.md" completely before making changes.
 - Do not implement everything in one step.
 - Work in small, testable milestones.
 - After each milestone, run tests.
@@ -13,6 +13,8 @@ You are implementing this project based on MASTER_CONTEXT.md.
 - Security and permissions must be enforced in the backend.
 - Historical Elo recalculation is mandatory and must be covered by tests.
 - Always update README.md when setup or usage changes.
+- Master_Context_File.md is the project definition. When you add or remove a feature, update Master_Context_File.md to reflect the change immediately after implementation.
+- After every implementation step, run all tests in this order: lint first, then pytest and all the other defined tests. If anything fails, fix it and rerun all tests before proceeding.
 
 ## Architecture Rules
 - Do not put business logic directly into route handlers.

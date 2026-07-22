@@ -254,6 +254,12 @@ elo:
 ranking:
   inactivity_months: 3
 
+statistics:
+  high_finish_min: 100
+  high_finish_max: 170
+  low_darts_min: 9
+  low_darts_max: 21
+
 system_user:
   username: system
   password: change_me
@@ -473,10 +479,44 @@ Elo After A
 Elo After B
 Elo Change A
 Elo Change B
+Player A 180s Count
+Player B 180s Count
+Player A High Finishes (JSON list)
+Player B High Finishes (JSON list)
+Player A Low Darts (JSON list)
+Player B Low Darts (JSON list)
 Created By
 Created At
 Updated At
 ```
+
+## Match Statistics
+
+Each match stores per-player dart statistics:
+
+* **180s Count**: Integer, default 0. Number of 180 throws per player.
+* **High Finishes**: List of integer scores (JSON column). Validated against configurable range.
+* **Low Darts**: List of integer dart counts (JSON column). Validated against configurable range.
+
+Statistics validation is enforced on match creation and update via Pydantic schemas.
+
+Historical Elo recalculation must NOT overwrite existing statistics fields.
+
+Deleting a match removes its statistics (the match record is deleted entirely).
+
+All statistics changes are included in audit log entries.
+
+Default configuration:
+
+```yaml
+statistics:
+  high_finish_min: 100
+  high_finish_max: 170
+  low_darts_min: 9
+  low_darts_max: 21
+```
+
+These ranges are configurable in `config.yaml` and via environment variables `HIGH_FINISH_MIN`, `HIGH_FINISH_MAX`, `LOW_DARTS_MIN`, `LOW_DARTS_MAX`.
 
 Administrators can:
 
@@ -1381,6 +1421,12 @@ elo_after_a
 elo_after_b
 elo_change_a
 elo_change_b
+player_a_180s
+player_b_180s
+player_a_high_finishes
+player_b_high_finishes
+player_a_low_darts
+player_b_low_darts
 created_by
 created_at
 updated_at

@@ -65,6 +65,10 @@ def _yaml_to_env_defaults(yaml_config: dict) -> dict[str, str]:
         ("elo", "default_rating", "DEFAULT_ELO"),
         ("elo", "k_factor", "K_FACTOR"),
         ("ranking", "inactivity_months", "INACTIVITY_MONTHS"),
+        ("statistics", "high_finish_min", "HIGH_FINISH_MIN"),
+        ("statistics", "high_finish_max", "HIGH_FINISH_MAX"),
+        ("statistics", "low_darts_min", "LOW_DARTS_MIN"),
+        ("statistics", "low_darts_max", "LOW_DARTS_MAX"),
         ("system_user", "username", "SYSTEM_USER_USERNAME"),
         ("system_user", "password", "SYSTEM_USER_PASSWORD"),
         ("security", "jwt_secret", "JWT_SECRET"),
@@ -113,6 +117,12 @@ class Settings(BaseSettings):
 
     # ── Ranking ──────────────────────────────────────────
     inactivity_months: int = Field(default=3, alias="INACTIVITY_MONTHS")
+
+    # ── Statistics ────────────────────────────────────────
+    high_finish_min: int = Field(default=100, alias="HIGH_FINISH_MIN")
+    high_finish_max: int = Field(default=170, alias="HIGH_FINISH_MAX")
+    low_darts_min: int = Field(default=9, alias="LOW_DARTS_MIN")
+    low_darts_max: int = Field(default=21, alias="LOW_DARTS_MAX")
 
     # ── System User ──────────────────────────────────────
     system_user_username: str = Field(

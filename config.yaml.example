@@ -10,6 +10,12 @@ elo:
 ranking:
   inactivity_months: 3
 
+statistics:
+  high_finish_min: 100
+  high_finish_max: 170
+  low_darts_min: 9
+  low_darts_max: 21
+
 system_user:
   username: system
   password: change_me

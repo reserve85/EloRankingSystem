@@ -9,6 +9,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Integer,
+    JSON,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -60,6 +61,14 @@ class Match(Base):
     # Elo change
     elo_change_a: Mapped[float] = mapped_column(Float, nullable=False)
     elo_change_b: Mapped[float] = mapped_column(Float, nullable=False)
+
+    # Dart statistics - per player
+    player_a_180s: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    player_b_180s: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
+    player_a_high_finishes: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
+    player_b_high_finishes: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
+    player_a_low_darts: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
+    player_b_low_darts: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
 
     # Audit fields
     created_by: Mapped[Optional[int]] = mapped_column(
