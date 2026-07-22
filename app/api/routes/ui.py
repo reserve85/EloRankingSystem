@@ -3,11 +3,15 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import RedirectResponse
 
+from sqlalchemy.orm import Session
+
 from app.core.config import settings
+from app.core.database import get_db
 from app.core.version import get_version_info
 from app.core.templates import templates
 from app.auth.dependencies import get_current_user, require_admin
 from app.models.user import User
+from app.models.club_settings import ClubSettings
 
 router = APIRouter(prefix="/ui", tags=["ui"])
 
@@ -22,8 +26,16 @@ def login_page(request: Request):
     )
 
 
+def _get_club_name(db: Session) -> str:
+    """Get club name from database, falling back to app_name setting."""
+    cs = db.query(ClubSettings).first()
+    if cs and cs.club_name:
+        return cs.club_name
+    return settings.app_name
+
+
 @router.get("/dashboard")
-def dashboard_page(request: Request, current_user: User = Depends(get_current_user)):
+def dashboard_page(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Render the user dashboard. All authenticated users."""
     return templates.TemplateResponse(
         request,
@@ -31,6 +43,7 @@ def dashboard_page(request: Request, current_user: User = Depends(get_current_us
         {
             "user": current_user,
             "app_name": settings.app_name,
+            "club_name": _get_club_name(db),
             "version_info": get_version_info(),
             "hf_min": settings.high_finish_min,
             "hf_max": settings.high_finish_max,
@@ -41,7 +54,7 @@ def dashboard_page(request: Request, current_user: User = Depends(get_current_us
 
 
 @router.get("/admin")
-def admin_page(request: Request, current_user: User = Depends(require_admin)):
+def admin_page(request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     """Render the admin dashboard. Requires ADMIN or SYSTEM role."""
     return templates.TemplateResponse(
         request,
@@ -49,6 +62,7 @@ def admin_page(request: Request, current_user: User = Depends(require_admin)):
         {
             "user": current_user,
             "app_name": settings.app_name,
+            "club_name": _get_club_name(db),
             "version_info": get_version_info(),
             "hf_min": settings.high_finish_min,
             "hf_max": settings.high_finish_max,
@@ -59,7 +73,7 @@ def admin_page(request: Request, current_user: User = Depends(require_admin)):
 
 
 @router.get("/change-password")
-def change_password_page(request: Request, current_user: User = Depends(get_current_user)):
+def change_password_page(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Render the change password page. All authenticated users."""
     return templates.TemplateResponse(
         request,
@@ -67,6 +81,7 @@ def change_password_page(request: Request, current_user: User = Depends(get_curr
         {
             "user": current_user,
             "app_name": settings.app_name,
+            "club_name": _get_club_name(db),
             "version_info": get_version_info(),
         },
     )

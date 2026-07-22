@@ -7,7 +7,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.auth.dependencies import require_admin
+from app.auth.dependencies import require_admin, get_current_user
 from app.models.user import User
 from app.models.club_settings import ClubSettings
 from app.services.audit import log_event, get_client_info
@@ -112,8 +112,8 @@ async def upload_logo(
 
 
 @router.get("/logo")
-def get_logo(current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
-    """Download the club logo. Requires authentication."""
+def get_logo(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+    """Download the club logo. Any authenticated user."""
     settings = db.query(ClubSettings).first()
     if settings is None or not settings.club_logo_path or not os.path.exists(settings.club_logo_path):
         raise HTTPException(status_code=404, detail="No logo uploaded")

@@ -16,6 +16,9 @@ class RankingEntry(BaseModel):
     elo_change: float
     position_change: int
     total_matches: int = 0
+    total_180s: int = 0
+    high_finishes: list[int] = []
+    low_darts: list[int] = []
 
     model_config = {"from_attributes": True}
 

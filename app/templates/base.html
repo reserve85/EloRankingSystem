@@ -15,9 +15,10 @@
       <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu">
         <span class="navbar-toggler-icon"></span>
       </button>
-      <h1 class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3">
-        <a href="/" class="text-decoration-none">{{ app_name }}</a>
-      </h1>
+      <a href="/ui/dashboard" class="navbar-brand navbar-brand-autodark d-none-navbar-horizontal pe-0 pe-md-3 text-decoration-none d-flex align-items-center gap-2">
+        <img id="header-logo" src="" alt="" style="height:28px;max-width:120px;object-fit:contain;display:none;" class="rounded">
+        <span>{% if club_name %}{{ club_name }} - Elo Ranking System{% else %}{{ app_name }}{% endif %}</span>
+      </a>
       <div class="navbar-nav flex-row order-md-last">
         <div class="nav-item dropdown">
           <a href="#" class="nav-link d-flex lh-1 text-reset p-0" data-bs-toggle="dropdown">
@@ -86,6 +87,25 @@
   </footer>
 
   <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/js/tabler.min.js"></script>
+  <script>
+  (function(){
+    try {
+      var img = document.getElementById('header-logo');
+      if (img) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('GET', '/settings/logo', true);
+        xhr.responseType = 'blob';
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            img.src = URL.createObjectURL(xhr.response);
+            img.style.display = 'inline-block';
+          }
+        };
+        xhr.send();
+      }
+    } catch(e) {}
+  })();
+  </script>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
@@ -114,12 +134,15 @@
       document.getElementById('confirm-title').textContent = title || 'Are you sure?';
       const modal = new bootstrap.Modal(document.getElementById('confirm-modal'));
       const okBtn = document.getElementById('confirm-ok-btn');
-      const handler = () => { okBtn.removeEventListener('click', handler); modal.hide(); resolve(true); };
-      okBtn.addEventListener('click', handler);
-      document.getElementById('confirm-modal').addEventListener('hidden.bs.modal', () => {
-        okBtn.removeEventListener('click', handler);
-        resolve(false);
-      }, { once: true });
+      let resolved = false;
+      const cleanup = () => {
+        okBtn.removeEventListener('click', okHandler);
+        document.getElementById('confirm-modal').removeEventListener('hidden.bs.modal', cancelHandler);
+      };
+      const okHandler = () => { if (resolved) return; resolved = true; cleanup(); modal.hide(); resolve(true); };
+      const cancelHandler = () => { if (resolved) return; resolved = true; cleanup(); resolve(false); };
+      okBtn.addEventListener('click', okHandler);
+      document.getElementById('confirm-modal').addEventListener('hidden.bs.modal', cancelHandler);
       modal.show();
     });
   }

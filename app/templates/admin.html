@@ -6,16 +6,17 @@
 </div>
 
 <ul class="nav nav-tabs" id="admin-tabs" role="tablist">
-  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-players">Players</a></li>
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tab-matches">Matches</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-players">Players</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-pdf">Export PDF</a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-users">Users</a></li>
-  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-matches">Matches</a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-club">Club Settings</a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-audit">Audit Log</a></li>
 </ul>
 
 <div class="tab-content mt-3">
   <!-- Players Tab -->
-  <div class="tab-pane active" id="tab-players">
+  <div class="tab-pane" id="tab-players">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h3 class="card-title">Players</h3>
@@ -79,10 +80,10 @@
   </div>
 
   <!-- Matches Tab -->
-  <div class="tab-pane" id="tab-matches">
+  <div class="tab-pane active" id="tab-matches">
     <div class="row mb-4">
-      <div class="col-lg-5">
-        <div class="card">
+      <div class="col-12">
+        <div class="card mb-4">
           <div class="card-header"><h3 class="card-title">Add Match</h3></div>
           <div class="card-body">
             <div id="admin-match-success" class="alert alert-success d-none"></div>
@@ -204,14 +205,50 @@
         </div>
       </div>
 
-      <div class="col-lg-7">
+      <div class="col-12">
         <div class="card">
           <div class="card-header"><h3 class="card-title">Match History</h3></div>
           <div class="card-body">
             <table id="matches-table" class="table table-vcenter table-hover table-striped" style="width:100%">
-              <thead><tr><th>ID</th><th>Date</th><th>Player A</th><th>Player B</th><th>Score</th><th>Winner</th><th>Elo +/-</th><th>180s</th><th>HF</th><th>LD</th><th>Actions</th></tr></thead>
+              <thead><tr><th>ID</th><th>Date</th><th>Player A</th><th>Player B</th><th>Score</th><th>Winner</th><th>Elo +/-</th><th>180</th><th>HF</th><th>LD</th><th>Actions</th></tr></thead>
               <tbody></tbody>
             </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Export PDF Tab -->
+  <div class="tab-pane" id="tab-pdf">
+    <div class="row">
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Export Ranking PDF</h3></div>
+          <div class="card-body">
+            <p class="text-muted mb-3">Generate and download a ranking report as PDF. Default period is the previous month.</p>
+            <form id="pdf-export-form">
+              <div class="row g-2 mb-3">
+                <div class="col-6">
+                  <label class="form-label small text-muted">From</label>
+                  <input type="date" id="pdf-from" class="form-control form-control-sm">
+                </div>
+                <div class="col-6">
+                  <label class="form-label small text-muted">To</label>
+                  <input type="date" id="pdf-to" class="form-control form-control-sm">
+                </div>
+              </div>
+              <div class="mb-3">
+                <label class="form-check">
+                  <input type="checkbox" id="pdf-include-inactive" class="form-check-input">
+                  <span class="form-check-label">Include inactive players</span>
+                </label>
+              </div>
+              <button type="submit" class="btn btn-primary w-100">
+                <svg xmlns="http://www.w3.org/2000/svg" class="icon me-1" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path d="M14 3v4a1 1 0 0 0 1 1h4"/><path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z"/><path d="M9 17h6"/><path d="M9 13h6"/></svg>
+                Export PDF
+              </button>
+            </form>
           </div>
         </div>
       </div>
@@ -221,17 +258,9 @@
   <!-- Club Settings Tab -->
   <div class="tab-pane" id="tab-club">
     <div class="card">
-      <div class="card-header"><h3 class="card-title">Club Settings</h3></div>
+      <div class="card-header"><h3 class="card-title">Club Logo</h3></div>
       <div class="card-body">
-        <div id="club-success" class="alert alert-success d-none"></div>
-        <div id="club-error" class="alert alert-danger d-none"></div>
-        <div class="mb-3"><label class="form-label">Club Name</label><input type="text" id="club-name" class="form-control"></div>
-        <div class="mb-3"><label class="form-label">Default Elo</label><input type="number" id="club-default-elo" class="form-control"></div>
-        <div class="mb-3"><label class="form-label">K Factor</label><input type="number" id="club-k-factor" class="form-control"></div>
-        <div class="mb-3"><label class="form-label">Inactivity Months</label><input type="number" id="club-inactivity" class="form-control"></div>
-        <button class="btn btn-primary" onclick="saveClubSettings()">Save Settings</button>
-        <hr class="my-4">
-        <h4>Club Logo</h4>
+        <p class="text-muted mb-3">Club name, Elo settings, and other configuration are managed via environment variables or config.yaml.</p>
         <div class="mb-3">
           <div id="logo-preview" class="mb-2"><img id="logo-img" src="" alt="No logo" style="max-height:80px;display:none;" class="rounded"></div>
           <form id="logo-form" enctype="multipart/form-data">
@@ -282,6 +311,21 @@
   <div class="modal-body">
     <div class="text-center mb-3">
       <h3 id="admin-modal-match-score" class="mb-1"></h3>
+      <div id="admin-modal-score-edit" class="mt-2" style="display:none">
+        <div class="d-inline-flex align-items-center gap-2">
+          <span id="admin-modal-score-edit-p1" class="fw-bold"></span>
+          <select class="form-select form-select-sm" id="admin-edit-score-a" style="width:60px">
+            <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+          </select>
+          <span>:</span>
+          <select class="form-select form-select-sm" id="admin-edit-score-b" style="width:60px">
+            <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+          </select>
+          <span id="admin-modal-score-edit-p2" class="fw-bold"></span>
+        </div>
+        <div class="form-hint text-muted small">Valid: 3:0, 3:1, 3:2, 2:3, 1:3, 0:3</div>
+      </div>
+      <button class="btn btn-sm btn-outline-primary mt-1" id="admin-toggle-score-edit" onclick="toggleScoreEdit()">Edit Result</button>
     </div>
     <div class="row g-3">
       <div class="col-6">
@@ -291,7 +335,7 @@
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Result</td><td><span id="admin-modal-p1-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="admin-modal-p1-elo"></span></td></tr>
-              <tr><td class="text-muted">180s</td><td>
+              <tr><td class="text-muted">180</td><td>
                 <div class="input-group input-group-sm" style="max-width:100px">
                   <button type="button" class="btn btn-outline-secondary" onclick="adjustModalCounter('admin-edit-p1-180s',-1)">−</button>
                   <input type="number" class="form-control text-center" id="admin-edit-p1-180s" value="0" min="0">
@@ -317,7 +361,7 @@
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Result</td><td><span id="admin-modal-p2-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="admin-modal-p2-elo"></span></td></tr>
-              <tr><td class="text-muted">180s</td><td>
+              <tr><td class="text-muted">180</td><td>
                 <div class="input-group input-group-sm" style="max-width:100px">
                   <button type="button" class="btn btn-outline-secondary" onclick="adjustModalCounter('admin-edit-p2-180s',-1)">−</button>
                   <input type="number" class="form-control text-center" id="admin-edit-p2-180s" value="0" min="0">
@@ -369,6 +413,7 @@ async function loadPlayers() {
   const resp = await fetch('/players/?include_disabled=true');
   if (!resp.ok) return;
   const players = await resp.json();
+  if ($.fn.DataTable.isDataTable('#players-table')) { $('#players-table').DataTable().destroy(); }
   const tbody = document.querySelector('#players-table tbody'); tbody.innerHTML = '';
   players.forEach(p => {
     const status = p.disabled ? '<span class="badge bg-red">Disabled</span>' : '<span class="badge bg-green">Active</span>';
@@ -378,7 +423,6 @@ async function loadPlayers() {
         : '<button class="btn btn-sm btn-ghost-red" onclick="disablePlayer('+p.id+')">Disable</button>')
       +'</td></tr>';
   });
-  if ($.fn.DataTable.isDataTable('#players-table')) { $('#players-table').DataTable().destroy(); }
   $('#players-table').DataTable({ paging: true, pageLength: 25, order: [[0,'asc']], searching: true });
 }
 async function savePlayer() {
@@ -422,6 +466,7 @@ async function loadUsers() {
   const resp = await fetch('/users/');
   if (!resp.ok) return;
   const users = await resp.json();
+  if ($.fn.DataTable.isDataTable('#users-table')) { $('#users-table').DataTable().destroy(); }
   const tbody = document.querySelector('#users-table tbody'); tbody.innerHTML = '';
   users.forEach(u => {
     const status = u.active ? '<span class="badge bg-green">Active</span>' : '<span class="badge bg-red">Disabled</span>';
@@ -431,7 +476,6 @@ async function loadUsers() {
         : '<button class="btn btn-sm btn-ghost-green" onclick="toggleUser('+u.id+',true)">Enable</button>') : 'Protected')
       +'</td></tr>';
   });
-  if ($.fn.DataTable.isDataTable('#users-table')) { $('#users-table').DataTable().destroy(); }
   $('#users-table').DataTable({ paging: true, pageLength: 25, order: [[0,'asc']], searching: true });
 }
 async function saveUser() {
@@ -480,6 +524,7 @@ async function loadMatches() {
   const players = resp2.ok ? await resp2.json() : [];
   adminPmap = {}; players.forEach(p => adminPmap[p.id] = p.name);
   adminMatchData = matches;
+  if ($.fn.DataTable.isDataTable('#matches-table')) { $('#matches-table').DataTable().destroy(); }
   const tbody = document.querySelector('#matches-table tbody'); tbody.innerHTML = '';
   matches.forEach((m, idx) => {
     const cls = m.elo_change_a > 0 ? 'text-green' : 'text-red';
@@ -487,12 +532,13 @@ async function loadMatches() {
     const total180s = (m.player_a_180s || 0) + (m.player_b_180s || 0);
     const totalHF = countArr(m.player_a_high_finishes) + countArr(m.player_b_high_finishes);
     const totalLD = countArr(m.player_a_low_darts) + countArr(m.player_b_low_darts);
+    const eloWinner = m.winner_id === m.player_a_id ? m.elo_change_a : m.elo_change_b;
+    const eloLoser = m.winner_id === m.player_a_id ? m.elo_change_b : m.elo_change_a;
     tbody.innerHTML += '<tr style="cursor:pointer" onclick="showAdminMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+m.date+'</td><td>'+adminPmap[m.player_a_id]+'</td><td>'+adminPmap[m.player_b_id]+'</td><td><strong>'+score+'</strong></td><td>'
-      +'<span class="badge bg-green-lt">'+adminPmap[m.winner_id]+'</span></td><td class="'+cls+'">'+(m.elo_change_a>=0?'+':'')+m.elo_change_a.toFixed(1)+'</td>'
+      +'<span class="badge bg-green-lt">'+adminPmap[m.winner_id]+'</span></td><td><span class="text-green">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span> / <span class="text-red">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td>'
       +'<td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td>'
       +'<td><button class="btn btn-sm btn-ghost-red" onclick="event.stopPropagation();deleteMatch('+m.id+')">Delete</button></td></tr>';
   });
-  if ($.fn.DataTable.isDataTable('#matches-table')) { $('#matches-table').DataTable().destroy(); }
   $('#matches-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true });
 }
 
@@ -536,6 +582,20 @@ function populateModalHfLd(containerId, values, inputClass) {
   });
 }
 
+function toggleScoreEdit() {
+  const el = document.getElementById('admin-modal-score-edit');
+  const btn = document.getElementById('admin-toggle-score-edit');
+  if (el.style.display === 'none') {
+    el.style.display = 'block';
+    btn.textContent = 'Cancel Edit';
+    btn.className = 'btn btn-sm btn-outline-danger mt-1';
+  } else {
+    el.style.display = 'none';
+    btn.textContent = 'Edit Result';
+    btn.className = 'btn btn-sm btn-outline-primary mt-1';
+  }
+}
+
 function showAdminMatchDetail(idx) {
   const m = adminMatchData[idx];
   if (!m) return;
@@ -552,6 +612,14 @@ function showAdminMatchDetail(idx) {
   document.getElementById('admin-modal-match-score').textContent = scoreA + ' : ' + scoreB;
   document.getElementById('admin-modal-p1-name').textContent = nameA;
   document.getElementById('admin-modal-p2-name').textContent = nameB;
+  // Populate score edit fields
+  document.getElementById('admin-modal-score-edit-p1').textContent = nameA;
+  document.getElementById('admin-modal-score-edit-p2').textContent = nameB;
+  document.getElementById('admin-edit-score-a').value = m.player1_score != null ? m.player1_score : 3;
+  document.getElementById('admin-edit-score-b').value = m.player2_score != null ? m.player2_score : 0;
+  document.getElementById('admin-modal-score-edit').style.display = 'none';
+  document.getElementById('admin-toggle-score-edit').textContent = 'Edit Result';
+  document.getElementById('admin-toggle-score-edit').className = 'btn btn-sm btn-outline-primary mt-1';
   document.getElementById('admin-modal-p1-result').textContent = resultA;
   document.getElementById('admin-modal-p1-result').className = resClsA;
   document.getElementById('admin-modal-p2-result').textContent = resultB;
@@ -588,6 +656,12 @@ async function saveAdminMatchStats() {
     player_a_low_darts: [...document.querySelectorAll('#admin-edit-p1-ld-list .ld-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v)),
     player_b_low_darts: [...document.querySelectorAll('#admin-edit-p2-ld-list .ld-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v)),
   };
+  // Include score if edit is visible
+  const scoreEdit = document.getElementById('admin-modal-score-edit');
+  if (scoreEdit.style.display !== 'none') {
+    body.player1_score = parseInt(document.getElementById('admin-edit-score-a').value);
+    body.player2_score = parseInt(document.getElementById('admin-edit-score-b').value);
+  }
   const resp = await fetch('/matches/' + adminEditingMatchId, {
     method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
   });
@@ -825,7 +899,44 @@ document.getElementById('admin-add-match-form').addEventListener('submit', async
   }
 });
 
+// --- PDF Export ---
+(function() {
+  const today = new Date();
+  const firstOfCurrent = new Date(today.getFullYear(), today.getMonth(), 1);
+  const lastOfPrev = new Date(firstOfCurrent.getTime() - 86400000);
+  const firstOfPrev = new Date(lastOfPrev.getFullYear(), lastOfPrev.getMonth(), 1);
+  document.getElementById('pdf-from').value = firstOfPrev.toISOString().slice(0,10);
+  document.getElementById('pdf-to').value = lastOfPrev.toISOString().slice(0,10);
+})();
+
+document.getElementById('pdf-export-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const from = document.getElementById('pdf-from').value;
+  const to = document.getElementById('pdf-to').value;
+  const includeInactive = document.getElementById('pdf-include-inactive').checked;
+  let url = '/reports/ranking/pdf?';
+  if (from) url += 'from_date=' + from + '&';
+  if (to) url += 'to_date=' + to + '&';
+  if (includeInactive) url += 'include_inactive=true';
+  try {
+    const resp = await fetch(url);
+    if (resp.ok) {
+      const blob = await resp.blob();
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ranking_' + (from || 'report') + '_' + (to || 'report') + '.pdf';
+      a.click();
+      URL.revokeObjectURL(a.href);
+    } else {
+      const data = await resp.json();
+      alert(data.detail || 'Failed to generate PDF');
+    }
+  } catch(err) {
+    alert('Error generating PDF: ' + err.message);
+  }
+});
+
 // Init
-loadPlayers(); loadUsers(); loadMatches(); loadClubSettings(); loadAuditLogs(); loadResetUsers(); loadLogo(); loadAdminMatchPlayers();
+loadPlayers(); loadUsers(); loadMatches(); loadAuditLogs(); loadResetUsers(); loadLogo(); loadAdminMatchPlayers();
 </script>
 {% endblock %}

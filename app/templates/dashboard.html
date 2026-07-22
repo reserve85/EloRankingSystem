@@ -6,8 +6,8 @@
 </div>
 
 <div class="row mb-4">
-  <div class="col-lg-5">
-    <div class="card">
+  <div class="col-12">
+    <div class="card mb-4">
       <div class="card-header"><h3 class="card-title">Add Match</h3></div>
       <div class="card-body">
         <div id="match-success" class="alert alert-success d-none"></div>
@@ -132,7 +132,7 @@
     </div>
   </div>
 
-  <div class="col-lg-7">
+  <div class="col-12">
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h3 class="card-title">Ranking</h3>
@@ -149,7 +149,7 @@
           </div>
         </div>
         <table id="ranking-table" class="table table-vcenter table-hover table-striped" style="width:100%">
-          <thead><tr><th>#</th><th>Player</th><th>Elo</th><th>+/-</th><th>Pos</th><th>Matches</th></tr></thead>
+          <thead><tr><th>#</th><th>Player</th><th>Elo</th><th>+/-</th><th>Pos</th><th>180</th><th>HF</th><th>LD</th><th>Matches</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -178,7 +178,7 @@
           </div>
         </div>
         <table id="match-table" class="table table-vcenter table-hover table-striped" style="width:100%">
-          <thead><tr><th>Date</th><th>Winner</th><th>Score</th><th>Loser</th><th>Elo +/-</th><th>180s</th><th>HF</th><th>LD</th></tr></thead>
+          <thead><tr><th>Date</th><th>Winner</th><th>Score</th><th>Loser</th><th>Elo +/-</th><th>180</th><th>HF</th><th>LD</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -214,8 +214,8 @@
           <div class="card-body">
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Total 180s</td><td id="ps-alltime-180s">0</td></tr>
-              <tr><td class="text-muted">High Finishes</td><td id="ps-alltime-hf">-</td></tr>
-              <tr><td class="text-muted">Low Darts</td><td id="ps-alltime-ld">-</td></tr>
+              <tr><td class="text-muted">High Finishes</td><td id="ps-alltime-hf">0</td></tr>
+              <tr><td class="text-muted">Low Darts</td><td id="ps-alltime-ld">0</td></tr>
             </table>
           </div>
         </div>
@@ -247,7 +247,7 @@
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Result</td><td><span id="modal-p1-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="modal-p1-elo"></span></td></tr>
-              <tr><td class="text-muted">180s</td><td id="modal-p1-180s"></td></tr>
+              <tr><td class="text-muted">180</td><td id="modal-p1-180s"></td></tr>
               <tr><td class="text-muted">High Finishes</td><td id="modal-p1-hf"></td></tr>
               <tr><td class="text-muted">Low Darts</td><td id="modal-p1-ld"></td></tr>
             </table>
@@ -262,7 +262,7 @@
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Result</td><td><span id="modal-p2-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="modal-p2-elo"></span></td></tr>
-              <tr><td class="text-muted">180s</td><td id="modal-p2-180s"></td></tr>
+              <tr><td class="text-muted">180</td><td id="modal-p2-180s"></td></tr>
               <tr><td class="text-muted">High Finishes</td><td id="modal-p2-hf"></td></tr>
               <tr><td class="text-muted">Low Darts</td><td id="modal-p2-ld"></td></tr>
             </table>
@@ -401,7 +401,8 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
     document.getElementById('score-a').value = '';
     document.getElementById('score-b').value = '';
     resetStatsForm();
-    loadRanking(); loadMatches();
+    await loadRanking();
+    await loadMatches();
   } else {
     const data = await resp.json();
     let msg = data.detail || 'Failed';
@@ -430,7 +431,9 @@ async function loadRanking() {
     const eloCls = e.elo_change > 0 ? 'text-green' : e.elo_change < 0 ? 'text-red' : '';
     const posCls = e.position_change > 0 ? 'text-green' : e.position_change < 0 ? 'text-red' : '';
     const posStr = e.position_change > 0 ? '+' + e.position_change : e.position_change < 0 ? '' + e.position_change : '-';
-    tbody.innerHTML += '<tr><td>'+e.position+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+e.player_name+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+e.total_matches+'</td></tr>';
+    const hfText = Array.isArray(e.high_finishes) && e.high_finishes.length ? e.high_finishes.join(', ') : '-';
+    const ldText = Array.isArray(e.low_darts) && e.low_darts.length ? e.low_darts.join(', ') : '-';
+    tbody.innerHTML += '<tr><td>'+e.position+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+e.player_name+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+hfText+'</td><td>'+ldText+'</td><td>'+e.total_matches+'</td></tr>';
   });
 }
 
@@ -442,27 +445,30 @@ async function loadMatches() {
   let url = '/matches/?';
   if (from) url += 'from_date=' + from + '&';
   if (to) url += 'to_date=' + to;
-  const resp = await fetch(url);
-  if (!resp.ok) return;
-  const matches = resp.json();
-  if (Object.keys(playerMap).length === 0) await loadPlayers();
-  const data = await matches;
-  matchData = data;
-  const tbody = document.querySelector('#match-table tbody');
-  tbody.innerHTML = '';
-  data.forEach((m, idx) => {
-    const winnerName = playerMap[m.winner_id] || 'Player ' + m.winner_id;
-    const loserName = playerMap[m.loser_id] || 'Player ' + m.loser_id;
-    const score = (m.player1_score != null && m.player2_score != null) ? m.player1_score + ':' + m.player2_score : '-';
-    const cls = m.elo_change_a > 0 ? 'text-green' : 'text-red';
-    const eloStr = (m.elo_change_a >= 0 ? '+' : '') + m.elo_change_a.toFixed(1);
-    const total180s = (m.player_a_180s || 0) + (m.player_b_180s || 0);
-    const totalHF = countArray(m.player_a_high_finishes) + countArray(m.player_b_high_finishes);
-    const totalLD = countArray(m.player_a_low_darts) + countArray(m.player_b_low_darts);
-    tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.date+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span></td><td><strong>'+score+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span></td><td class="'+cls+'">'+eloStr+'</td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
-  });
-  if ($.fn.DataTable.isDataTable('#match-table')) { $('#match-table').DataTable().destroy(); }
-  $('#match-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true, lengthChange: false, info: false });
+  try {
+    const resp = await fetch(url);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (Object.keys(playerMap).length === 0) await loadPlayers();
+    matchData = data;
+    if ($.fn.DataTable.isDataTable('#match-table')) { $('#match-table').DataTable().destroy(); }
+    const tbody = document.querySelector('#match-table tbody');
+    tbody.innerHTML = '';
+    data.forEach((m, idx) => {
+      const winnerName = playerMap[m.winner_id] || 'Player ' + m.winner_id;
+      const loserName = playerMap[m.loser_id] || 'Player ' + m.loser_id;
+      const score = (m.player1_score != null && m.player2_score != null) ? m.player1_score + ':' + m.player2_score : '-';
+      const cls = m.elo_change_a > 0 ? 'text-green' : 'text-red';
+      const eloStr = (m.elo_change_a >= 0 ? '+' : '') + m.elo_change_a.toFixed(1);
+      const total180s = (m.player_a_180s || 0) + (m.player_b_180s || 0);
+      const totalHF = countArray(m.player_a_high_finishes) + countArray(m.player_b_high_finishes);
+      const totalLD = countArray(m.player_a_low_darts) + countArray(m.player_b_low_darts);
+      const eloWinner = m.winner_id === m.player_a_id ? m.elo_change_a : m.elo_change_b;
+      const eloLoser = m.winner_id === m.player_a_id ? m.elo_change_b : m.elo_change_a;
+      tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.date+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span></td><td><strong>'+score+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span></td><td><span class="text-green">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span> / <span class="text-red">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
+    });
+    $('#match-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true, lengthChange: false, info: false });
+  } catch (e) { console.error('loadMatches failed:', e); }
 }
 
 let matchData = [];
@@ -527,8 +533,8 @@ async function showPlayerStats(playerId) {
   // All-time
   const a = stats.all_time;
   document.getElementById('ps-alltime-180s').textContent = a.total_180s;
-  document.getElementById('ps-alltime-hf').textContent = a.high_finishes.length ? a.high_finishes.join(', ') : '-';
-  document.getElementById('ps-alltime-ld').textContent = a.low_darts.length ? a.low_darts.join(', ') : '-';
+  document.getElementById('ps-alltime-hf').textContent = a.high_finishes.length;
+  document.getElementById('ps-alltime-ld').textContent = a.low_darts.length;
   new bootstrap.Modal(document.getElementById('player-stats-modal')).show();
 }
 

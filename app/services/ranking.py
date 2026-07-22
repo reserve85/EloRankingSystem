@@ -4,6 +4,7 @@ Rankings are generated for a selected period (From Date → To Date).
 Default range is the current month.
 """
 
+import calendar
 from datetime import date, datetime, timezone
 from typing import Optional
 
@@ -56,6 +57,7 @@ class RankingService:
             elo_at_start = self._get_elo_at_date(player, from_date, before=True)
             elo_at_end = self._get_elo_at_date(player, to_date, before=False)
             total_matches = self._get_total_match_count(player.id)
+            stats = self._get_period_statistics(player.id, from_date, to_date)
 
             entries.append({
                 "player_id": player.id,
@@ -64,6 +66,9 @@ class RankingService:
                 "elo_change": elo_at_end - elo_at_start,
                 "start_elo": elo_at_start,
                 "total_matches": total_matches,
+                "total_180s": stats["total_180s"],
+                "high_finishes": stats["high_finishes"],
+                "low_darts": stats["low_darts"],
             })
 
         # Sort by current Elo descending for end-of-period ranking
@@ -93,6 +98,9 @@ class RankingService:
                 elo_change=entry["elo_change"],
                 position_change=position_change,
                 total_matches=entry["total_matches"],
+                total_180s=entry["total_180s"],
+                high_finishes=entry["high_finishes"],
+                low_darts=entry["low_darts"],
             ))
 
         return RankingResponse(
@@ -119,18 +127,14 @@ class RankingService:
         if not include_inactive:
             # Exclude inactive players (no match in last N months)
             inactivity_months = settings.inactivity_months
-            cutoff_date = date(
-                as_of_date.year - (inactivity_months // 12),
-                as_of_date.month - (inactivity_months % 12),
-                as_of_date.day,
-            )
-            # Handle month underflow
-            if cutoff_date.month <= 0:
-                cutoff_date = date(
-                    cutoff_date.year - 1,
-                    cutoff_date.month + 12,
-                    cutoff_date.day,
-                )
+            cutoff_year = as_of_date.year
+            cutoff_month = as_of_date.month - inactivity_months
+            while cutoff_month <= 0:
+                cutoff_month += 12
+                cutoff_year -= 1
+            max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
+            cutoff_day = min(as_of_date.day, max_day)
+            cutoff_date = date(cutoff_year, cutoff_month, cutoff_day)
 
             query = query.filter(
                 (Player.last_match_date >= cutoff_date)
@@ -190,6 +194,48 @@ class RankingService:
             (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
         ).count()
         return count
+
+    def _get_period_statistics(
+        self, player_id: int, from_date: date, to_date: date
+    ) -> dict:
+        """Get dart statistics for a player within a period.
+
+        Args:
+            player_id: The player's ID.
+            from_date: Start of period.
+            to_date: End of period.
+
+        Returns:
+            Dict with total_180s, high_finishes, low_darts.
+        """
+        matches = self.db.query(Match).filter(
+            ((Match.player_a_id == player_id) | (Match.player_b_id == player_id))
+            & (Match.date >= from_date)
+            & (Match.date <= to_date)
+        ).all()
+
+        total_180s = 0
+        high_finishes: list[int] = []
+        low_darts: list[int] = []
+        for m in matches:
+            if m.player_a_id == player_id:
+                total_180s += m.player_a_180s or 0
+                if m.player_a_high_finishes:
+                    high_finishes.extend(m.player_a_high_finishes)
+                if m.player_a_low_darts:
+                    low_darts.extend(m.player_a_low_darts)
+            else:
+                total_180s += m.player_b_180s or 0
+                if m.player_b_high_finishes:
+                    high_finishes.extend(m.player_b_high_finishes)
+                if m.player_b_low_darts:
+                    low_darts.extend(m.player_b_low_darts)
+
+        return {
+            "total_180s": total_180s,
+            "high_finishes": sorted(high_finishes, reverse=True),
+            "low_darts": sorted(low_darts),
+        }
 
     def get_player_statistics(
         self,

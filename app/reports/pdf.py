@@ -80,7 +80,7 @@ def generate_ranking_pdf(
 
     # Title
     elements.append(Paragraph(club_name, title_style))
-    elements.append(Paragraph("Ranking Report", subtitle_style))
+    elements.append(Paragraph("Elo Ranking Report", subtitle_style))
 
     # Date range info
     range_text = (
@@ -94,23 +94,28 @@ def generate_ranking_pdf(
     elements.append(Spacer(1, 6 * mm))
 
     # Table header
-    header = ["#", "Player", "Elo Rating", "Elo Change", "Pos. Change"]
+    header = ["#", "Player", "Elo Rating", "Elo Change", "Pos. Change", "180", "HF", "LD"]
 
     # Table data
     data = [header]
     for entry in ranking.entries:
         elo_sign = "+" if entry.elo_change >= 0 else ""
         pos_sign = "+" if entry.position_change >= 0 else ""
+        hf_count = len(entry.high_finishes) if entry.high_finishes else 0
+        ld_count = len(entry.low_darts) if entry.low_darts else 0
         data.append([
             str(entry.position),
             entry.player_name,
             f"{entry.elo_rating:.1f}",
             f"{elo_sign}{entry.elo_change:.1f}",
             f"{pos_sign}{entry.position_change}",
+            str(entry.total_180s) if entry.total_180s else "-",
+            str(hf_count) if hf_count else "-",
+            str(ld_count) if ld_count else "-",
         ])
 
     # Create table
-    col_widths = [25 * mm, 60 * mm, 35 * mm, 35 * mm, 35 * mm]
+    col_widths = [18 * mm, 45 * mm, 28 * mm, 28 * mm, 28 * mm, 18 * mm, 18 * mm, 18 * mm]
     table = Table(data, colWidths=col_widths, repeatRows=1)
 
     # Base style
