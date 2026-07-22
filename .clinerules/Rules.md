@@ -4,11 +4,14 @@ You are implementing this project based on MASTER_CONTEXT.md.
 
 ## General Rules
 - Read MASTER_CONTEXT.md completely before making changes.
-- Follow all mandatory requirements defined in MASTER_CONTEXT.md.
 - Do not implement everything in one step.
 - Work in small, testable milestones.
 - After each milestone, run tests.
-- Keep the architecture clean and maintainable.
+- Keep the architecture clean.
+- Do not put business logic directly into route handlers.
+- Use service layer and repository layer.
+- Security and permissions must be enforced in the backend.
+- Historical Elo recalculation is mandatory and must be covered by tests.
 - Always update README.md when setup or usage changes.
 
 ## Architecture Rules

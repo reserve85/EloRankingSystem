@@ -55,6 +55,22 @@ The final application shall provide:
 
 ***
 
+# Important rules:
+- Read "Master_Context.md" completely before making changes.
+- Do not implement everything in one step.
+- Work in small, testable milestones.
+- After each milestone, run tests.
+- Keep the architecture clean.
+- Do not put business logic directly into route handlers.
+- Use service layer and repository layer.
+- Security and permissions must be enforced in the backend.
+- Historical Elo recalculation is mandatory and must be covered by tests.
+- Always update README.md when setup or usage changes.
+- Master_Context.md is the project definition. When you add or remove a feature, update Master_Context.md to reflect the change immediately after implementation.
+- After every implementation step, run all tests in this order: lint first, then pytest and all the other defined tests. If anything fails, fix it and rerun all tests before proceeding.
+
+***
+
 # Core Requirements
 
 ## Rating System
@@ -1177,7 +1193,7 @@ A new release must start the workflow to build and publish the Docker image.
 Required image:
 
 ```text
-ghcr.io/reserve85/Elo_Ranking_System:main
+ghcr.io/reserve85/EloRankingSystem:main
 ```
 
 This image must be accessible from the Docker Compose file.
@@ -1187,7 +1203,7 @@ Example:
 ```yaml
 services:
   elowebapp:
-    image: ghcr.io/reserve85/Elo_Ranking_System:main
+    image: ghcr.io/reserve85/EloRankingSystem:main
 ```
 
 ***
