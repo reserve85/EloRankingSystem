@@ -144,6 +144,67 @@ docker compose down    # Stop
 docker compose up -d   # Start
 ```
 
+### Portainer Deployment
+
+This application can be deployed via [Portainer](https://www.portainer.io/) Stacks, which is a common deployment method for NAS devices (Synology, QNAP, Unraid) and Docker hosts with a web UI.
+
+#### Prerequisites
+
+- Portainer installed and running on your Docker host
+- Access to the Portainer web UI
+- Internet access to pull the image from GitHub Container Registry
+
+#### Steps
+
+1. **Prepare your host directories** (recommended):
+   ```bash
+   mkdir -p /volume1/docker/elo/{data,uploads,logs,backups}
+   ```
+   Adjust the base path (`/volume1/docker/elo/`) to match your system.
+
+2. **Open Portainer** and navigate to **Stacks** > **Add Stack**.
+
+3. **Name the stack** (e.g., `elo-ranking`).
+
+4. **Paste the contents** of `portainer_compose.yaml` into the web editor. This file contains all environment variables inlined with comments describing each setting.
+
+5. **Replace placeholder values**:
+   - `JWT_SECRET=CHANGE_ME_GENERATE_RANDOM` — Generate a strong secret with `openssl rand -hex 32`
+   - `SYSTEM_USER_PASSWORD=CHANGE_ME_HERE` — Set a strong admin password
+   - `COOKIE_SECURE=false` — Set to `true` if using HTTPS
+   - Adjust volume mount paths if needed (default: `/volume1/docker/elo/...`)
+
+6. **Deploy the stack** by clicking the button.
+
+7. **Open the application** at `http://your-host:8877`.
+
+8. **Login** with the system user credentials you configured.
+
+9. **Change the default system user password** immediately after first login.
+
+#### Portainer Volume Paths
+
+The `portainer_compose.yaml` uses bind mounts with example paths:
+
+| Host Path (example) | Container Path | Purpose |
+|---------------------|---------------|---------|
+| `/volume1/docker/elo/data` | `/data` | SQLite database |
+| `/volume1/docker/elo/uploads` | `/uploads` | Club logo uploads |
+| `/volume1/docker/elo/logs` | `/logs` | Application logs |
+| `/volume1/docker/elo/backups` | `/backups` | Backup files |
+
+Adjust the host paths to match your NAS or Docker host directory structure.
+
+#### Differences from Standard Docker Compose
+
+| Feature | `docker-compose.yml` | `portainer_compose.yaml` |
+|---------|---------------------|--------------------------|
+| Environment variables | Loaded from `.env` file | Inlined in YAML |
+| Config file | Mounted from `config.yaml` | Not mounted (uses env vars) |
+| Build context | Included | Not included (deployment only) |
+| Port mapping | `8000:8000` | `8877:8000` |
+| Volumes | Named volumes | Bind mounts |
+
 ## Configuration
 
 Configuration is loaded with the following priority (highest wins):

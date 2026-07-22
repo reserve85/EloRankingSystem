@@ -1,0 +1,98 @@
+# ============================================================================
+# Portainer Stack - Elo Ranking System
+# ============================================================================
+#
+# Purpose:
+#   This file is intended for deployment via Portainer Stacks.
+#   Portainer Stacks do not support external .env files or build contexts,
+#   so all environment variables are inlined directly in this file.
+#
+# How to use in Portainer:
+#   1. Open Portainer web UI
+#   2. Go to Stacks > Add Stack
+#   3. Name the stack (e.g. "elo-ranking")
+#   4. Paste the contents of this file into the "Web editor" field
+#   5. Replace ALL placeholder values marked with "CHANGE_ME" before deploying
+#   6. Click "Deploy the stack"
+#
+# IMPORTANT:
+#   - APP_SECRET_KEY (JWT_SECRET) MUST be replaced with a strong random value
+#     before deployment. Example: openssl rand -hex 32
+#   - SYSTEM_USER_PASSWORD should be changed from the default
+#   - COOKIE_SECURE should be set to "true" when using HTTPS
+#
+# Published Image:
+#   ghcr.io/reserve85/Elo_Ranking_System:main
+#
+# ============================================================================
+
+version: "3.8"
+
+services:
+  elo:
+    image: ghcr.io/reserve85/Elo_Ranking_System:main
+    container_name: elo-ranking
+    restart: unless-stopped
+    ports:
+      - "8877:8000"
+    volumes:
+      # Mount paths: adjust the left side to match your NAS/Docker host paths.
+      # Example for Synology NAS: /volume1/docker/elo/data:/data
+      # Example for generic Linux:  /opt/docker/elo/data:/data
+      - /volume1/docker/elo/data:/data
+      - /volume1/docker/elo/uploads:/uploads
+      - /volume1/docker/elo/logs:/logs
+      - /volume1/docker/elo/backups:/backups
+    environment:
+      # ── Application Settings ──────────────────────────────────────────
+      APP_NAME=Elo Ranking System            # Display name of the application | Any string | Default: Elo Ranking System
+      APP_ENV=production                      # Application environment | development, production | Default: development
+      APP_DEBUG=false                         # Enable debug mode (verbose errors) | true, false | Default: false
+      CONFIG_PATH=/app/config.yaml            # Path to config.yaml inside container | Any valid path | Default: /app/config.yaml
+
+      # ── Database ──────────────────────────────────────────────────────
+      DATABASE_URL=sqlite:///data/database.db # SQLite database file path | Any sqlite URL | Default: sqlite:///data/database.db
+
+      # ── Elo Rating Settings ───────────────────────────────────────────
+      DEFAULT_ELO=1200                        # Default Elo rating for new players | Any integer | Default: 1200
+      K_FACTOR=32                             # Elo K-factor (rating sensitivity) | Any integer (e.g. 16, 24, 32, 48) | Default: 32
+
+      # ── Ranking Settings ──────────────────────────────────────────────
+      INACTIVITY_MONTHS=3                     # Months of inactivity before player is hidden from ranking | Any integer | Default: 3
+
+      # ── System User (Host Administrator) ──────────────────────────────
+      # This user is automatically provisioned on first startup.
+      # It cannot be deleted or downgraded through the UI.
+      SYSTEM_USER_USERNAME=system             # System admin username | Any string | Default: system
+      SYSTEM_USER_PASSWORD=CHANGE_ME_HERE     # System admin password | Any strong password | Default: change_me ⚠️ CHANGE THIS
+
+      # ── Security / Authentication ─────────────────────────────────────
+      # JWT_SECRET is used to sign authentication tokens.
+      # Generate a strong value with: openssl rand -hex 32
+      JWT_SECRET=CHANGE_ME_GENERATE_RANDOM    # Secret key for JWT token signing | Any random string (min 32 chars) | Default: change_me ⚠️ CHANGE THIS
+      JWT_ALGORITHM=HS256                     # JWT signing algorithm | HS256, HS384, HS512 | Default: HS256
+      ACCESS_TOKEN_LIFETIME_MINUTES=480       # Session token lifetime in minutes | Any integer | Default: 480 (8 hours)
+      COOKIE_SECURE=false                     # Set to true when using HTTPS | true, false | Default: false
+      COOKIE_HTTPONLY=true                    # Prevent JavaScript access to auth cookie | true, false | Default: true
+      COOKIE_SAMESITE=lax                     # SameSite cookie policy | strict, lax, none | Default: lax
+
+      # ── Storage Paths (inside container) ──────────────────────────────
+      DATA_DIR=/data                          # Path to database storage | Any valid path | Default: /data
+      UPLOAD_DIR=/uploads                     # Path to file uploads (club logo) | Any valid path | Default: /uploads
+      LOG_DIR=/logs                           # Path to application logs | Any valid path | Default: /logs
+      BACKUP_DIR=/backups                     # Path to backup files | Any valid path | Default: /backups
+
+      # ── Statistics Validation ─────────────────────────────────────────
+      # Configure valid ranges for dart statistics inputs.
+      HIGH_FINISH_MIN=100                     # Minimum valid high finish score | Any integer | Default: 100
+      HIGH_FINISH_MAX=170                     # Maximum valid high finish score | Any integer | Default: 170
+      LOW_DARTS_MIN=9                         # Minimum valid low darts count | Any integer | Default: 9
+      LOW_DARTS_MAX=21                        # Maximum valid low darts count | Any integer | Default: 21
+
+      # ── Legal / Impressum ─────────────────────────────────────────────
+      # Contact information displayed on the Impressum and Privacy Policy pages.
+      CONTACT_COMPANY=Company                 # Company or club name | Any string | Default: Company
+      CONTACT_NAME=Max Mustermann             # Contact person full name | Any string | Default: Max Mustermann
+      CONTACT_STREET=Musterstrasse 1          # Street address | Any string | Default: Musterstrasse 1
+      CONTACT_CITY=11111 Musterstadt          # City and postal code | Any string | Default: 11111 Musterstadt
+      CONTACT_EMAIL=max.Mustermann@Muster.mu  # Contact email address | Any valid email | Default: max.Mustermann@Muster.mu
