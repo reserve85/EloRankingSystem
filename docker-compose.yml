@@ -1,6 +1,6 @@
 services:
   elo:
-    image: ghcr.io/reserve85/Elo_Ranking_System:main
+    image: ghcr.io/reserve85/elo_ranking_system:latest
     build:
       context: .
       dockerfile: Dockerfile
@@ -24,7 +24,7 @@ services:
       - UPLOAD_DIR=/uploads
       - LOG_DIR=/logs
       - BACKUP_DIR=/backups
-      - DATABASE_URL=sqlite:///data/database.db
+      - DATABASE_URL=sqlite:////data/database.db
 
 volumes:
   elo_data:

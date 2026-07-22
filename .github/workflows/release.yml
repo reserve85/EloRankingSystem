@@ -34,9 +34,9 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/reserve85/Elo_Ranking_System:main
-            ghcr.io/reserve85/Elo_Ranking_System:${{ steps.version.outputs.VERSION }}
-            ghcr.io/reserve85/Elo_Ranking_System:${{ github.sha }}
+            ghcr.io/reserve85/elo_ranking_system:main
+            ghcr.io/reserve85/elo_ranking_system:${{ steps.version.outputs.VERSION }}
+            ghcr.io/reserve85/elo_ranking_system:${{ github.sha }}
           build-args: |
             GIT_COMMIT=${{ github.sha }}
             BUILD_DATE=${{ github.event.release.created_at }}
@@ -49,7 +49,7 @@ jobs:
           echo "Release ${{ steps.version.outputs.VERSION }}" > release_info.txt
           echo "Git SHA: ${{ github.sha }}" >> release_info.txt
           echo "Build Date: ${{ github.event.release.created_at }}" >> release_info.txt
-          echo "Image: ghcr.io/reserve85/Elo_Ranking_System:${{ steps.version.outputs.VERSION }}" >> release_info.txt
+          echo "Image: ghcr.io/reserve85/elo_ranking_system:${{ steps.version.outputs.VERSION }}" >> release_info.txt
 
       - name: Upload release artifact
         uses: actions/upload-artifact@v4

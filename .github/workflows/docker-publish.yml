@@ -7,7 +7,7 @@ on:
 
 env:
   REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository_owner }}/Elo_Ranking_System
+  IMAGE_NAME: ${{ github.repository_owner }}/elo_ranking_system
 
 jobs:
   build-and-push:

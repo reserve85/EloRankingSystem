@@ -106,7 +106,7 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 
 The pre-built image is available at:
 ```
-ghcr.io/reserve85/Elo_Ranking_System:main
+ghcr.io/reserve85/elo_ranking_system:main
 ```
 
 The `docker-compose.yml` is already configured to use this image. Only `docker compose up -d` is needed (no build required).
@@ -340,7 +340,7 @@ Pull requests must pass all tests before merge.
 Triggers on push to `main` and on version tags (`v*`):
 
 1. Builds the Docker image with version metadata (GIT_COMMIT, BUILD_DATE, APP_VERSION)
-2. Publishes to GitHub Container Registry: `ghcr.io/reserve85/Elo_Ranking_System:main`
+2. Publishes to GitHub Container Registry: `ghcr.io/reserve85/elo_ranking_system:main`
 3. Uses GitHub Actions cache for faster builds
 
 ### release.yml — Release Publishing
@@ -349,9 +349,9 @@ Triggers when a GitHub release is published:
 
 1. Builds Docker image with release version
 2. Publishes to GHCR with three tags:
-   - `ghcr.io/reserve85/Elo_Ranking_System:main`
-   - `ghcr.io/reserve85/Elo_Ranking_System:<version>`
-   - `ghcr.io/reserve85/Elo_Ranking_System:<git-sha>`
+   - `ghcr.io/reserve85/elo_ranking_system:main`
+   - `ghcr.io/reserve85/elo_ranking_system:<version>`
+   - `ghcr.io/reserve85/elo_ranking_system:<git-sha>`
 3. Uploads release info artifact
 
 ### Release Process
