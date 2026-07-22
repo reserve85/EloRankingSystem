@@ -40,13 +40,22 @@ The final application shall provide:
 * Responsive web interface
 * Player management
 * User management
-* Match management
+* Match management with dart statistics (180s, high finishes, low darts)
+* Match statistics detail view per match
+* Player statistics view (period and all-time) accessible from ranking table
+* Admin match statistics editing
 * Automatic inactive player handling
 * Historical Elo recalculation
 * Ranking reports
 * PDF export
 * Secure authentication and authorization
+* Confirmation dialogs on all modifying actions
+* Auto-refresh of affected UI components after changes
+* Cookie consent banner (EU compliance)
+* Impressum page with configurable contact data
+* Privacy Policy page (GDPR compliant)
 * Docker deployment
+* Portainer Stack deployment
 * SQLite database
 * Automated tests
 * GitHub-based CI/CD workflow
@@ -260,6 +269,13 @@ statistics:
   low_darts_min: 9
   low_darts_max: 21
 
+legal:
+  contact_company: Company
+  contact_name: Max Mustermann
+  contact_street: Musterstrasse 1
+  contact_city: 11111 Musterstadt
+  contact_email: max.Mustermann@Muster.mu
+
 system_user:
   username: system
   password: change_me
@@ -276,6 +292,7 @@ storage:
   data_dir: /data
   upload_dir: /uploads
   log_dir: /logs
+  backup_dir: /backups
 ```
 
 Secrets must never be committed to GitHub.
@@ -744,6 +761,50 @@ Inactive players must remain available in reports if explicitly included.
 
 ***
 
+# Player Statistics View
+
+Accessible from the ranking table by clicking on a player name.
+
+All logged-in users can view player statistics.
+
+## Period Statistics (same date range as ranking table filter)
+
+```text
+Total 180s in period
+All high finishes in period (list of scores)
+All low darts in period (list of dart counts)
+```
+
+## All-Time Statistics (since player's first recorded match)
+
+```text
+Total 180s all time
+All high finishes all time
+All low darts all time
+```
+
+***
+
+# Match Statistics Detail View
+
+Clickable rows in match history tables open a detail modal showing per-player statistics side by side.
+
+Each player column shows:
+
+```text
+Score (e.g. 3-1) and derived result (Win / Loss)
+Number of 180s
+High finishes (list of individual scores)
+Low darts (list of individual dart counts)
+Elo change
+```
+
+The detail view is read-only for normal USERS.
+
+ADMIN and SYSTEM can navigate to edit statistics from this view.
+
+***
+
 # User Interface
 
 The user interface must be login protected.
@@ -947,6 +1008,69 @@ Positive   = green
 ```
 
 The PDF must be visually consistent with the application design.
+
+***
+
+# Legal Pages
+
+## Impressum
+
+The application must provide an Impressum page with configurable contact data.
+
+Contact data is rendered from the `legal` section in `config.yaml`:
+
+```yaml
+legal:
+  contact_company: Company
+  contact_name: Max Mustermann
+  contact_street: Musterstrasse 1
+  contact_city: 11111 Musterstadt
+  contact_email: max.Mustermann@Muster.mu
+```
+
+These fields are also configurable via environment variables:
+
+```text
+CONTACT_COMPANY
+CONTACT_NAME
+CONTACT_STREET
+CONTACT_CITY
+CONTACT_EMAIL
+```
+
+The Impressum page must be publicly accessible without authentication.
+
+## Privacy Policy
+
+The application must provide a Privacy Policy page that is GDPR-compliant.
+
+The Privacy Policy must include:
+
+* Responsible party (contact data from config)
+* Data collected
+* Purpose of data processing
+* Cookie information
+* Data retention policy
+* GDPR rights
+* Data security measures
+* Contact information
+
+The Privacy Policy page must be publicly accessible without authentication.
+
+## Cookie Consent
+
+The application must show a cookie consent banner to every visitor on first page load.
+
+Requirements:
+
+* Banner is shown on first visit only
+* User can accept or decline
+* Consent state is stored in localStorage
+* No non-essential cookies are set before consent
+* Banner is dismissible and does not block page interaction after dismiss
+* Banner includes descriptive text about essential cookies
+
+Only essential cookies (authentication session cookie) are used. No tracking or analytics cookies are set.
 
 ***
 
@@ -1200,6 +1324,25 @@ v1.2.3 (a1b2c3d) - Build 2026-07-21
 ```
 
 The version information should be injected during the GitHub Actions build process.
+
+## Portainer Deployment
+
+The application must support deployment via Portainer Stacks.
+
+Required file:
+
+```text
+portainer_compose.yaml
+```
+
+This file must:
+
+* Include all environment variables inlined (Portainer does not support external .env files)
+* Include inline comments describing each variable's purpose, possible values, and defaults
+* Use bind-mount volumes with example host paths (e.g., `/volume1/docker/elo/...`)
+* Use the published GHCR image
+* Not include build context (deployment only)
+* Include a header comment explaining usage and security warnings
 
 ***
 
@@ -1584,7 +1727,16 @@ The final deliverable is a production-ready application that provides:
 * Player management
 * User management
 * Club management
-* Match management
+* Match management with dart statistics
+* Match statistics detail view per match
+* Player statistics view (period and all-time)
+* Admin match statistics editing
+* Confirmation dialogs on all modifying actions
+* Auto-refresh of affected UI components after changes
+* Cookie consent banner (EU compliance)
+* Impressum page with configurable contact data
+* Privacy Policy page (GDPR compliant)
+* Portainer Stack deployment
 * Automatic inactive player detection
 * Automatic player reactivation
 * Historical Elo recalculation
