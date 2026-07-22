@@ -416,10 +416,10 @@ class TestMatchStatisticsRendering:
         assert "admin-match-detail-modal" in resp.text
         assert "admin-modal-p1-name" in resp.text
         assert "admin-modal-p2-name" in resp.text
-        assert "admin-modal-p1-180s" in resp.text
-        assert "admin-modal-p2-180s" in resp.text
-        assert "admin-modal-p1-hf" in resp.text
-        assert "admin-modal-p2-hf" in resp.text
+        assert "admin-edit-p1-180s" in resp.text
+        assert "admin-edit-p2-180s" in resp.text
+        assert "admin-edit-p1-hf-list" in resp.text
+        assert "admin-edit-p2-hf-list" in resp.text
 
     def test_admin_match_table_clickable(self, client, db_session):
         """Admin match rows should open detail modal on click."""

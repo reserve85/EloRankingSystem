@@ -291,9 +291,21 @@
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Result</td><td><span id="admin-modal-p1-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="admin-modal-p1-elo"></span></td></tr>
-              <tr><td class="text-muted">180s</td><td id="admin-modal-p1-180s"></td></tr>
-              <tr><td class="text-muted">High Finishes</td><td id="admin-modal-p1-hf"></td></tr>
-              <tr><td class="text-muted">Low Darts</td><td id="admin-modal-p1-ld"></td></tr>
+              <tr><td class="text-muted">180s</td><td>
+                <div class="input-group input-group-sm" style="max-width:100px">
+                  <button type="button" class="btn btn-outline-secondary" onclick="adjustModalCounter('admin-edit-p1-180s',-1)">−</button>
+                  <input type="number" class="form-control text-center" id="admin-edit-p1-180s" value="0" min="0">
+                  <button type="button" class="btn btn-outline-secondary" onclick="adjustModalCounter('admin-edit-p1-180s',1)">+</button>
+                </div>
+              </td></tr>
+              <tr><td class="text-muted">High Finishes</td><td>
+                <div id="admin-edit-p1-hf-list"></div>
+                <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addModalHfEntry('p1')">+ Add</button>
+              </td></tr>
+              <tr><td class="text-muted">Low Darts</td><td>
+                <div id="admin-edit-p1-ld-list"></div>
+                <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addModalLdEntry('p1')">+ Add</button>
+              </td></tr>
             </table>
           </div>
         </div>
@@ -305,16 +317,32 @@
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Result</td><td><span id="admin-modal-p2-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="admin-modal-p2-elo"></span></td></tr>
-              <tr><td class="text-muted">180s</td><td id="admin-modal-p2-180s"></td></tr>
-              <tr><td class="text-muted">High Finishes</td><td id="admin-modal-p2-hf"></td></tr>
-              <tr><td class="text-muted">Low Darts</td><td id="admin-modal-p2-ld"></td></tr>
+              <tr><td class="text-muted">180s</td><td>
+                <div class="input-group input-group-sm" style="max-width:100px">
+                  <button type="button" class="btn btn-outline-secondary" onclick="adjustModalCounter('admin-edit-p2-180s',-1)">−</button>
+                  <input type="number" class="form-control text-center" id="admin-edit-p2-180s" value="0" min="0">
+                  <button type="button" class="btn btn-outline-secondary" onclick="adjustModalCounter('admin-edit-p2-180s',1)">+</button>
+                </div>
+              </td></tr>
+              <tr><td class="text-muted">High Finishes</td><td>
+                <div id="admin-edit-p2-hf-list"></div>
+                <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addModalHfEntry('p2')">+ Add</button>
+              </td></tr>
+              <tr><td class="text-muted">Low Darts</td><td>
+                <div id="admin-edit-p2-ld-list"></div>
+                <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addModalLdEntry('p2')">+ Add</button>
+              </td></tr>
             </table>
           </div>
         </div>
       </div>
     </div>
+    <div id="admin-modal-status" class="alert d-none mt-2 mb-0"></div>
   </div>
-  <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+  <div class="modal-footer">
+    <button class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+    <button class="btn btn-primary" id="admin-modal-save-btn" onclick="saveAdminMatchStats()" style="display:none">Save Changes</button>
+  </div>
 </div></div></div>
 
 <!-- User Modal -->
@@ -452,9 +480,50 @@ async function loadMatches() {
   $('#matches-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true });
 }
 
+// --- Admin Match Detail Modal ---
+let adminEditingMatchId = null;
+
+function adjustModalCounter(id, delta) {
+  const el = document.getElementById(id);
+  const val = Math.max(0, (parseInt(el.value) || 0) + delta);
+  el.value = val;
+}
+
+function addModalHfEntry(player) {
+  const container = document.getElementById('admin-edit-' + player + '-hf-list');
+  const div = document.createElement('div');
+  div.className = 'input-group input-group-sm mb-1';
+  div.innerHTML = '<input type="number" class="form-control hf-input" min="{{ hf_min }}" max="{{ hf_max }}" placeholder="{{ hf_min }}–{{ hf_max }}">'
+    + '<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">−</button>';
+  container.appendChild(div);
+}
+
+function addModalLdEntry(player) {
+  const container = document.getElementById('admin-edit-' + player + '-ld-list');
+  const div = document.createElement('div');
+  div.className = 'input-group input-group-sm mb-1';
+  div.innerHTML = '<input type="number" class="form-control ld-input" min="{{ ld_min }}" max="{{ ld_max }}" placeholder="{{ ld_min }}–{{ ld_max }}">'
+    + '<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">−</button>';
+  container.appendChild(div);
+}
+
+function populateModalHfLd(containerId, values, inputClass) {
+  const container = document.getElementById(containerId);
+  container.innerHTML = '';
+  if (!Array.isArray(values)) return;
+  values.forEach(v => {
+    const div = document.createElement('div');
+    div.className = 'input-group input-group-sm mb-1';
+    div.innerHTML = '<input type="number" class="form-control ' + inputClass + '" value="' + v + '">'
+      + '<button type="button" class="btn btn-outline-danger btn-sm" onclick="this.parentElement.remove()">−</button>';
+    container.appendChild(div);
+  });
+}
+
 function showAdminMatchDetail(idx) {
   const m = adminMatchData[idx];
   if (!m) return;
+  adminEditingMatchId = m.id;
   const nameA = adminPmap[m.player_a_id] || 'Player ' + m.player_a_id;
   const nameB = adminPmap[m.player_b_id] || 'Player ' + m.player_b_id;
   const scoreA = m.player1_score != null ? m.player1_score : '-';
@@ -463,10 +532,6 @@ function showAdminMatchDetail(idx) {
   const resultB = m.winner_id === m.player_b_id ? 'Win' : 'Loss';
   const resClsA = resultA === 'Win' ? 'text-green fw-bold' : 'text-red fw-bold';
   const resClsB = resultB === 'Win' ? 'text-green fw-bold' : 'text-red fw-bold';
-  const hfA = Array.isArray(m.player_a_high_finishes) && m.player_a_high_finishes.length ? m.player_a_high_finishes.join(', ') : '-';
-  const hfB = Array.isArray(m.player_b_high_finishes) && m.player_b_high_finishes.length ? m.player_b_high_finishes.join(', ') : '-';
-  const ldA = Array.isArray(m.player_a_low_darts) && m.player_a_low_darts.length ? m.player_a_low_darts.join(', ') : '-';
-  const ldB = Array.isArray(m.player_b_low_darts) && m.player_b_low_darts.length ? m.player_b_low_darts.join(', ') : '-';
   document.getElementById('admin-modal-match-date').textContent = m.date;
   document.getElementById('admin-modal-match-score').textContent = scoreA + ' : ' + scoreB;
   document.getElementById('admin-modal-p1-name').textContent = nameA;
@@ -475,19 +540,52 @@ function showAdminMatchDetail(idx) {
   document.getElementById('admin-modal-p1-result').className = resClsA;
   document.getElementById('admin-modal-p2-result').textContent = resultB;
   document.getElementById('admin-modal-p2-result').className = resClsB;
-  document.getElementById('admin-modal-p1-180s').textContent = m.player_a_180s || 0;
-  document.getElementById('admin-modal-p2-180s').textContent = m.player_b_180s || 0;
-  document.getElementById('admin-modal-p1-hf').textContent = hfA;
-  document.getElementById('admin-modal-p2-hf').textContent = hfB;
-  document.getElementById('admin-modal-p1-ld').textContent = ldA;
-  document.getElementById('admin-modal-p2-ld').textContent = ldB;
   const eloA = m.elo_change_a >= 0 ? '+' + m.elo_change_a.toFixed(1) : m.elo_change_a.toFixed(1);
   const eloB = m.elo_change_b >= 0 ? '+' + m.elo_change_b.toFixed(1) : m.elo_change_b.toFixed(1);
   document.getElementById('admin-modal-p1-elo').textContent = eloA;
   document.getElementById('admin-modal-p2-elo').textContent = eloB;
   document.getElementById('admin-modal-p1-elo').className = m.elo_change_a >= 0 ? 'text-green' : 'text-red';
   document.getElementById('admin-modal-p2-elo').className = m.elo_change_b >= 0 ? 'text-green' : 'text-red';
+  // Populate editable fields
+  document.getElementById('admin-edit-p1-180s').value = m.player_a_180s || 0;
+  document.getElementById('admin-edit-p2-180s').value = m.player_b_180s || 0;
+  populateModalHfLd('admin-edit-p1-hf-list', m.player_a_high_finishes, 'hf-input');
+  populateModalHfLd('admin-edit-p2-hf-list', m.player_b_high_finishes, 'hf-input');
+  populateModalHfLd('admin-edit-p1-ld-list', m.player_a_low_darts, 'ld-input');
+  populateModalHfLd('admin-edit-p2-ld-list', m.player_b_low_darts, 'ld-input');
+  // Show save button
+  document.getElementById('admin-modal-save-btn').style.display = '';
+  const statusEl = document.getElementById('admin-modal-status');
+  statusEl.classList.add('d-none');
   new bootstrap.Modal(document.getElementById('admin-match-detail-modal')).show();
+}
+
+async function saveAdminMatchStats() {
+  if (!adminEditingMatchId) return;
+  const statusEl = document.getElementById('admin-modal-status');
+  statusEl.classList.add('d-none');
+  const body = {
+    player_a_180s: parseInt(document.getElementById('admin-edit-p1-180s').value) || 0,
+    player_b_180s: parseInt(document.getElementById('admin-edit-p2-180s').value) || 0,
+    player_a_high_finishes: [...document.querySelectorAll('#admin-edit-p1-hf-list .hf-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v)),
+    player_b_high_finishes: [...document.querySelectorAll('#admin-edit-p2-hf-list .hf-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v)),
+    player_a_low_darts: [...document.querySelectorAll('#admin-edit-p1-ld-list .ld-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v)),
+    player_b_low_darts: [...document.querySelectorAll('#admin-edit-p2-ld-list .ld-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v)),
+  };
+  const resp = await fetch('/matches/' + adminEditingMatchId, {
+    method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
+  });
+  if (resp.ok) {
+    statusEl.textContent = 'Statistics saved!';
+    statusEl.className = 'alert alert-success mt-2 mb-0';
+    loadMatches();
+  } else {
+    const data = await resp.json();
+    let msg = data.detail || 'Failed';
+    if (data.detail && Array.isArray(data.detail)) { msg = data.detail.map(e => e.msg || JSON.stringify(e)).join(', '); }
+    statusEl.textContent = msg;
+    statusEl.className = 'alert alert-danger mt-2 mb-0';
+  }
 }
 
 async function deleteMatch(id) { if (confirm('Delete this match?')) { await fetch('/matches/'+id, {method:'DELETE'}); loadMatches(); } }

@@ -1016,3 +1016,286 @@ class TestPlayerStatsRendering:
         assert "ps-alltime-ld" in resp.text
 
 
+# ── Admin Statistics Editing ──────────────────────────────────────────
+
+class TestAdminStatisticsEditing:
+    """Test admin editing of match statistics via API."""
+
+    def test_admin_can_edit_180s(self, client, db_session):
+        """ADMIN can update 180s count on an existing match."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_180s": 1,
+        })
+        match_id = resp.json()["id"]
+
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_180s": 5,
+            "player_b_180s": 2,
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["player_a_180s"] == 5
+        assert data["player_b_180s"] == 2
+
+    def test_admin_can_edit_high_finishes(self, client, db_session):
+        """ADMIN can update high finishes on an existing match."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+        })
+        match_id = resp.json()["id"]
+
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_high_finishes": [120, 150],
+            "player_b_high_finishes": [100],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["player_a_high_finishes"] == [120, 150]
+        assert data["player_b_high_finishes"] == [100]
+
+    def test_admin_can_edit_low_darts(self, client, db_session):
+        """ADMIN can update low darts on an existing match."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+        })
+        match_id = resp.json()["id"]
+
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_low_darts": [9, 12, 15],
+        })
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["player_a_low_darts"] == [9, 12, 15]
+
+    def test_admin_edit_validates_high_finish_range(self, client, db_session):
+        """ADMIN update validates high finish values against configured range."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+        })
+        match_id = resp.json()["id"]
+
+        # Below min
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_high_finishes": [99],
+        })
+        assert resp.status_code == 422
+
+        # Above max
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_high_finishes": [171],
+        })
+        assert resp.status_code == 422
+
+    def test_admin_edit_validates_low_darts_range(self, client, db_session):
+        """ADMIN update validates low darts values against configured range."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+        })
+        match_id = resp.json()["id"]
+
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_low_darts": [8],
+        })
+        assert resp.status_code == 422
+
+    def test_admin_edit_preserves_existing_elo_data(self, client, db_session):
+        """Editing statistics does not alter Elo data."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+        })
+        match_id = resp.json()["id"]
+        original_elo = resp.json()["elo_after_a"]
+
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_180s": 10,
+        })
+        assert resp.status_code == 200
+        assert resp.json()["elo_after_a"] == original_elo
+
+    def test_admin_edit_creates_audit_log_with_statistics(self, client, db_session):
+        """Statistics edit creates audit log entry with old and new values."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_180s": 1,
+        })
+        match_id = resp.json()["id"]
+
+        client.put(f"/matches/{match_id}", json={
+            "player_a_180s": 5,
+            "player_a_high_finishes": [150],
+        })
+
+        audit = db_session.query(AuditLog).filter(
+            AuditLog.action == "MATCH_UPDATED"
+        ).first()
+        assert audit is not None
+        assert "statistics" in audit.old_value
+        assert "statistics" in audit.new_value
+
+    def test_system_can_edit_statistics(self, client, db_session):
+        """SYSTEM user can edit match statistics."""
+        user = User(username="sys", password_hash=hash_password("SysPass123"),
+                     role=UserRole.SYSTEM, active=True)
+        db_session.add(user)
+        db_session.commit()
+        client.post("/auth/login", data={"username": "sys", "password": "SysPass123"})
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+        })
+        match_id = resp.json()["id"]
+
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_180s": 3,
+        })
+        assert resp.status_code == 200
+        assert resp.json()["player_a_180s"] == 3
+
+
+class TestStatisticsPermissionEnforcement:
+    """Test that USER role cannot edit match statistics."""
+
+    def test_user_cannot_edit_match_statistics(self, client, db_session):
+        """USER role gets 403 when trying to update match statistics."""
+        # Create admin and user
+        admin = User(username="admin2", password_hash=hash_password("AdminPass123"),
+                     role=UserRole.ADMIN, active=True)
+        user = User(username="user2", password_hash=hash_password("UserPass123"),
+                    role=UserRole.USER, active=True)
+        db_session.add_all([admin, user])
+        db_session.commit()
+        pa, pb = _create_players(db_session)
+
+        # Create match as admin
+        client.post("/auth/login", data={"username": "admin2", "password": "AdminPass123"})
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_180s": 1,
+        })
+        match_id = resp.json()["id"]
+
+        # Try to edit as user
+        client.post("/auth/login", data={"username": "user2", "password": "UserPass123"})
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_180s": 10,
+        })
+        assert resp.status_code == 403
+
+    def test_user_cannot_edit_high_finishes(self, client, db_session):
+        """USER role gets 403 when trying to update high finishes."""
+        admin = User(username="admin3", password_hash=hash_password("AdminPass123"),
+                     role=UserRole.ADMIN, active=True)
+        user = User(username="user3", password_hash=hash_password("UserPass123"),
+                    role=UserRole.USER, active=True)
+        db_session.add_all([admin, user])
+        db_session.commit()
+        pa, pb = _create_players(db_session)
+
+        client.post("/auth/login", data={"username": "admin3", "password": "AdminPass123"})
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+        })
+        match_id = resp.json()["id"]
+
+        client.post("/auth/login", data={"username": "user3", "password": "UserPass123"})
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_high_finishes": [120],
+        })
+        assert resp.status_code == 403
+
+    def test_unauthenticated_cannot_edit_statistics(self, client, db_session):
+        """Unauthenticated requests get 401."""
+        resp = client.put("/matches/1", json={"player_a_180s": 5})
+        assert resp.status_code == 401
+
+
+class TestAdminStatsEditingUI:
+    """Tests for the admin statistics editing UI elements."""
+
+    def test_admin_detail_modal_has_editable_180s(self, client, db_session):
+        """Admin match detail modal should have editable 180s inputs."""
+        _login_as(client, db_session, "admin_edit", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-edit-p1-180s" in resp.text
+        assert "admin-edit-p2-180s" in resp.text
+
+    def test_admin_detail_modal_has_editable_high_finishes(self, client, db_session):
+        """Admin match detail modal should have editable high finish lists."""
+        _login_as(client, db_session, "admin_edit", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-edit-p1-hf-list" in resp.text
+        assert "admin-edit-p2-hf-list" in resp.text
+        assert "addModalHfEntry" in resp.text
+
+    def test_admin_detail_modal_has_editable_low_darts(self, client, db_session):
+        """Admin match detail modal should have editable low darts lists."""
+        _login_as(client, db_session, "admin_edit", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-edit-p1-ld-list" in resp.text
+        assert "admin-edit-p2-ld-list" in resp.text
+        assert "addModalLdEntry" in resp.text
+
+    def test_admin_detail_modal_has_save_button(self, client, db_session):
+        """Admin match detail modal should have Save Changes button."""
+        _login_as(client, db_session, "admin_edit", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-modal-save-btn" in resp.text
+        assert "saveAdminMatchStats" in resp.text
+
+    def test_admin_detail_modal_has_status_element(self, client, db_session):
+        """Admin match detail modal should have status feedback element."""
+        _login_as(client, db_session, "admin_edit", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-modal-status" in resp.text
+
+
