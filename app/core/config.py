@@ -60,6 +60,7 @@ def _yaml_to_env_defaults(yaml_config: dict) -> dict[str, str]:
     # Mapping: (yaml_section, yaml_key, env_var_name)
     mappings = [
         ("app", "name", "APP_NAME"),
+        ("app", "club_name", "CLUB_NAME"),
         ("app", "environment", "APP_ENV"),
         ("app", "debug", "APP_DEBUG"),
         ("elo", "default_rating", "DEFAULT_ELO"),
@@ -107,6 +108,7 @@ class Settings(BaseSettings):
 
     # ── App ──────────────────────────────────────────────
     app_name: str = Field(default="Elo Ranking System", alias="APP_NAME")
+    club_name: str = Field(default="", alias="CLUB_NAME")
     app_env: str = Field(default="development", alias="APP_ENV")
     app_debug: bool = Field(default=False, alias="APP_DEBUG")
 

@@ -27,7 +27,9 @@ def login_page(request: Request):
 
 
 def _get_club_name(db: Session) -> str:
-    """Get club name from database, falling back to app_name setting."""
+    """Get club name from config/env, database, or app_name fallback."""
+    if settings.club_name:
+        return settings.club_name
     cs = db.query(ClubSettings).first()
     if cs and cs.club_name:
         return cs.club_name

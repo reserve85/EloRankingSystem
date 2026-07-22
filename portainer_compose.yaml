@@ -46,6 +46,7 @@ services:
     environment:
       # ── Application Settings ──────────────────────────────────────────
       APP_NAME=Elo Ranking System            # Display name of the application | Any string | Default: Elo Ranking System
+      CLUB_NAME=My Dart Club                 # Club name displayed in header and reports | Any string | Default: (uses APP_NAME if empty)
       APP_ENV=production                      # Application environment | development, production | Default: development
       APP_DEBUG=false                         # Enable debug mode (verbose errors) | true, false | Default: false
       CONFIG_PATH=/app/config.yaml            # Path to config.yaml inside container | Any valid path | Default: /app/config.yaml

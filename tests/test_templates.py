@@ -357,10 +357,10 @@ class TestMatchStatisticsRendering:
     """Tests for match statistics columns and detail modal rendering."""
 
     def test_dashboard_match_table_has_180s_column(self, client, db_session):
-        """Dashboard match history table should have 180s column header."""
+        """Dashboard match history table should have 180 column header."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        assert "180s</th>" in resp.text
+        assert "180</th>" in resp.text
         assert "HF</th>" in resp.text
         assert "LD</th>" in resp.text
 
@@ -402,10 +402,10 @@ class TestMatchStatisticsRendering:
         assert "Close" in resp.text
 
     def test_admin_match_table_has_statistics_columns(self, client, db_session):
-        """Admin match table should have 180s, HF, LD columns."""
+        """Admin match table should have 180, HF, LD columns."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
-        assert "180s</th>" in resp.text
+        assert "180</th>" in resp.text
         assert "HF</th>" in resp.text
         assert "LD</th>" in resp.text
 
