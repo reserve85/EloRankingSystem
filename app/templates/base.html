@@ -72,6 +72,8 @@
         <div class="col-lg-auto ms-lg-auto">
           <ul class="list-inline list-inline-dots mb-0">
             <li class="list-inline-item"><a href="/docs" class="link-secondary">API Docs</a></li>
+            <li class="list-inline-item"><a href="/ui/impressum" class="link-secondary">Impressum</a></li>
+            <li class="list-inline-item"><a href="/ui/privacy" class="link-secondary">Privacy Policy</a></li>
           </ul>
         </div>
         <div class="col-12 col-lg-auto mt-3 mt-lg-0">
@@ -120,6 +122,37 @@
       }, { once: true });
       modal.show();
     });
+  }
+  </script>
+  <!-- Cookie Consent Banner -->
+  <div id="cookie-consent-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#fff;border-top:1px solid #dee2e6;box-shadow:0 -2px 10px rgba(0,0,0,.1);padding:1rem 0;">
+    <div class="container-xl">
+      <div class="row align-items-center">
+        <div class="col-md-8">
+          <strong>Cookie Consent</strong>
+          <p class="mb-0 small text-muted">This website uses only essential cookies required for authentication and session management. No tracking or analytics cookies are used. By clicking "Accept" or continuing to use this site, you consent to the use of essential cookies.</p>
+        </div>
+        <div class="col-md-4 text-md-end mt-2 mt-md-0">
+          <button class="btn btn-primary btn-sm" onclick="acceptCookies()">Accept</button>
+          <button class="btn btn-outline-secondary btn-sm ms-1" onclick="declineCookies()">Decline</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function() {
+    var consent = localStorage.getItem('cookie_consent');
+    if (!consent) {
+      document.getElementById('cookie-consent-banner').style.display = 'block';
+    }
+  })();
+  function acceptCookies() {
+    localStorage.setItem('cookie_consent', 'accepted');
+    document.getElementById('cookie-consent-banner').style.display = 'none';
+  }
+  function declineCookies() {
+    localStorage.setItem('cookie_consent', 'declined');
+    document.getElementById('cookie-consent-banner').style.display = 'none';
   }
   </script>
   {% block extra_js %}{% endblock %}

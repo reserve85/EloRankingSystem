@@ -16,6 +16,13 @@ statistics:
   low_darts_min: 9
   low_darts_max: 21
 
+legal:
+  contact_company: Company
+  contact_name: Max Mustermann
+  contact_street: Musterstrasse 1
+  contact_city: 11111 Musterstadt
+  contact_email: max.Mustermann@Muster.mu
+
 system_user:
   username: system
   password: change_me

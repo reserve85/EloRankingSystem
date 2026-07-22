@@ -72,6 +72,31 @@ def change_password_page(request: Request, current_user: User = Depends(get_curr
     )
 
 
+def _legal_context():
+    """Return common context dict for legal pages."""
+    return {
+        "app_name": settings.app_name,
+        "version_info": get_version_info(),
+        "contact_company": settings.contact_company,
+        "contact_name": settings.contact_name,
+        "contact_street": settings.contact_street,
+        "contact_city": settings.contact_city,
+        "contact_email": settings.contact_email,
+    }
+
+
+@router.get("/impressum")
+def impressum_page(request: Request):
+    """Render the Impressum page. Publicly accessible."""
+    return templates.TemplateResponse(request, "impressum.html", _legal_context())
+
+
+@router.get("/privacy")
+def privacy_page(request: Request):
+    """Render the Privacy Policy page. Publicly accessible."""
+    return templates.TemplateResponse(request, "privacy.html", _legal_context())
+
+
 @router.get("/logout")
 def logout_redirect(request: Request):
     """Clear auth cookie and redirect to login."""

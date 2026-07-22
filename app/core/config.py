@@ -65,6 +65,11 @@ def _yaml_to_env_defaults(yaml_config: dict) -> dict[str, str]:
         ("elo", "default_rating", "DEFAULT_ELO"),
         ("elo", "k_factor", "K_FACTOR"),
         ("ranking", "inactivity_months", "INACTIVITY_MONTHS"),
+        ("legal", "contact_company", "CONTACT_COMPANY"),
+        ("legal", "contact_name", "CONTACT_NAME"),
+        ("legal", "contact_street", "CONTACT_STREET"),
+        ("legal", "contact_city", "CONTACT_CITY"),
+        ("legal", "contact_email", "CONTACT_EMAIL"),
         ("statistics", "high_finish_min", "HIGH_FINISH_MIN"),
         ("statistics", "high_finish_max", "HIGH_FINISH_MAX"),
         ("statistics", "low_darts_min", "LOW_DARTS_MIN"),
@@ -117,6 +122,13 @@ class Settings(BaseSettings):
 
     # ── Ranking ──────────────────────────────────────────
     inactivity_months: int = Field(default=3, alias="INACTIVITY_MONTHS")
+
+    # ── Legal / Impressum ─────────────────────────────────
+    contact_company: str = Field(default="Company", alias="CONTACT_COMPANY")
+    contact_name: str = Field(default="Max Mustermann", alias="CONTACT_NAME")
+    contact_street: str = Field(default="Musterstrasse 1", alias="CONTACT_STREET")
+    contact_city: str = Field(default="11111 Musterstadt", alias="CONTACT_CITY")
+    contact_email: str = Field(default="max.Mustermann@Muster.mu", alias="CONTACT_EMAIL")
 
     # ── Statistics ────────────────────────────────────────
     high_finish_min: int = Field(default=100, alias="HIGH_FINISH_MIN")

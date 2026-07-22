@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Impressum - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-header d-print-none mb-4">
+  <h2>Impressum</h2>
+</div>
+<div class="card">
+  <div class="card-body">
+    <h4>{{ contact_company }}</h4>
+    <p>
+      {{ contact_name }}<br>
+      {{ contact_street }}<br>
+      {{ contact_city }}
+    </p>
+    <h5>Contact</h5>
+    <p>
+      E-Mail: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

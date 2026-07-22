@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% block title %}Privacy Policy - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="page-header d-print-none mb-4">
+  <h2>Privacy Policy</h2>
+</div>
+<div class="card">
+  <div class="card-body">
+    <h4>1. Responsible Party</h4>
+    <p>
+      {{ contact_company }}<br>
+      {{ contact_name }}<br>
+      {{ contact_street }}<br>
+      {{ contact_city }}<br>
+      E-Mail: <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>
+    </p>
+
+    <h4>2. Data We Collect</h4>
+    <p>This application stores the following data to provide its services:</p>
+    <ul>
+      <li><strong>User accounts:</strong> Username, password hash, role, login timestamps.</li>
+      <li><strong>Player data:</strong> Names, Elo ratings, match history, and dart statistics.</li>
+      <li><strong>Match data:</strong> Scores, Elo calculations, timestamps, and audit logs.</li>
+      <li><strong>Authentication cookies:</strong> A secure HttpOnly session cookie is used to keep you logged in.</li>
+    </ul>
+
+    <h4>3. Purpose of Data Processing</h4>
+    <p>Data is processed exclusively for the purpose of operating the dart club ranking system, including match management, player ranking, and administrative functions.</p>
+
+    <h4>4. Cookies</h4>
+    <p>This website uses the following cookies:</p>
+    <ul>
+      <li><strong>Authentication cookie (HttpOnly, Secure):</strong> Required for login sessions. This cookie is essential and cannot be declined.</li>
+      <li><strong>Cookie consent cookie:</strong> Stores your cookie consent preference. This cookie is essential and cannot be declined.</li>
+    </ul>
+    <p>No third-party tracking or analytics cookies are used.</p>
+
+    <h4>5. Data Retention</h4>
+    <p>Data is retained as long as necessary for the operation of the ranking system. Match history and Elo records are preserved to maintain ranking integrity.</p>
+
+    <h4>6. Your Rights</h4>
+    <p>Under the GDPR, you have the right to:</p>
+    <ul>
+      <li>Access your personal data</li>
+      <li>Rectify inaccurate data</li>
+      <li>Request deletion of your data</li>
+      <li>Object to data processing</li>
+      <li>Data portability</li>
+    </ul>
+    <p>To exercise these rights, please contact us at <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>.</p>
+
+    <h4>7. Data Security</h4>
+    <p>We implement appropriate technical and organizational measures to protect your data, including password hashing (Argon2), secure JWT authentication, and CSRF protection.</p>
+
+    <h4>8. Contact</h4>
+    <p>For questions about this privacy policy, please contact:</p>
+    <p>
+      {{ contact_company }}<br>
+      {{ contact_name }}<br>
+      <a href="mailto:{{ contact_email }}">{{ contact_email }}</a>
+    </p>
+  </div>
+</div>
+{% endblock %}
