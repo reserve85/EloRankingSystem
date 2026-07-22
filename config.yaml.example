@@ -3,6 +3,7 @@ app:
   club_name: My Dart Club
   environment: development
   debug: true
+  timezone: Europe/Berlin
 
 elo:
   default_rating: 1200

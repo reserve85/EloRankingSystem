@@ -53,7 +53,14 @@ def get_db() -> Session:
 
 
 def init_db() -> None:
-    """Initialize database tables and run Alembic migrations."""
+    """Initialize database tables and run Alembic migrations.
+
+    Handles three scenarios:
+    1. Fresh database (no tables): create all tables via SQLAlchemy, stamp as head.
+    2. Existing database with alembic_version: run pending Alembic migrations.
+    3. Existing database without alembic_version (pre-Alembic): stamp as head, then
+       upgrade (to catch any new migrations added after the database was created).
+    """
     import logging
     from alembic.config import Config
     from alembic import command
@@ -61,29 +68,36 @@ def init_db() -> None:
 
     logger = logging.getLogger(__name__)
 
-    try:
-        alembic_cfg = Config("alembic.ini")
+    inspector = inspect(engine)
+    existing_tables = set(inspector.get_table_names())
 
-        inspector = inspect(engine)
-        existing_tables = inspector.get_table_names()
+    alembic_cfg = Config("alembic.ini")
 
-        if "alembic_version" in existing_tables:
-            # Alembic is already tracking this database — just run pending migrations
+    if not existing_tables:
+        # Scenario 1: Fresh database — create all tables and stamp as head
+        logger.info("Fresh database detected. Creating all tables...")
+        Base.metadata.create_all(bind=engine)
+        try:
+            command.stamp(alembic_cfg, "head")
+            logger.info("Database created and stamped to head.")
+        except Exception as e:
+            logger.warning(f"Alembic stamp failed (non-critical): {e}")
+
+    elif "alembic_version" in existing_tables:
+        # Scenario 2: Alembic-tracked database — run pending migrations
+        logger.info("Alembic-tracked database found. Running pending migrations...")
+        try:
             command.upgrade(alembic_cfg, "head")
             logger.info("Database migrations applied successfully.")
-        elif existing_tables:
-            # Database has tables but no alembic_version (pre-Alembic database).
-            # Stamp current state as head, then run any new migrations.
-            logger.info("Existing database found without Alembic tracking. Stamping to head...")
+        except Exception as e:
+            logger.error(f"Alembic upgrade failed: {e}")
+
+    else:
+        # Scenario 3: Pre-Alembic database — stamp and upgrade
+        logger.info("Pre-Alembic database found. Stamping to head and checking for new migrations...")
+        try:
             command.stamp(alembic_cfg, "head")
             command.upgrade(alembic_cfg, "head")
             logger.info("Database stamped and migrations applied successfully.")
-        else:
-            # Fresh database — run all migrations from scratch
-            command.upgrade(alembic_cfg, "head")
-            logger.info("Fresh database created and migrations applied successfully.")
-    except Exception as e:
-        logger.error(f"Alembic migration failed: {e}")
-        # Fallback: create tables via SQLAlchemy for fresh databases
-        Base.metadata.create_all(bind=engine)
-        logger.warning("Fell back to create_all() for table creation.")
+        except Exception as e:
+            logger.error(f"Alembic stamp/upgrade failed: {e}")

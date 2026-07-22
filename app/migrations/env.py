@@ -13,8 +13,10 @@ import app.models  # noqa: F401
 # Alembic Config object
 config = context.config
 
-# Set database URL from application settings
-config.set_main_option("sqlalchemy.url", settings.database_url)
+# Set database URL from application settings only if not already configured
+# (allows tests to override via alembic_cfg.set_main_option)
+if not config.get_main_option("sqlalchemy.url"):
+    config.set_main_option("sqlalchemy.url", settings.database_url)
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:

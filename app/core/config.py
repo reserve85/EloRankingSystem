@@ -77,6 +77,7 @@ def _yaml_to_env_defaults(yaml_config: dict) -> dict[str, str]:
         ("statistics", "low_darts_max", "LOW_DARTS_MAX"),
         ("system_user", "username", "SYSTEM_USER_USERNAME"),
         ("system_user", "password", "SYSTEM_USER_PASSWORD"),
+        ("app", "timezone", "TIMEZONE"),
         ("security", "jwt_secret", "JWT_SECRET"),
         ("security", "jwt_algorithm", "JWT_ALGORITHM"),
         ("security", "access_token_lifetime_minutes", "ACCESS_TOKEN_LIFETIME_MINUTES"),
@@ -155,6 +156,9 @@ class Settings(BaseSettings):
     cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
     cookie_httponly: bool = Field(default=True, alias="COOKIE_HTTPONLY")
     cookie_samesite: str = Field(default="lax", alias="COOKIE_SAMESITE")
+
+    # ── Timezone
+    timezone: str = Field(default="UTC", alias="TIMEZONE")
 
     # ── Storage ──────────────────────────────────────────
     data_dir: str = Field(default=str(BASE_DIR / "data"), alias="DATA_DIR")

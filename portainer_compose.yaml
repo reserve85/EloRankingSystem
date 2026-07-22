@@ -49,7 +49,8 @@ services:
       - CLUB_NAME=My Dart Club                 # Club name displayed in header and reports | Any string | Default: (uses APP_NAME if empty)
       - APP_ENV=production                      # Application environment | development, production | Default: development
       - APP_DEBUG=false                         # Enable debug mode (verbose errors) | true, false | Default: false
-      - CONFIG_PATH=/app/config.yaml            # Path to config.yaml inside container | Any valid path | Default: /app/config.yaml
+          - CONFIG_PATH=/app/config.yaml
+      - TIMEZONE=Europe/Berlin    # Timezone for date display | Any IANA timezone (e.g. Europe/Berlin, America/New_York) | Default: UTC            # Path to config.yaml inside container | Any valid path | Default: /app/config.yaml
 
       # ── Database ──────────────────────────────────────────────────────
       - DATABASE_URL=sqlite:////data/database.db # SQLite database file path (absolute) | Any sqlite URL | Default: sqlite:////data/database.db

@@ -276,10 +276,14 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+const serverTimezone = '{{ timezone }}';
 const today = new Date();
 const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-function fmt(d) { return d.toISOString().slice(0,10); }
-document.querySelector('input[name="date"]').valueAsDate = today;
+function fmt(d) {
+  // Use server timezone for date formatting to avoid UTC offset issues
+  return d.toLocaleDateString('en-CA', {timeZone: serverTimezone});
+}
+document.querySelector('input[name="date"]').value = fmt(today);
 document.getElementById('ranking-from').value = fmt(firstOfMonth);
 document.getElementById('ranking-to').value = fmt(today);
 document.getElementById('match-from').value = fmt(firstOfMonth);
@@ -397,7 +401,7 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
   const resp = await fetch('/matches/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
   if (resp.ok) {
     sucEl.textContent = 'Match saved!'; sucEl.classList.remove('d-none');
-    this.reset(); document.querySelector('input[name="date"]').valueAsDate = new Date();
+    this.reset(); document.querySelector('input[name="date"]').value = fmt(new Date());
     document.getElementById('score-a').value = '';
     document.getElementById('score-b').value = '';
     resetStatsForm();

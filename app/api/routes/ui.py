@@ -51,6 +51,7 @@ def dashboard_page(request: Request, current_user: User = Depends(get_current_us
             "hf_max": settings.high_finish_max,
             "ld_min": settings.low_darts_min,
             "ld_max": settings.low_darts_max,
+            "timezone": settings.timezone,
         },
     )
 
@@ -70,6 +71,7 @@ def admin_page(request: Request, current_user: User = Depends(require_admin), db
             "hf_max": settings.high_finish_max,
             "ld_min": settings.low_darts_min,
             "ld_max": settings.low_darts_max,
+            "timezone": settings.timezone,
         },
     )
 
