@@ -377,6 +377,15 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
   const errEl = document.getElementById('match-error');
   const sucEl = document.getElementById('match-success');
   errEl.classList.add('d-none'); sucEl.classList.add('d-none');
+
+  const p1Name = document.getElementById('player-a-select').selectedOptions[0]?.text || 'Player 1';
+  const p2Name = document.getElementById('player-b-select').selectedOptions[0]?.text || 'Player 2';
+  const score1 = fd.get('player1_score');
+  const score2 = fd.get('player2_score');
+  const msg = `Submit match: ${p1Name} ${score1} - ${score2} ${p2Name}? This will update Elo ratings and rankings.`;
+  const confirmed = await showConfirmDialog(msg, 'Submit Match');
+  if (!confirmed) return;
+
   const body = {
     date: fd.get('date'),
     player_a_id: parseInt(fd.get('player_a_id')),

@@ -87,6 +87,41 @@
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
   <script src="https://cdn.datatables.net/1.13.7/js/dataTables.bootstrap5.min.js"></script>
+  <!-- Confirmation Modal -->
+  <div class="modal fade" id="confirm-modal" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-body text-center py-4">
+          <div class="mb-3">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-lg text-warning" width="48" height="48" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 9v4" /><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0z" /><path d="M12 16h.01" /></svg>
+          </div>
+          <h5 id="confirm-title">Are you sure?</h5>
+          <p class="text-muted" id="confirm-message"></p>
+        </div>
+        <div class="modal-footer justify-content-center">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="button" class="btn btn-primary" id="confirm-ok-btn">Confirm</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+  function showConfirmDialog(message, title) {
+    return new Promise(resolve => {
+      document.getElementById('confirm-message').textContent = message;
+      document.getElementById('confirm-title').textContent = title || 'Are you sure?';
+      const modal = new bootstrap.Modal(document.getElementById('confirm-modal'));
+      const okBtn = document.getElementById('confirm-ok-btn');
+      const handler = () => { okBtn.removeEventListener('click', handler); modal.hide(); resolve(true); };
+      okBtn.addEventListener('click', handler);
+      document.getElementById('confirm-modal').addEventListener('hidden.bs.modal', () => {
+        okBtn.removeEventListener('click', handler);
+        resolve(false);
+      }, { once: true });
+      modal.show();
+    });
+  }
+  </script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

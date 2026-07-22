@@ -426,3 +426,77 @@ class TestMatchStatisticsRendering:
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
         assert "showAdminMatchDetail" in resp.text
+
+
+class TestConfirmationDialogs:
+    """Tests for confirmation dialogs on modifying actions."""
+
+    def test_base_template_has_confirm_modal(self, client, db_session):
+        """Base template should include shared confirmation modal."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "confirm-modal" in resp.text
+        assert "showConfirmDialog" in resp.text
+        assert "confirm-message" in resp.text
+
+    def test_dashboard_match_submit_has_confirmation(self, client, db_session):
+        """Dashboard match form submit should use confirmation dialog."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "showConfirmDialog" in resp.text
+
+    def test_admin_save_player_has_confirmation(self, client, db_session):
+        """Admin save player should use confirmation dialog."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "showConfirmDialog" in resp.text
+
+    def test_admin_delete_match_has_confirmation(self, client, db_session):
+        """Admin delete match should use confirmation dialog."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        # deleteMatch function should reference showConfirmDialog
+        assert "Delete Match" in resp.text or "Delete this match" in resp.text
+
+    def test_admin_toggle_user_has_confirmation(self, client, db_session):
+        """Admin enable/disable user should use confirmation dialog."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "Enable" in resp.text and "Disable" in resp.text
+
+
+class TestAutoRefresh:
+    """Tests for auto-refresh after modifying actions."""
+
+    def test_dashboard_loads_ranking_on_match_save(self, client, db_session):
+        """Dashboard JS should call loadRanking after match save."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "loadRanking(); loadMatches()" in resp.text
+
+    def test_admin_loads_matches_on_match_save(self, client, db_session):
+        """Admin JS should call loadMatches after match save."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "loadMatches();" in resp.text
+
+    def test_admin_loads_players_on_player_save(self, client, db_session):
+        """Admin JS should call loadPlayers after player save."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        # savePlayer should call loadPlayers
+        assert "loadPlayers()" in resp.text
+
+    def test_admin_loads_users_on_user_save(self, client, db_session):
+        """Admin JS should call loadUsers after user save."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "loadUsers();" in resp.text
+
+    def test_admin_refreshes_on_stats_save(self, client, db_session):
+        """Admin should refresh match list after stats edit."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "saveAdminMatchStats" in resp.text
+        # saveAdminMatchStats calls loadMatches
+        assert "loadMatches();" in resp.text

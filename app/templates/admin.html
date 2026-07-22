@@ -385,6 +385,9 @@ async function savePlayer() {
   const id = document.getElementById('player-edit-id').value;
   const name = document.getElementById('player-name').value;
   const startElo = parseInt(document.getElementById('player-start-elo').value) || 1200;
+  const action = id ? 'Update' : 'Create';
+  const confirmed = await showConfirmDialog(`${action} player "${name}"?`, `${action} Player`);
+  if (!confirmed) return;
   const body = { name: name, start_elo: startElo };
   const url = id ? '/players/'+id : '/players/';
   const method = id ? 'PUT' : 'POST';
@@ -400,8 +403,18 @@ function editPlayer(id) {
     new bootstrap.Modal(document.getElementById('player-modal')).show();
   });
 }
-async function disablePlayer(id) { await fetch('/players/'+id+'/disable', {method:'POST'}); loadPlayers(); }
-async function reactivatePlayer(id) { await fetch('/players/'+id+'/reactivate', {method:'POST'}); loadPlayers(); }
+async function disablePlayer(id) {
+  const confirmed = await showConfirmDialog('Disable this player? They will be hidden from the player list and cannot be selected for new matches.', 'Disable Player');
+  if (!confirmed) return;
+  await fetch('/players/'+id+'/disable', {method:'POST'});
+  loadPlayers();
+}
+async function reactivatePlayer(id) {
+  const confirmed = await showConfirmDialog('Reactivate this player? They will appear in the player list again.', 'Reactivate Player');
+  if (!confirmed) return;
+  await fetch('/players/'+id+'/reactivate', {method:'POST'});
+  loadPlayers();
+}
 
 // --- Users ---
 function resetUserForm() { document.getElementById('user-edit-id').value=''; document.getElementById('user-username').value=''; document.getElementById('user-password').value=''; document.getElementById('user-role').value='USER'; document.getElementById('user-modal-title').textContent='Add User'; }
@@ -446,6 +459,9 @@ function editUser(id) {
   });
 }
 async function toggleUser(id, active) {
+  const action = active ? 'Enable' : 'Disable';
+  const confirmed = await showConfirmDialog(`${action} this user?`, `${action} User`);
+  if (!confirmed) return;
   await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({active}) });
   loadUsers();
 }
@@ -588,7 +604,12 @@ async function saveAdminMatchStats() {
   }
 }
 
-async function deleteMatch(id) { if (confirm('Delete this match?')) { await fetch('/matches/'+id, {method:'DELETE'}); loadMatches(); } }
+async function deleteMatch(id) {
+  const confirmed = await showConfirmDialog('Delete this match? This will trigger Elo recalculation for all affected matches.', 'Delete Match');
+  if (!confirmed) return;
+  await fetch('/matches/'+id, {method:'DELETE'});
+  loadMatches();
+}
 
 // --- Club Settings ---
 async function loadClubSettings() {
