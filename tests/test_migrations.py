@@ -1,10 +1,6 @@
 """Tests for Alembic database migrations."""
 
-import os
-import pytest
-from pathlib import Path
-from sqlalchemy import create_engine, inspect, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy import create_engine, inspect
 from alembic.config import Config
 from alembic import command
 

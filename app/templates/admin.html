@@ -407,6 +407,15 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+const serverTimezone = "{{ timezone }}";
+function fmtToday() {
+  const parts = new Intl.DateTimeFormat('en-CA', {timeZone: serverTimezone, year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+  return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value+'-'+parts.find(p=>p.type==='day').value;
+}
+function fmtDate(d) {
+  const parts = new Intl.DateTimeFormat('en-CA', {timeZone: serverTimezone, year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
+  return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value+'-'+parts.find(p=>p.type==='day').value;
+}
 // --- Players ---
 function resetPlayerForm() { document.getElementById('player-edit-id').value=''; document.getElementById('player-name').value=''; document.getElementById('player-start-elo').value='1200'; document.getElementById('player-modal-title').textContent='Add Player'; }
 async function loadPlayers() {
@@ -899,14 +908,17 @@ document.getElementById('admin-add-match-form').addEventListener('submit', async
   }
 });
 
+// --- Initialize admin match date ---
+document.querySelector('#admin-add-match-form input[name="date"]').value = fmtToday();
+
 // --- PDF Export ---
 (function() {
   const today = new Date();
   const firstOfCurrent = new Date(today.getFullYear(), today.getMonth(), 1);
   const lastOfPrev = new Date(firstOfCurrent.getTime() - 86400000);
   const firstOfPrev = new Date(lastOfPrev.getFullYear(), lastOfPrev.getMonth(), 1);
-  document.getElementById('pdf-from').value = firstOfPrev.toLocaleDateString('en-CA', {timeZone: serverTimezone});
-  document.getElementById('pdf-to').value = lastOfPrev.toLocaleDateString('en-CA', {timeZone: serverTimezone});
+  document.getElementById('pdf-from').value = fmtDate(firstOfPrev);
+  document.getElementById('pdf-to').value = fmtDate(lastOfPrev);
 })();
 
 document.getElementById('pdf-export-form').addEventListener('submit', async function(e) {
@@ -937,15 +949,7 @@ document.getElementById('pdf-export-form').addEventListener('submit', async func
 });
 
 // Init
-function fmtToday() {
-  const parts = new Intl.DateTimeFormat('en-CA', {timeZone: serverTimezone, year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
-  return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value+'-'+parts.find(p=>p.type==='day').value;
-}
-function fmtDate(d) {
-  const parts = new Intl.DateTimeFormat('en-CA', {timeZone: serverTimezone, year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
-  return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value+'-'+parts.find(p=>p.type==='day').value;
-}
-const serverTimezone = "{{ timezone }}";
+";
 loadPlayers(); loadUsers(); loadMatches(); loadAuditLogs(); loadResetUsers(); loadLogo(); loadAdminMatchPlayers();
 </script>
 {% endblock %}

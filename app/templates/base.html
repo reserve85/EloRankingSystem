@@ -7,29 +7,50 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
   <style>
-    /* Mobile card overflow fixes */
+    /* Mobile responsive fixes */
     @media (max-width: 767.98px) {
+      /* Ensure cards take full width */
+      .container-xl {
+        padding-left: 8px;
+        padding-right: 8px;
+        max-width: 100%;
+      }
+      .card {
+        width: 100%;
+        overflow: hidden;
+      }
       .card-body {
+        padding: 0.75rem;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
       }
-      .card {
-        overflow: hidden;
-      }
-      .table-responsive,
+      /* Tables scroll horizontally */
       .dataTables_wrapper {
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
       }
+      .dataTables_wrapper table {
+        min-width: 600px;
+      }
+      /* Form elements */
       .btn.w-100 {
         white-space: normal;
       }
       .input-group {
         flex-wrap: nowrap;
       }
-      /* Ensure cards don't clip content */
+      /* Tab content overflow */
       .tab-content > .tab-pane {
         overflow: visible;
+      }
+      /* Nav tabs scrollable */
+      .nav-tabs {
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .nav-tabs .nav-item {
+        white-space: nowrap;
       }
     }
   </style>
