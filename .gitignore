@@ -36,6 +36,7 @@ data/
 uploads/
 logs/
 backups/
+tests/testbackups/
 
 # IDE
 .vscode/
