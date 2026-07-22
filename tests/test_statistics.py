@@ -829,3 +829,4 @@ class TestMigration:
         assert match.player_b_high_finishes is None or match.player_b_high_finishes == []
         assert match.player_a_low_darts is None or match.player_a_low_darts == []
         assert match.player_b_low_darts is None or match.player_b_low_darts == []
+

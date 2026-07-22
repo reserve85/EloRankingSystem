@@ -178,13 +178,62 @@
           </div>
         </div>
         <table id="match-table" class="table table-vcenter table-hover table-striped" style="width:100%">
-          <thead><tr><th>Date</th><th>Winner</th><th>Score</th><th>Loser</th><th>Elo +/-</th></tr></thead>
+          <thead><tr><th>Date</th><th>Winner</th><th>Score</th><th>Loser</th><th>Elo +/-</th><th>180s</th><th>HF</th><th>LD</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
     </div>
   </div>
 </div>
+
+<!-- Match Detail Modal -->
+<div class="modal fade" id="match-detail-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header">
+    <h5 class="modal-title">Match Details</h5>
+    <span class="text-muted ms-3" id="modal-match-date"></span>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  </div>
+  <div class="modal-body">
+    <!-- Score Header -->
+    <div class="text-center mb-3">
+      <h3 id="modal-match-score" class="mb-1"></h3>
+    </div>
+    <!-- Per-player stats -->
+    <div class="row g-3">
+      <!-- Player 1 -->
+      <div class="col-6">
+        <div class="card card-sm">
+          <div class="card-header"><h4 class="card-title" id="modal-p1-name"></h4></div>
+          <div class="card-body">
+            <table class="table table-sm mb-0">
+              <tr><td class="text-muted">Result</td><td><span id="modal-p1-result"></span></td></tr>
+              <tr><td class="text-muted">Elo Change</td><td><span id="modal-p1-elo"></span></td></tr>
+              <tr><td class="text-muted">180s</td><td id="modal-p1-180s"></td></tr>
+              <tr><td class="text-muted">High Finishes</td><td id="modal-p1-hf"></td></tr>
+              <tr><td class="text-muted">Low Darts</td><td id="modal-p1-ld"></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+      <!-- Player 2 -->
+      <div class="col-6">
+        <div class="card card-sm">
+          <div class="card-header"><h4 class="card-title" id="modal-p2-name"></h4></div>
+          <div class="card-body">
+            <table class="table table-sm mb-0">
+              <tr><td class="text-muted">Result</td><td><span id="modal-p2-result"></span></td></tr>
+              <tr><td class="text-muted">Elo Change</td><td><span id="modal-p2-elo"></span></td></tr>
+              <tr><td class="text-muted">180s</td><td id="modal-p2-180s"></td></tr>
+              <tr><td class="text-muted">High Finishes</td><td id="modal-p2-hf"></td></tr>
+              <tr><td class="text-muted">Low Darts</td><td id="modal-p2-ld"></td></tr>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
+</div></div></div>
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -337,6 +386,8 @@ async function loadRanking() {
   });
 }
 
+function countArray(val) { return Array.isArray(val) ? val.length : 0; }
+
 async function loadMatches() {
   const from = document.getElementById('match-from').value;
   const to = document.getElementById('match-to').value;
@@ -345,20 +396,69 @@ async function loadMatches() {
   if (to) url += 'to_date=' + to;
   const resp = await fetch(url);
   if (!resp.ok) return;
-  const matches = await resp.json();
+  const matches = resp.json();
   if (Object.keys(playerMap).length === 0) await loadPlayers();
+  const data = await matches;
+  matchData = data;
   const tbody = document.querySelector('#match-table tbody');
   tbody.innerHTML = '';
-  matches.forEach(m => {
+  data.forEach((m, idx) => {
     const winnerName = playerMap[m.winner_id] || 'Player ' + m.winner_id;
     const loserName = playerMap[m.loser_id] || 'Player ' + m.loser_id;
     const score = (m.player1_score != null && m.player2_score != null) ? m.player1_score + ':' + m.player2_score : '-';
     const cls = m.elo_change_a > 0 ? 'text-green' : 'text-red';
     const eloStr = (m.elo_change_a >= 0 ? '+' : '') + m.elo_change_a.toFixed(1);
-    tbody.innerHTML += '<tr><td>'+m.date+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span></td><td><strong>'+score+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span></td><td class="'+cls+'">'+eloStr+'</td></tr>';
+    const total180s = (m.player_a_180s || 0) + (m.player_b_180s || 0);
+    const totalHF = countArray(m.player_a_high_finishes) + countArray(m.player_b_high_finishes);
+    const totalLD = countArray(m.player_a_low_darts) + countArray(m.player_b_low_darts);
+    tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.date+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span></td><td><strong>'+score+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span></td><td class="'+cls+'">'+eloStr+'</td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
   });
   if ($.fn.DataTable.isDataTable('#match-table')) { $('#match-table').DataTable().destroy(); }
   $('#match-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true, lengthChange: false, info: false });
+}
+
+let matchData = [];
+
+function showMatchDetail(idx) {
+  const m = matchData[idx];
+  if (!m) return;
+  const nameA = playerMap[m.player_a_id] || 'Player ' + m.player_a_id;
+  const nameB = playerMap[m.player_b_id] || 'Player ' + m.player_b_id;
+  const scoreA = m.player1_score != null ? m.player1_score : '-';
+  const scoreB = m.player2_score != null ? m.player2_score : '-';
+  const resultA = m.winner_id === m.player_a_id ? 'Win' : 'Loss';
+  const resultB = m.winner_id === m.player_b_id ? 'Win' : 'Loss';
+  const resClsA = resultA === 'Win' ? 'text-green fw-bold' : 'text-red fw-bold';
+  const resClsB = resultB === 'Win' ? 'text-green fw-bold' : 'text-red fw-bold';
+
+  const hfA = Array.isArray(m.player_a_high_finishes) && m.player_a_high_finishes.length ? m.player_a_high_finishes.join(', ') : '-';
+  const hfB = Array.isArray(m.player_b_high_finishes) && m.player_b_high_finishes.length ? m.player_b_high_finishes.join(', ') : '-';
+  const ldA = Array.isArray(m.player_a_low_darts) && m.player_a_low_darts.length ? m.player_a_low_darts.join(', ') : '-';
+  const ldB = Array.isArray(m.player_b_low_darts) && m.player_b_low_darts.length ? m.player_b_low_darts.join(', ') : '-';
+
+  document.getElementById('modal-match-date').textContent = m.date;
+  document.getElementById('modal-match-score').textContent = scoreA + ' : ' + scoreB;
+  document.getElementById('modal-p1-name').textContent = nameA;
+  document.getElementById('modal-p2-name').textContent = nameB;
+  document.getElementById('modal-p1-result').textContent = resultA;
+  document.getElementById('modal-p1-result').className = resClsA;
+  document.getElementById('modal-p2-result').textContent = resultB;
+  document.getElementById('modal-p2-result').className = resClsB;
+  document.getElementById('modal-p1-180s').textContent = m.player_a_180s || 0;
+  document.getElementById('modal-p2-180s').textContent = m.player_b_180s || 0;
+  document.getElementById('modal-p1-hf').textContent = hfA;
+  document.getElementById('modal-p2-hf').textContent = hfB;
+  document.getElementById('modal-p1-ld').textContent = ldA;
+  document.getElementById('modal-p2-ld').textContent = ldB;
+
+  const eloA = m.elo_change_a >= 0 ? '+' + m.elo_change_a.toFixed(1) : m.elo_change_a.toFixed(1);
+  const eloB = m.elo_change_b >= 0 ? '+' + m.elo_change_b.toFixed(1) : m.elo_change_b.toFixed(1);
+  document.getElementById('modal-p1-elo').textContent = eloA;
+  document.getElementById('modal-p2-elo').textContent = eloB;
+  document.getElementById('modal-p1-elo').className = m.elo_change_a >= 0 ? 'text-green' : 'text-red';
+  document.getElementById('modal-p2-elo').className = m.elo_change_b >= 0 ? 'text-green' : 'text-red';
+
+  new bootstrap.Modal(document.getElementById('match-detail-modal')).show();
 }
 
 loadPlayers().then(() => { loadRanking(); loadMatches(); });

@@ -351,3 +351,78 @@ class TestStatisticsFormAdmin:
         resp = client.get("/ui/admin")
         assert "100" in resp.text  # hf_min
         assert "170" in resp.text  # hf_max
+
+
+class TestMatchStatisticsRendering:
+    """Tests for match statistics columns and detail modal rendering."""
+
+    def test_dashboard_match_table_has_180s_column(self, client, db_session):
+        """Dashboard match history table should have 180s column header."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "180s</th>" in resp.text
+        assert "HF</th>" in resp.text
+        assert "LD</th>" in resp.text
+
+    def test_dashboard_match_table_is_clickable(self, client, db_session):
+        """Dashboard match rows should have onclick handler for detail view."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "showMatchDetail" in resp.text
+
+    def test_dashboard_has_match_detail_modal(self, client, db_session):
+        """Dashboard should have match detail modal."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "match-detail-modal" in resp.text
+        assert "modal-p1-name" in resp.text
+        assert "modal-p2-name" in resp.text
+
+    def test_dashboard_modal_shows_per_player_stats(self, client, db_session):
+        """Dashboard match detail modal should show per-player stat fields."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "modal-p1-180s" in resp.text
+        assert "modal-p2-180s" in resp.text
+        assert "modal-p1-hf" in resp.text
+        assert "modal-p2-hf" in resp.text
+        assert "modal-p1-ld" in resp.text
+        assert "modal-p2-ld" in resp.text
+        assert "modal-p1-result" in resp.text
+        assert "modal-p2-result" in resp.text
+        assert "modal-p1-elo" in resp.text
+        assert "modal-p2-elo" in resp.text
+
+    def test_dashboard_modal_is_readonly(self, client, db_session):
+        """Dashboard match detail modal should be read-only (no edit buttons)."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Modal should only have Close button, no Save/Edit
+        assert "match-detail-modal" in resp.text
+        assert "Close" in resp.text
+
+    def test_admin_match_table_has_statistics_columns(self, client, db_session):
+        """Admin match table should have 180s, HF, LD columns."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "180s</th>" in resp.text
+        assert "HF</th>" in resp.text
+        assert "LD</th>" in resp.text
+
+    def test_admin_match_table_has_detail_modal(self, client, db_session):
+        """Admin should have match detail modal with per-player stats."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-match-detail-modal" in resp.text
+        assert "admin-modal-p1-name" in resp.text
+        assert "admin-modal-p2-name" in resp.text
+        assert "admin-modal-p1-180s" in resp.text
+        assert "admin-modal-p2-180s" in resp.text
+        assert "admin-modal-p1-hf" in resp.text
+        assert "admin-modal-p2-hf" in resp.text
+
+    def test_admin_match_table_clickable(self, client, db_session):
+        """Admin match rows should open detail modal on click."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "showAdminMatchDetail" in resp.text
