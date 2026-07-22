@@ -54,17 +54,36 @@ def get_db() -> Session:
 
 def init_db() -> None:
     """Initialize database tables and run Alembic migrations."""
+    import logging
     from alembic.config import Config
     from alembic import command
+    from sqlalchemy import inspect, text
 
-    # First create any tables that don't exist yet (for fresh installs)
-    Base.metadata.create_all(bind=engine)
+    logger = logging.getLogger(__name__)
 
-    # Then run any pending Alembic migrations (for upgrades)
     try:
         alembic_cfg = Config("alembic.ini")
-        command.upgrade(alembic_cfg, "head")
+
+        inspector = inspect(engine)
+        existing_tables = inspector.get_table_names()
+
+        if "alembic_version" in existing_tables:
+            # Alembic is already tracking this database — just run pending migrations
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Database migrations applied successfully.")
+        elif existing_tables:
+            # Database has tables but no alembic_version (pre-Alembic database).
+            # Stamp current state as head, then run any new migrations.
+            logger.info("Existing database found without Alembic tracking. Stamping to head...")
+            command.stamp(alembic_cfg, "head")
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Database stamped and migrations applied successfully.")
+        else:
+            # Fresh database — run all migrations from scratch
+            command.upgrade(alembic_cfg, "head")
+            logger.info("Fresh database created and migrations applied successfully.")
     except Exception as e:
-        # If Alembic fails (e.g. missing migrations dir), log but don't crash
-        import logging
-        logging.getLogger(__name__).warning(f"Alembic migration skipped: {e}")
+        logger.error(f"Alembic migration failed: {e}")
+        # Fallback: create tables via SQLAlchemy for fresh databases
+        Base.metadata.create_all(bind=engine)
+        logger.warning("Fell back to create_all() for table creation.")

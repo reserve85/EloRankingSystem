@@ -1,10 +1,8 @@
 #!/bin/bash
 set -e
 
-# Run Alembic migrations before starting the application
-echo "Running database migrations..."
-alembic upgrade head
-echo "Migrations complete."
+# Database migrations are handled automatically by the application on startup.
+# See app/core/database.py init_db() for migration logic.
 
 # Start the application
 echo "Starting application..."
