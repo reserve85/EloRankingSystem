@@ -726,8 +726,8 @@ class TestMobileLayout:
         """Navbar toggler should be placed after the user button area."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        # Both toggler and user dropdown should exist
-        assert "navbar-toggler" in resp.text
+        # Both hamburger and user dropdown should exist
+        assert "navbar-menu" in resp.text
         assert "dropdown-menu-end" in resp.text
 
     def test_mobile_menu_has_spacing_from_content(self, client, db_session):
