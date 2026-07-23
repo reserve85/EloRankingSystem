@@ -87,7 +87,7 @@ class TestAdminPage:
         assert "Admin Dashboard" in resp.text
         assert "Players" in resp.text
         assert "Users" in resp.text
-        assert "Matches" in resp.text
+        assert "Match History" in resp.text
         assert "Club Settings" in resp.text
 
     def test_admin_page_renders_for_system(self, client, db_session):
@@ -316,43 +316,44 @@ class TestStatisticsFormDashboard:
 class TestStatisticsFormAdmin:
     """Tests for dart statistics form in the admin dashboard."""
 
-    def test_admin_contains_statistics_section(self, client, db_session):
-        """Admin matches tab should have Dart Statistics section."""
+    def test_admin_match_detail_has_statistics_editing(self, client, db_session):
+        """Admin match detail modal should have Dart Statistics editing."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
-        assert "Dart Statistics" in resp.text
-        assert "admin-p1-180s" in resp.text
-        assert "admin-p2-180s" in resp.text
+        assert "admin-edit-p1-180s" in resp.text
+        assert "admin-edit-p2-180s" in resp.text
 
-    def test_admin_contains_high_finishes_inputs(self, client, db_session):
-        """Admin should have High Finishes dynamic inputs."""
+    def test_admin_match_detail_has_high_finishes_inputs(self, client, db_session):
+        """Admin match detail modal should have High Finishes inputs."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
-        assert "admin-p1-hf-list" in resp.text
-        assert "admin-p2-hf-list" in resp.text
-        assert "addHfEntry" in resp.text
+        assert "admin-edit-p1-hf-list" in resp.text
+        assert "admin-edit-p2-hf-list" in resp.text
+        assert "addModalHfEntry" in resp.text
 
-    def test_admin_contains_low_darts_inputs(self, client, db_session):
-        """Admin should have Low Darts dynamic inputs."""
+    def test_admin_match_detail_has_low_darts_inputs(self, client, db_session):
+        """Admin match detail modal should have Low Darts inputs."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
-        assert "admin-p1-ld-list" in resp.text
-        assert "admin-p2-ld-list" in resp.text
-        assert "addLdEntry" in resp.text
+        assert "admin-edit-p1-ld-list" in resp.text
+        assert "admin-edit-p2-ld-list" in resp.text
+        assert "addModalLdEntry" in resp.text
 
-    def test_admin_match_form_has_player_selects(self, client, db_session):
-        """Admin match form should have player selection dropdowns."""
+    def test_admin_no_add_match_form(self, client, db_session):
+        """Admin page should NOT have Add Match form (only in Dashboard)."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
-        assert "admin-player-a-select" in resp.text
-        assert "admin-player-b-select" in resp.text
+        assert "admin-add-match-form" not in resp.text
+        assert "admin-player-a-select" not in resp.text
+        assert "admin-player-b-select" not in resp.text
 
-    def test_admin_shows_config_ranges(self, client, db_session):
-        """Admin should display configured validation ranges."""
+    def test_admin_shows_config_ranges_in_modal(self, client, db_session):
+        """Admin match detail modal should display configured validation ranges in JS."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
-        assert "100" in resp.text  # hf_min
-        assert "170" in resp.text  # hf_max
+        # Jinja2 renders {{ hf_min }} to the actual value (e.g. 100)
+        assert "100" in resp.text
+        assert "170" in resp.text
 
 
 class TestMatchStatisticsRendering:
@@ -477,10 +478,10 @@ class TestAutoRefresh:
         assert "loadRanking(); loadMatches()" in resp.text
 
     def test_admin_loads_matches_on_match_save(self, client, db_session):
-        """Admin JS should call loadMatches after match save."""
+        """Admin JS should call loadMatches on init."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
-        assert "loadMatches();" in resp.text
+        assert "loadMatches()" in resp.text
 
     def test_admin_loads_players_on_player_save(self, client, db_session):
         """Admin JS should call loadPlayers after player save."""
@@ -599,3 +600,49 @@ class TestVersionInfo:
         """Login page footer should also have GitHub links."""
         resp = client.get("/ui/login")
         assert "github.com/reserve85/EloRankingSystem" in resp.text
+
+
+class TestLegalPages:
+    """Tests for Task 2: Legal pages navigation and layout."""
+
+    def test_impressum_public_accessible(self, client, db_session):
+        """Impressum should be accessible without authentication."""
+        resp = client.get("/ui/impressum")
+        assert resp.status_code == 200
+        assert "Impressum" in resp.text
+
+    def test_privacy_public_accessible(self, client, db_session):
+        """Privacy Policy should be accessible without authentication."""
+        resp = client.get("/ui/privacy")
+        assert resp.status_code == 200
+        assert "Privacy Policy" in resp.text
+
+    def test_impressum_shows_navigation_when_logged_in(self, client, db_session):
+        """Impressum should show header/navigation for authenticated users."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/impressum")
+        assert resp.status_code == 200
+        assert "/ui/dashboard" in resp.text
+        assert "/ui/logout" in resp.text
+
+    def test_privacy_shows_navigation_when_logged_in(self, client, db_session):
+        """Privacy Policy should show header/navigation for authenticated users."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/privacy")
+        assert resp.status_code == 200
+        assert "/ui/dashboard" in resp.text
+        assert "/ui/logout" in resp.text
+
+    def test_impressum_no_navigation_when_not_logged_in(self, client, db_session):
+        """Impressum should not show user navigation when not authenticated."""
+        resp = client.get("/ui/impressum")
+        assert resp.status_code == 200
+        assert "/ui/dashboard" not in resp.text
+        assert "/ui/logout" not in resp.text
+
+    def test_admin_page_no_add_match_section(self, client, db_session):
+        """Admin page should not contain Add Match form."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-add-match-form" not in resp.text
+        assert "loadAdminMatchPlayers" not in resp.text

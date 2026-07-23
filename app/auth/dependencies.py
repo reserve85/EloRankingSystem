@@ -79,6 +79,44 @@ def get_current_user(
     return user
 
 
+def get_optional_user(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User | None:
+    """Dependency to get the current user if authenticated, None otherwise.
+
+    Unlike get_current_user, this does NOT raise 401 if no valid token exists.
+    Used for pages that are publicly accessible but show navigation for logged-in users.
+
+    Args:
+        request: The FastAPI request object.
+        db: Database session.
+
+    Returns:
+        The authenticated User object, or None if not authenticated.
+    """
+    token = get_token_from_cookie(request)
+
+    if token is None:
+        return None
+
+    payload = decode_access_token(token)
+
+    if payload is None:
+        return None
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        return None
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+
+    if user is None or not user.active:
+        return None
+
+    return user
+
+
 def require_role(*roles: UserRole):
     """Dependency factory to require specific user roles.
 

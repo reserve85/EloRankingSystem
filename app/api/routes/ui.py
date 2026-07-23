@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.version import get_version_info
 from app.core.templates import templates
-from app.auth.dependencies import get_current_user, require_admin
+from app.auth.dependencies import get_current_user, get_optional_user, require_admin
 from app.models.user import User
 from app.models.club_settings import ClubSettings
 
@@ -91,9 +91,9 @@ def change_password_page(request: Request, current_user: User = Depends(get_curr
     )
 
 
-def _legal_context():
+def _legal_context(db: Session, current_user: User | None = None):
     """Return common context dict for legal pages."""
-    return {
+    ctx = {
         "app_name": settings.app_name,
         "version_info": get_version_info(settings.timezone),
         "contact_company": settings.contact_company,
@@ -102,18 +102,22 @@ def _legal_context():
         "contact_city": settings.contact_city,
         "contact_email": settings.contact_email,
     }
+    if current_user:
+        ctx["user"] = current_user
+        ctx["club_name"] = _get_club_name(db)
+    return ctx
 
 
 @router.get("/impressum")
-def impressum_page(request: Request):
-    """Render the Impressum page. Publicly accessible."""
-    return templates.TemplateResponse(request, "impressum.html", _legal_context())
+def impressum_page(request: Request, db: Session = Depends(get_db), current_user: User | None = Depends(get_optional_user)):
+    """Render the Impressum page. Publicly accessible; logged-in users see full navigation."""
+    return templates.TemplateResponse(request, "impressum.html", _legal_context(db, current_user))
 
 
 @router.get("/privacy")
-def privacy_page(request: Request):
-    """Render the Privacy Policy page. Publicly accessible."""
-    return templates.TemplateResponse(request, "privacy.html", _legal_context())
+def privacy_page(request: Request, db: Session = Depends(get_db), current_user: User | None = Depends(get_optional_user)):
+    """Render the Privacy Policy page. Publicly accessible; logged-in users see full navigation."""
+    return templates.TemplateResponse(request, "privacy.html", _legal_context(db, current_user))
 
 
 @router.get("/logout")
