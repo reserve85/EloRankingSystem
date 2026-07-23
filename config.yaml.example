@@ -4,6 +4,12 @@ app:
   environment: development
   debug: true
   timezone: Europe/Berlin
+  # Date format for display. Options:
+  #   dd/MM/yyyy  (default, e.g. 25/07/2026)
+  #   MM/dd/yyyy  (e.g. 07/25/2026)
+  #   yyyy-MM-dd  (e.g. 2026-07-25)
+  #   dd.MM.yyyy  (e.g. 25.07.2026)
+  date_format: dd/MM/yyyy
 
 elo:
   default_rating: 1200

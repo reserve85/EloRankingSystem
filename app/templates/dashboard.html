@@ -55,10 +55,13 @@
             <div class="form-hint text-muted">One player must score 3 to win. Valid: 3:0, 3:1, 3:2, 2:3, 1:3, 0:3</div>
           </div>
 
-          <!-- Row 3: Date -->
+  <!-- Row 3: Date -->
           <div class="mb-3">
             <label class="form-label">Date</label>
-            <input type="date" name="date" class="form-control" required>
+            <div class="input-group">
+              <input type="date" name="date" class="form-control" required>
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="jumpToToday(this.previousElementSibling)" title="Jump to today">Today</button>
+            </div>
           </div>
 
           <!-- Dart Statistics (optional) -->
@@ -138,14 +141,20 @@
         <h3 class="card-title">Ranking</h3>
       </div>
       <div class="card-body">
-        <div class="row mb-3">
+      <div class="row mb-3">
           <div class="col-6">
             <label class="form-label small text-muted">From</label>
-            <input type="date" id="ranking-from" class="form-control form-control-sm">
+            <div class="input-group input-group-sm">
+              <input type="date" id="ranking-from" class="form-control form-control-sm">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="jumpToToday(document.getElementById('ranking-from'))" title="Today">T</button>
+            </div>
           </div>
           <div class="col-6">
             <label class="form-label small text-muted">To</label>
-            <input type="date" id="ranking-to" class="form-control form-control-sm">
+            <div class="input-group input-group-sm">
+              <input type="date" id="ranking-to" class="form-control form-control-sm">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="jumpToToday(document.getElementById('ranking-to'))" title="Today">T</button>
+            </div>
           </div>
         </div>
         <table id="ranking-table" class="table table-vcenter table-hover table-striped" style="width:100%">
@@ -164,17 +173,20 @@
         <h3 class="card-title">Match History</h3>
       </div>
       <div class="card-body">
-        <div class="row mb-3">
-          <div class="col-6 col-md-3">
+      <div class="row mb-3">
+          <div class="col-6 col-md-4">
             <label class="form-label small text-muted">From</label>
-            <input type="date" id="match-from" class="form-control form-control-sm">
+            <div class="input-group input-group-sm">
+              <input type="date" id="match-from" class="form-control form-control-sm">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="jumpToToday(document.getElementById('match-from'))" title="Today">T</button>
+            </div>
           </div>
-          <div class="col-6 col-md-3">
+          <div class="col-6 col-md-4">
             <label class="form-label small text-muted">To</label>
-            <input type="date" id="match-to" class="form-control form-control-sm">
-          </div>
-          <div class="col-12 col-md-3 d-flex align-items-end">
-            <button class="btn btn-sm btn-primary w-100" onclick="loadMatches()">Filter</button>
+            <div class="input-group input-group-sm">
+              <input type="date" id="match-to" class="form-control form-control-sm">
+              <button type="button" class="btn btn-outline-secondary btn-sm" onclick="jumpToToday(document.getElementById('match-to'))" title="Today">T</button>
+            </div>
           </div>
         </div>
         <table id="match-table" class="table table-vcenter table-hover table-striped" style="width:100%">
@@ -276,25 +288,28 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-const serverTimezone = '{{ timezone }}';
-const today = new Date();
-const firstOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-function fmt(d) {
-  // Use server timezone for date formatting to avoid UTC offset issues
-  const parts = new Intl.DateTimeFormat('en-CA', {
-    timeZone: serverTimezone,
-    year: 'numeric', month: '2-digit', day: '2-digit'
-  }).formatToParts(d);
-  const y = parts.find(p => p.type === 'year').value;
-  const m = parts.find(p => p.type === 'month').value;
-  const dd = parts.find(p => p.type === 'day').value;
-  return y + '-' + m + '-' + dd;
-}
-document.querySelector('input[name="date"]').value = fmt(today);
-document.getElementById('ranking-from').value = fmt(firstOfMonth);
-document.getElementById('ranking-to').value = fmt(today);
-document.getElementById('match-from').value = fmt(firstOfMonth);
-document.getElementById('match-to').value = fmt(today);
+// Use shared utilities from base.html
+const today = todayISO();
+const firstOfMonth = today.substring(0, 7) + '-01';
+
+document.querySelector('input[name="date"]').value = today;
+document.getElementById('ranking-from').value = firstOfMonth;
+document.getElementById('ranking-to').value = today;
+document.getElementById('match-from').value = firstOfMonth;
+document.getElementById('match-to').value = today;
+
+// Prevent future dates
+preventFutureDate(document.querySelector('input[name="date"]'));
+preventFutureDate(document.getElementById('ranking-from'));
+preventFutureDate(document.getElementById('ranking-to'));
+preventFutureDate(document.getElementById('match-from'));
+preventFutureDate(document.getElementById('match-to'));
+
+// Auto-sync + auto-refresh date ranges
+document.getElementById('ranking-from').addEventListener('change', function() { syncDateRange(this, document.getElementById('ranking-to')); loadRanking(); });
+document.getElementById('ranking-to').addEventListener('change', function() { syncDateRange(document.getElementById('ranking-from'), this); loadRanking(); });
+document.getElementById('match-from').addEventListener('change', function() { syncDateRange(this, document.getElementById('match-to')); loadMatches(); });
+document.getElementById('match-to').addEventListener('change', function() { syncDateRange(document.getElementById('match-from'), this); loadMatches(); });
 
 let playerMap = {};
 async function loadPlayers() {
@@ -408,7 +423,7 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
   const resp = await fetch('/matches/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
   if (resp.ok) {
     sucEl.textContent = 'Match saved!'; sucEl.classList.remove('d-none');
-    this.reset(); document.querySelector('input[name="date"]').value = fmt(new Date());
+    this.reset(); document.querySelector('input[name="date"]').value = todayISO();
     document.getElementById('score-a').value = '';
     document.getElementById('score-b').value = '';
     resetStatsForm();
@@ -423,9 +438,6 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
     errEl.textContent = msg; errEl.classList.remove('d-none');
   }
 });
-
-document.getElementById('ranking-from').addEventListener('change', loadRanking);
-document.getElementById('ranking-to').addEventListener('change', loadRanking);
 
 async function loadRanking() {
   const from = document.getElementById('ranking-from').value;

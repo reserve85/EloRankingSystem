@@ -241,6 +241,48 @@
     document.getElementById('cookie-consent-banner').style.display = 'none';
   }
   </script>
+  <script>
+  // ── Shared Date Utilities (Task 4) ──────────────────────
+  // Display format configured on server: {{ date_format|default('dd/MM/yyyy') }}
+  const DATE_FORMAT = '{{ date_format|default("dd/MM/yyyy") }}';
+  const SERVER_TIMEZONE = '{{ timezone|default("UTC") }}';
+
+  /** Convert ISO date string (YYYY-MM-DD) to display format */
+  function fmtDisplay(isoStr) {
+    if (!isoStr) return '';
+    const [y, m, d] = isoStr.split('-');
+    switch (DATE_FORMAT) {
+      case 'MM/dd/yyyy': return m + '/' + d + '/' + y;
+      case 'yyyy-MM-dd': return y + '-' + m + '-' + d;
+      case 'dd.MM.yyyy': return d + '.' + m + '.' + y;
+      case 'dd/MM/yyyy': default: return d + '/' + m + '/' + y;
+    }
+  }
+
+  /** Get today's date in ISO format using the server timezone */
+  function todayISO() {
+    const parts = new Intl.DateTimeFormat('en-CA', {timeZone: SERVER_TIMEZONE, year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
+    return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value+'-'+parts.find(p=>p.type==='day').value;
+  }
+
+  /** Set max=today on a date input to prevent future dates */
+  function preventFutureDate(inputEl) {
+    if (inputEl) inputEl.max = todayISO();
+  }
+
+  /** Jump a date input to today */
+  function jumpToToday(inputEl) {
+    if (inputEl) inputEl.value = todayISO();
+  }
+
+  /** Ensure from <= to: if user picks a 'to' earlier than 'from', adjust 'from' */
+  function syncDateRange(fromEl, toEl) {
+    if (!fromEl || !toEl) return;
+    if (fromEl.value && toEl.value && toEl.value < fromEl.value) {
+      fromEl.value = toEl.value;
+    }
+  }
+  </script>
   {% block extra_js %}{% endblock %}
 </body>
 </html>

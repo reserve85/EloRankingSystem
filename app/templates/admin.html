@@ -108,11 +108,17 @@
               <div class="row g-2 mb-3">
                 <div class="col-6">
                   <label class="form-label small text-muted">From</label>
-                  <input type="date" id="pdf-from" class="form-control form-control-sm">
+                  <div class="input-group input-group-sm">
+                    <input type="date" id="pdf-from" class="form-control form-control-sm">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="jumpToToday(document.getElementById('pdf-from'))" title="Today">T</button>
+                  </div>
                 </div>
                 <div class="col-6">
                   <label class="form-label small text-muted">To</label>
-                  <input type="date" id="pdf-to" class="form-control form-control-sm">
+                  <div class="input-group input-group-sm">
+                    <input type="date" id="pdf-to" class="form-control form-control-sm">
+                    <button type="button" class="btn btn-outline-secondary btn-sm" onclick="jumpToToday(document.getElementById('pdf-to'))" title="Today">T</button>
+                  </div>
                 </div>
               </div>
               <div class="mb-3">
@@ -284,13 +290,10 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-const serverTimezone = "{{ timezone }}";
-function fmtToday() {
-  const parts = new Intl.DateTimeFormat('en-CA', {timeZone: serverTimezone, year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date());
-  return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value+'-'+parts.find(p=>p.type==='day').value;
-}
+// Use shared date utilities from base.html: todayISO(), preventFutureDate(), syncDateRange()
+const fmtToday = todayISO;
 function fmtDate(d) {
-  const parts = new Intl.DateTimeFormat('en-CA', {timeZone: serverTimezone, year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
+  const parts = new Intl.DateTimeFormat('en-CA', {timeZone: SERVER_TIMEZONE, year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(d);
   return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value+'-'+parts.find(p=>p.type==='day').value;
 }
 // --- Players ---
@@ -682,6 +685,12 @@ async function loadLogo() {
   document.getElementById('pdf-from').value = fmtDate(firstOfPrev);
   document.getElementById('pdf-to').value = fmtDate(lastOfPrev);
 })();
+
+// Prevent future dates on PDF date inputs
+preventFutureDate(document.getElementById('pdf-from'));
+preventFutureDate(document.getElementById('pdf-to'));
+document.getElementById('pdf-from').addEventListener('change', function() { syncDateRange(this, document.getElementById('pdf-to')); });
+document.getElementById('pdf-to').addEventListener('change', function() { syncDateRange(document.getElementById('pdf-from'), this); });
 
 document.getElementById('pdf-export-form').addEventListener('submit', async function(e) {
   e.preventDefault();

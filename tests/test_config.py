@@ -403,3 +403,19 @@ class TestSettingsTypes:
         assert isinstance(s.app_name, str)
         assert isinstance(s.jwt_algorithm, str)
         assert isinstance(s.cookie_samesite, str)
+
+    def test_date_format_default(self):
+        """Test default date format is dd/MM/yyyy."""
+        s = Settings()
+        assert s.date_format == "dd/MM/yyyy"
+
+    def test_date_format_from_env(self, monkeypatch):
+        """Test date format can be set via env var."""
+        monkeypatch.setenv("DATE_FORMAT", "yyyy-MM-dd")
+        s = Settings()
+        assert s.date_format == "yyyy-MM-dd"
+
+    def test_timezone_default(self):
+        """Test default timezone is UTC."""
+        s = Settings()
+        assert s.timezone == "UTC"

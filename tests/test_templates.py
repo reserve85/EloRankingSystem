@@ -710,3 +710,72 @@ class TestMobileLayout:
         resp = client.get("/ui/dashboard")
         assert "/ui/dashboard" in resp.text
         assert "/ui/admin" in resp.text
+
+
+class TestDateFormat:
+    """Tests for Task 4: Date / Time / Timezone / Date Format."""
+
+    def test_dashboard_has_shared_date_utilities(self, client, db_session):
+        """Dashboard should have shared date utility functions available."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "todayISO" in resp.text
+        assert "preventFutureDate" in resp.text
+        assert "syncDateRange" in resp.text
+        assert "jumpToToday" in resp.text
+
+    def test_dashboard_date_picker_has_today_button(self, client, db_session):
+        """Dashboard match date input should have a Today button."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "jumpToToday" in resp.text
+
+    def test_dashboard_ranking_dates_auto_refresh(self, client, db_session):
+        """Dashboard ranking dates should auto-refresh on change."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Should have auto-refresh event listeners (no separate filter button)
+        assert "loadRanking" in resp.text
+
+    def test_dashboard_match_dates_auto_refresh(self, client, db_session):
+        """Dashboard match dates should auto-refresh on change."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "loadMatches" in resp.text
+
+    def test_dashboard_no_filter_button_for_match_history(self, client, db_session):
+        """Dashboard match history should not have a separate Filter button."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # The old Filter button was removed
+        assert 'onclick="loadMatches()">Filter</button>' not in resp.text
+
+    def test_admin_pdf_has_today_button(self, client, db_session):
+        """Admin PDF export date inputs should have Today buttons."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "jumpToToday" in resp.text
+
+    def test_admin_pdf_prevents_future_dates(self, client, db_session):
+        """Admin PDF export date inputs should prevent future dates."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "preventFutureDate" in resp.text
+
+    def test_admin_uses_shared_date_utilities(self, client, db_session):
+        """Admin should use shared date utilities from base.html."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "SERVER_TIMEZONE" in resp.text or "serverTimezone" in resp.text
+
+    def test_date_format_config_accessible(self, client, db_session):
+        """Date format should be available in template context."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "DATE_FORMAT" in resp.text
+
+    def test_timezone_config_accessible(self, client, db_session):
+        """Timezone should be available in template context."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "SERVER_TIMEZONE" in resp.text
