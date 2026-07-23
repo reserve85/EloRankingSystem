@@ -1,6 +1,6 @@
 """PDF report generation for ranking exports using ReportLab."""
 
-from datetime import datetime, timezone
+from datetime import datetime
 from io import BytesIO
 
 from reportlab.lib import colors
@@ -13,10 +13,32 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from app.schemas.ranking import RankingResponse
 
 
+DATE_FORMAT_MAP = {
+    "dd/MM/yyyy": "%d/%m/%Y",
+    "MM/dd/yyyy": "%m/%d/%Y",
+    "yyyy-MM-dd": "%Y-%m-%d",
+    "dd.MM.yyyy": "%d.%m.%Y",
+}
+
+
+def _format_date(d, date_format: str = "dd/MM/yyyy") -> str:
+    """Format a date object using the configured display format."""
+    fmt = DATE_FORMAT_MAP.get(date_format, "%d/%m/%Y")
+    return d.strftime(fmt)
+
+
+def _format_datetime(dt, date_format: str = "dd/MM/yyyy") -> str:
+    """Format a datetime object using the configured display format."""
+    fmt = DATE_FORMAT_MAP.get(date_format, "%d/%m/%Y")
+    return dt.strftime(f"{fmt} %H:%M:%S %Z")
+
+
 def generate_ranking_pdf(
     ranking: RankingResponse,
     club_name: str = "Dart Club",
     logo_path: str | None = None,
+    timezone: str = "UTC",
+    date_format: str = "dd/MM/yyyy",
 ) -> bytes:
     """Generate a PDF ranking report.
 
@@ -84,12 +106,19 @@ def generate_ranking_pdf(
 
     # Date range info
     range_text = (
-        f"Period: {ranking.from_date.strftime('%d.%m.%Y')} - "
-        f"{ranking.to_date.strftime('%d.%m.%Y')}"
+        f"Period: {_format_date(ranking.from_date, date_format)} - "
+        f"{_format_date(ranking.to_date, date_format)}"
     )
     elements.append(Paragraph(range_text, info_style))
 
-    export_text = f"Export Date: {datetime.now(timezone.utc).strftime('%d.%m.%Y %H:%M UTC')}"
+    try:
+        from zoneinfo import ZoneInfo
+        tz = ZoneInfo(timezone)
+        now = datetime.now(tz)
+    except (ImportError, KeyError, OSError):
+        from datetime import timezone as tz_mod
+        now = datetime.now(tz_mod.utc)
+    export_text = f"Export Date: {_format_datetime(now, date_format)}"
     elements.append(Paragraph(export_text, info_style))
     elements.append(Spacer(1, 6 * mm))
 

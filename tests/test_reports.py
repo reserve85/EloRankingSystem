@@ -250,3 +250,59 @@ class TestPdfExportRoute:
         resp = client.get("/reports/ranking/pdf?from_date=2025-06-01&to_date=2025-06-30")
         assert resp.content[:4] == b"%PDF"
         assert b"%%EOF" in resp.content  # Valid PDF structure
+
+
+class TestPdfDateFormat:
+    """Tests for Task 5: PDF date format and timezone."""
+
+    def test_pdf_uses_configured_date_format(self):
+        """PDF should use the configured date format in period text."""
+        from app.reports.pdf import _format_date
+        d = date(2025, 7, 15)
+        assert _format_date(d, "dd/MM/yyyy") == "15/07/2025"
+        assert _format_date(d, "MM/dd/yyyy") == "07/15/2025"
+        assert _format_date(d, "yyyy-MM-dd") == "2025-07-15"
+        assert _format_date(d, "dd.MM.yyyy") == "15.07.2025"
+
+    def test_pdf_format_date_default_format(self):
+        """_format_date should default to dd/MM/yyyy."""
+        from app.reports.pdf import _format_date
+        d = date(2025, 1, 5)
+        assert _format_date(d) == "05/01/2025"
+
+    def test_pdf_uses_custom_club_name(self):
+        """PDF should be generated with custom club name."""
+        ranking = RankingResponse(
+            from_date=date(2025, 6, 1),
+            to_date=date(2025, 6, 30),
+            entries=[],
+            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+        )
+        pdf = generate_ranking_pdf(ranking, club_name="My Custom Club")
+        assert pdf[:4] == b"%PDF"
+        assert len(pdf) > 200  # Valid PDF was generated
+
+    def test_pdf_different_club_names_produce_different_pdfs(self):
+        """PDFs with different club names should differ in size/content."""
+        ranking = RankingResponse(
+            from_date=date(2025, 6, 1),
+            to_date=date(2025, 6, 30),
+            entries=[],
+            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+        )
+        pdf1 = generate_ranking_pdf(ranking, club_name="Short")
+        pdf2 = generate_ranking_pdf(ranking, club_name="A Much Longer Club Name Here")
+        # Different names produce different PDFs
+        assert pdf1 != pdf2
+
+    def test_pdf_default_club_name_is_dart_club(self):
+        """Default club_name parameter should be 'Dart Club' for backward compatibility."""
+        ranking = RankingResponse(
+            from_date=date(2025, 6, 1),
+            to_date=date(2025, 6, 30),
+            entries=[],
+            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+        )
+        # Default parameter is "Dart Club" but the caller (route) should pass the actual club name
+        pdf = generate_ranking_pdf(ranking)
+        assert pdf[:4] == b"%PDF"

@@ -55,6 +55,8 @@ def export_ranking_pdf(
         ranking=ranking,
         club_name=club_name,
         logo_path=logo_path,
+        timezone=settings.timezone,
+        date_format=settings.date_format,
     )
 
     ip, ua = get_client_info(request)
