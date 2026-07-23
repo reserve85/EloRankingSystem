@@ -137,8 +137,7 @@ class RankingService:
             cutoff_date = date(cutoff_year, cutoff_month, cutoff_day)
 
             query = query.filter(
-                (Player.last_match_date >= cutoff_date)
-                | (Player.last_match_date == None)  # noqa: E711
+                Player.last_match_date >= cutoff_date
             )
 
         return query.all()

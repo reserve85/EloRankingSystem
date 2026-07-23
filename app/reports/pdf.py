@@ -27,10 +27,11 @@ def _format_date(d, date_format: str = "dd/MM/yyyy") -> str:
     return d.strftime(fmt)
 
 
-def _format_datetime(dt, date_format: str = "dd/MM/yyyy") -> str:
+def _format_datetime(dt, date_format: str = "dd/MM/yyyy", tz_name: str = "") -> str:
     """Format a datetime object using the configured display format."""
     fmt = DATE_FORMAT_MAP.get(date_format, "%d/%m/%Y")
-    return dt.strftime(f"{fmt} %H:%M:%S %Z")
+    tz_str = f" {tz_name}" if tz_name else ""
+    return dt.strftime(f"{fmt} %H:%M:%S") + tz_str
 
 
 def generate_ranking_pdf(
@@ -118,7 +119,7 @@ def generate_ranking_pdf(
     except (ImportError, KeyError, OSError):
         from datetime import timezone as tz_mod
         now = datetime.now(tz_mod.utc)
-    export_text = f"Export Date: {_format_datetime(now, date_format)}"
+    export_text = f"Export Date: {_format_datetime(now, date_format, timezone)}"
     elements.append(Paragraph(export_text, info_style))
     elements.append(Spacer(1, 6 * mm))
 

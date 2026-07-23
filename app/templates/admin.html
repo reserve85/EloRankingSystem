@@ -305,7 +305,7 @@ async function loadPlayers() {
   if ($.fn.DataTable.isDataTable('#players-table')) { $('#players-table').DataTable().destroy(); }
   const tbody = document.querySelector('#players-table tbody'); tbody.innerHTML = '';
   players.forEach(p => {
-    const status = p.disabled ? '<span class="badge bg-red">Disabled</span>' : '<span class="badge bg-green">Active</span>';
+    const status = p.disabled ? '<span class="badge bg-red">Disabled</span>' : (p.active ? '<span class="badge bg-green">Active</span>' : '<span class="badge bg-yellow">Inactive</span>');
     tbody.innerHTML += '<tr><td>'+p.id+'</td><td>'+p.name+'</td><td>'+p.start_elo+'</td><td>'+p.current_elo.toFixed(1)+'</td><td>'+status+'</td><td>'
       +'<button class="btn btn-sm btn-ghost-blue" onclick="editPlayer('+p.id+')">Edit</button> '
       +(p.disabled ? '<button class="btn btn-sm btn-ghost-green" onclick="reactivatePlayer('+p.id+')">Reactivate</button>'

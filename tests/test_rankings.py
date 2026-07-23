@@ -79,12 +79,21 @@ class TestRankingGeneration:
         data = resp.json()
         assert data["entries"] == []
 
-    def test_single_player_no_matches(self, client, db_session):
-        """Player with no matches should appear with start Elo."""
+    def test_single_player_no_matches_excluded(self, client, db_session):
+        """Player with no matches should be excluded from active ranking."""
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         _create_player(db_session, "Alice", elo=1200)
 
         resp = _get_ranking(client, "2025-06-01", "2025-06-30")
+        data = resp.json()
+        assert len(data["entries"]) == 0
+
+    def test_single_player_no_matches_included_with_flag(self, client, db_session):
+        """Player with no matches should appear when include_inactive=True."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        _create_player(db_session, "Alice", elo=1200)
+
+        resp = _get_ranking(client, "2025-06-01", "2025-06-30", include_inactive=True)
         data = resp.json()
         assert len(data["entries"]) == 1
         assert data["entries"][0]["player_name"] == "Alice"
@@ -137,7 +146,9 @@ class TestRankingGeneration:
     def test_ranking_response_structure(self, client, db_session):
         """Ranking response should contain required fields."""
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        _create_player(db_session, "Alice")
+        pa = _create_player(db_session, "Alice")
+        pb = _create_player(db_session, "Bob")
+        _create_match(client, pa.id, pb.id, pa.id, "2025-06-15")
 
         resp = _get_ranking(client, "2025-06-01", "2025-06-30")
         data = resp.json()
