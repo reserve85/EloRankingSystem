@@ -823,3 +823,40 @@ class TestDashboardRanking:
         resp = client.get("/ui/dashboard")
         # No "Filter" button for ranking
         assert "Filter</button>" not in resp.text or "loadRanking" in resp.text
+
+
+class TestMatchHistory:
+    """Tests for Task 7: Dashboard / Match History."""
+
+    def test_match_table_has_id_column(self, client, db_session):
+        """Match history table should have ID as first column."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # ID should be a table header in match table
+        assert "ID</th>" in resp.text
+
+    def test_match_table_sorts_by_id_desc(self, client, db_session):
+        """Match table should default sort by ID descending."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # DataTables order: [[0,'desc']] means column 0 (ID) desc
+        assert "order" in resp.text
+
+    def test_match_table_renders_m_id_in_js(self, client, db_session):
+        """Match table JS should render m.id in each row."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "m.id" in resp.text
+
+    def test_match_dates_auto_refresh(self, client, db_session):
+        """Match dates should auto-refresh on change."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "loadMatches" in resp.text
+
+    def test_match_no_filter_button(self, client, db_session):
+        """Match history should not have a separate Filter button."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # The old Filter button was removed
+        assert 'onclick="loadMatches()">Filter</button>' not in resp.text

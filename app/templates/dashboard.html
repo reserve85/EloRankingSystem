@@ -190,7 +190,7 @@
           </div>
         </div>
         <table id="match-table" class="table table-vcenter table-hover table-striped" style="width:100%">
-          <thead><tr><th>Date</th><th>Winner</th><th>Score</th><th>Loser</th><th>Elo +/-</th><th>180</th><th>HF</th><th>LD</th></tr></thead>
+          <thead><tr><th>ID</th><th>Date</th><th>Winner</th><th>Score</th><th>Loser</th><th>Elo +/-</th><th>180</th><th>HF</th><th>LD</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -490,7 +490,7 @@ async function loadMatches() {
       const totalLD = countArray(m.player_a_low_darts) + countArray(m.player_b_low_darts);
       const eloWinner = m.winner_id === m.player_a_id ? m.elo_change_a : m.elo_change_b;
       const eloLoser = m.winner_id === m.player_a_id ? m.elo_change_b : m.elo_change_a;
-      tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.date+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span></td><td><strong>'+score+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span></td><td><span class="text-green">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span> / <span class="text-red">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
+      tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+m.date+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span></td><td><strong>'+score+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span></td><td><span class="text-green">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span> / <span class="text-red">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
     });
     $('#match-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true, lengthChange: false, info: false });
   } catch (e) { console.error('loadMatches failed:', e); }
