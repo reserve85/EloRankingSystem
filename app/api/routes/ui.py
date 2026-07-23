@@ -22,7 +22,7 @@ def login_page(request: Request):
     return templates.TemplateResponse(
         request,
         "login.html",
-        {"app_name": settings.app_name, "version_info": get_version_info()},
+        {"app_name": settings.app_name, "version_info": get_version_info(settings.timezone)},
     )
 
 
@@ -46,7 +46,7 @@ def dashboard_page(request: Request, current_user: User = Depends(get_current_us
             "user": current_user,
             "app_name": settings.app_name,
             "club_name": _get_club_name(db),
-            "version_info": get_version_info(),
+            "version_info": get_version_info(settings.timezone),
             "hf_min": settings.high_finish_min,
             "hf_max": settings.high_finish_max,
             "ld_min": settings.low_darts_min,
@@ -66,7 +66,7 @@ def admin_page(request: Request, current_user: User = Depends(require_admin), db
             "user": current_user,
             "app_name": settings.app_name,
             "club_name": _get_club_name(db),
-            "version_info": get_version_info(),
+            "version_info": get_version_info(settings.timezone),
             "hf_min": settings.high_finish_min,
             "hf_max": settings.high_finish_max,
             "ld_min": settings.low_darts_min,
@@ -86,7 +86,7 @@ def change_password_page(request: Request, current_user: User = Depends(get_curr
             "user": current_user,
             "app_name": settings.app_name,
             "club_name": _get_club_name(db),
-            "version_info": get_version_info(),
+            "version_info": get_version_info(settings.timezone),
         },
     )
 
@@ -95,7 +95,7 @@ def _legal_context():
     """Return common context dict for legal pages."""
     return {
         "app_name": settings.app_name,
-        "version_info": get_version_info(),
+        "version_info": get_version_info(settings.timezone),
         "contact_company": settings.contact_company,
         "contact_name": settings.contact_name,
         "contact_street": settings.contact_street,

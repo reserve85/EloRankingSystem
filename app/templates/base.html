@@ -127,7 +127,22 @@
         </div>
         <div class="col-12 col-lg-auto mt-3 mt-lg-0">
           <ul class="list-inline list-inline-dots mb-0">
-            <li class="list-inline-item">{{ app_name }}{% if version_info %} &middot; v{{ version_info.version }} ({{ version_info.git_commit }}) &middot; Build {{ version_info.build_date }}{% endif %}</li>
+            <li class="list-inline-item">
+              {% if version_info and version_info.github_url %}
+                <a href="{{ version_info.github_url }}" target="_blank" rel="noopener noreferrer" class="link-secondary text-decoration-none">{{ app_name }}</a>
+              {% else %}
+                {{ app_name }}
+              {% endif %}
+              {% if version_info %}
+                &middot;
+                {% if version_info.release_url %}
+                  <a href="{{ version_info.release_url }}" target="_blank" rel="noopener noreferrer" class="link-secondary text-decoration-none">v{{ version_info.version }} ({{ version_info.git_commit }})</a>
+                {% else %}
+                  v{{ version_info.version }} ({{ version_info.git_commit }})
+                {% endif %}
+                &middot; Build {{ version_info.build_date }}
+              {% endif %}
+            </li>
           </ul>
         </div>
       </div>

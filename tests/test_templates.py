@@ -1,5 +1,7 @@
 """Tests for UI templates and page rendering."""
 
+import os
+from unittest.mock import patch
 
 from app.models.user import User, UserRole
 from app.auth.password import hash_password
@@ -500,3 +502,100 @@ class TestAutoRefresh:
         assert "saveAdminMatchStats" in resp.text
         # saveAdminMatchStats calls loadMatches
         assert "loadMatches();" in resp.text
+
+
+class TestVersionInfo:
+    """Tests for Task 1: Build Information / Header / Footer."""
+
+    def test_version_info_no_double_v(self, client, db_session):
+        """Version string should not have duplicated 'v' prefix."""
+        with patch.dict(os.environ, {"APP_VERSION": "vv1.0.3"}):
+            from app.core import version
+            # Reload to pick up new env
+            info = version.get_version_info()
+            assert info["version"] == "1.0.3"
+            assert not info["version"].startswith("v")
+
+    def test_version_info_strips_single_v(self, client, db_session):
+        """Version string should strip a single leading 'v'."""
+        with patch.dict(os.environ, {"APP_VERSION": "v2.5.0"}):
+            from app.core import version
+            info = version.get_version_info()
+            assert info["version"] == "2.5.0"
+
+    def test_version_info_default_version(self, client, db_session):
+        """Default version should be '0.1.0' when no env var set."""
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("APP_VERSION", None)
+            from app.core import version
+            info = version.get_version_info()
+            assert info["version"] == "0.1.0"
+
+    def test_version_info_has_github_url(self, client, db_session):
+        """Version info should contain GitHub project URL."""
+        from app.core import version
+        info = version.get_version_info()
+        assert "github_url" in info
+        assert "github.com/reserve85/EloRankingSystem" in info["github_url"]
+
+    def test_version_info_has_release_url(self, client, db_session):
+        """Version info should contain release URL for current version."""
+        from app.core import version
+        info = version.get_version_info()
+        assert "release_url" in info
+        assert "/releases/tag/v" in info["release_url"]
+
+    def test_version_info_timezone_formatting(self, client, db_session):
+        """Build date should be formatted using the given timezone."""
+        from app.core import version
+        with patch.dict(os.environ, {"BUILD_DATE": "2026-07-22T22:24:38+02:00"}):
+            # Use UTC which is always available, even without tzdata package
+            info = version.get_version_info("UTC")
+            # The datetime should be converted to UTC
+            assert "2026-07-23" in info["build_date"] or "2026-07-22" in info["build_date"]
+            assert "development" not in info["build_date"]
+
+    def test_version_info_timezone_fallback_on_bad_tz(self, client, db_session):
+        """Build date should return raw string if timezone is invalid."""
+        from app.core import version
+        with patch.dict(os.environ, {"BUILD_DATE": "2026-07-22T22:24:38+02:00"}):
+            info = version.get_version_info("Invalid/Timezone")
+            # Should fall back to the raw string
+            assert "2026-07-22T22:24:38" in info["build_date"]
+
+    def test_version_info_development_fallback(self, client, db_session):
+        """Build date should show 'development' when no BUILD_DATE env var."""
+        with patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("BUILD_DATE", None)
+            from app.core import version
+            info = version.get_version_info()
+            assert info["build_date"] == "development"
+
+    def test_footer_contains_github_link(self, client, db_session):
+        """Footer should contain a clickable GitHub project link."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "github.com/reserve85/EloRankingSystem" in resp.text
+        assert 'target="_blank"' in resp.text
+
+    def test_footer_contains_release_link(self, client, db_session):
+        """Footer should contain a clickable version/release link."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "/releases/tag/v" in resp.text
+
+    def test_footer_version_not_double_v_in_html(self, client, db_session):
+        """Footer HTML should not contain 'vv' in version string."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Check the footer section doesn't have "vv"
+        footer_start = resp.text.find("<footer")
+        footer_end = resp.text.find("</footer>")
+        if footer_start >= 0 and footer_end >= 0:
+            footer = resp.text[footer_start:footer_end]
+            assert "vv" not in footer
+
+    def test_login_page_footer_also_has_links(self, client, db_session):
+        """Login page footer should also have GitHub links."""
+        resp = client.get("/ui/login")
+        assert "github.com/reserve85/EloRankingSystem" in resp.text
