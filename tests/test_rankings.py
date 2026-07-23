@@ -555,3 +555,70 @@ class TestAllTimeEloChart:
         """Unauthenticated request should return 401."""
         resp = client.get("/rankings/all-time-elo")
         assert resp.status_code == 401
+
+
+class TestNewPlayerNotInRanking:
+    """Tests that newly created players don't appear in ranking."""
+
+    def test_new_player_via_api_not_in_ranking(self, client, db_session):
+        """Player created via API (no matches) should NOT appear in ranking."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+
+        # Create player via API
+        resp = client.post("/players/", json={"name": "NewGuy"})
+        assert resp.status_code == 201
+
+        # Login as user and check ranking
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        today_str = str(date.today())
+        first_of_month = today_str[:7] + "-01"
+        resp = _get_ranking(client, first_of_month, today_str)
+        assert resp.status_code == 200
+        entries = resp.json()["entries"]
+        names = [e["player_name"] for e in entries]
+        assert "NewGuy" not in names
+
+    def test_new_player_via_api_visible_with_flag(self, client, db_session):
+        """Player created via API should appear with include_inactive=True."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+
+        resp = client.post("/players/", json={"name": "NewGuy"})
+        assert resp.status_code == 201
+
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        today_str = str(date.today())
+        first_of_month = today_str[:7] + "-01"
+        resp = _get_ranking(client, first_of_month, today_str, include_inactive=True)
+        assert resp.status_code == 200
+        entries = resp.json()["entries"]
+        names = [e["player_name"] for e in entries]
+        assert "NewGuy" in names
+
+    def test_player_with_match_appears_in_ranking(self, client, db_session, monkeypatch):
+        """Player with a recent match should appear in ranking."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+
+        resp_a = client.post("/players/", json={"name": "ActiveGuy"})
+        resp_b = client.post("/players/", json={"name": "Opponent"})
+        pa_id = resp_a.json()["id"]
+        pb_id = resp_b.json()["id"]
+
+        # Create match
+        client.post("/matches/", json={
+            "date": str(date.today()),
+            "player_a_id": pa_id,
+            "player_b_id": pb_id,
+            "player1_score": 3,
+            "player2_score": 0,
+        })
+
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        today_str = str(date.today())
+        first_of_month = today_str[:7] + "-01"
+        resp = _get_ranking(client, first_of_month, today_str)
+        assert resp.status_code == 200
+        entries = resp.json()["entries"]
+        names = [e["player_name"] for e in entries]
+        assert "ActiveGuy" in names
+        assert "Opponent" in names
