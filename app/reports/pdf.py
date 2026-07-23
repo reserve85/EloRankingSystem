@@ -117,8 +117,8 @@ def generate_ranking_pdf(
         tz = ZoneInfo(timezone)
         now = datetime.now(tz)
     except (ImportError, KeyError, OSError):
-        from datetime import timezone as tz_mod
-        now = datetime.now(tz_mod.utc)
+        now = datetime.utcnow()
+        timezone = "UTC"
     export_text = f"Export Date: {_format_datetime(now, date_format, timezone)}"
     elements.append(Paragraph(export_text, info_style))
     elements.append(Spacer(1, 6 * mm))
