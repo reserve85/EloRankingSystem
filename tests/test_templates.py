@@ -860,3 +860,29 @@ class TestMatchHistory:
         resp = client.get("/ui/dashboard")
         # The old Filter button was removed
         assert 'onclick="loadMatches()">Filter</button>' not in resp.text
+
+
+class TestPeriodStatistics:
+    """Tests for Task 8: Period Statistics."""
+
+    def test_period_stats_hf_shows_count_prefix(self, client, db_session):
+        """Period stats HF should show count prefix like (3x) in JS."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # JS should format as '(Nx) value1, value2'
+        assert "(\' + p.high_finishes.length + \'x)" in resp.text
+
+    def test_period_stats_ld_shows_count_prefix(self, client, db_session):
+        """Period stats LD should show count prefix like (2x) in JS."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "(\' + p.low_darts.length + \'x)" in resp.text
+
+    def test_player_stats_modal_exists(self, client, db_session):
+        """Dashboard should have player statistics modal."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "player-stats-modal" in resp.text
+        assert "ps-period-180s" in resp.text
+        assert "ps-period-hf" in resp.text
+        assert "ps-period-ld" in resp.text

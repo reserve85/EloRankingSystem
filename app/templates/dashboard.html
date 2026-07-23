@@ -553,8 +553,8 @@ async function showPlayerStats(playerId) {
   // Period
   const p = stats.period;
   document.getElementById('ps-period-180s').textContent = p.total_180s;
-  document.getElementById('ps-period-hf').textContent = p.high_finishes.length ? p.high_finishes.join(', ') : '-';
-  document.getElementById('ps-period-ld').textContent = p.low_darts.length ? p.low_darts.join(', ') : '-';
+  document.getElementById('ps-period-hf').textContent = p.high_finishes.length ? '(' + p.high_finishes.length + 'x) ' + p.high_finishes.join(', ') : '-';
+  document.getElementById('ps-period-ld').textContent = p.low_darts.length ? '(' + p.low_darts.length + 'x) ' + p.low_darts.join(', ') : '-';
   // All-time
   const a = stats.all_time;
   document.getElementById('ps-alltime-180s').textContent = a.total_180s;
