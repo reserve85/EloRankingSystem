@@ -752,6 +752,13 @@ function renderAthChart() {
     return '#206bc4'; // default blue
   });
 
+  // Scale: lowest bar at 10% width, highest bar at 90% width
+  const minElo = Math.min(...elos);
+  const maxElo = Math.max(...elos);
+  const range = maxElo - minElo || 1;
+  const xMin = Math.floor(minElo - range * 0.125);
+  const xMax = Math.ceil(maxElo + range * 0.125);
+
   athChart = new Chart(canvas, {
     type: 'bar',
     data: {
@@ -782,7 +789,8 @@ function renderAthChart() {
       scales: {
         x: {
           display: true,
-          beginAtZero: false,
+          min: elos.length > 1 ? xMin : undefined,
+          max: elos.length > 1 ? xMax : undefined,
           title: { display: true, text: 'Elo Rating' }
         },
         y: {
