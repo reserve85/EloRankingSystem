@@ -271,9 +271,12 @@
     if (inputEl) inputEl.max = todayISO();
   }
 
-  /** Jump a date input to today */
+  /** Jump a date input to today and trigger change event */
   function jumpToToday(inputEl) {
-    if (inputEl) inputEl.value = todayISO();
+    if (inputEl) {
+      inputEl.value = todayISO();
+      inputEl.dispatchEvent(new Event('change'));
+    }
   }
 
   /** Ensure from <= to: if user picks a 'to' earlier than 'from', adjust 'from' */

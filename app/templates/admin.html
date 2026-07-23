@@ -709,12 +709,17 @@ async function loadLogo() {
 
 // --- PDF Export ---
 (function() {
-  const today = new Date();
-  const firstOfCurrent = new Date(today.getFullYear(), today.getMonth(), 1);
-  const lastOfPrev = new Date(firstOfCurrent.getTime() - 86400000);
-  const firstOfPrev = new Date(lastOfPrev.getFullYear(), lastOfPrev.getMonth(), 1);
-  document.getElementById('pdf-from').value = fmtDate(firstOfPrev);
-  document.getElementById('pdf-to').value = fmtDate(lastOfPrev);
+  // Calculate previous month using server timezone to avoid browser timezone mismatch
+  const today = todayISO();
+  const year = parseInt(today.substring(0, 4));
+  const month = parseInt(today.substring(5, 7));
+  const prevMonth = month === 1 ? 12 : month - 1;
+  const prevYear = month === 1 ? year - 1 : year;
+  // Last day of previous month
+  const lastDay = new Date(year, month - 1, 0).getDate();
+  const pad = n => String(n).padStart(2, '0');
+  document.getElementById('pdf-from').value = prevYear + '-' + pad(prevMonth) + '-01';
+  document.getElementById('pdf-to').value = prevYear + '-' + pad(prevMonth) + '-' + pad(lastDay);
 })();
 
 // Prevent future dates on PDF date inputs
