@@ -300,3 +300,101 @@ class RankingService:
             "period": _aggregate(period_matches, player_id),
             "all_time": _aggregate(all_matches, player_id),
         }
+
+    def get_elo_history(self, player_id: int) -> list[dict]:
+        """Get Elo history for a player (all matches with Elo after each).
+
+        Args:
+            player_id: The player's ID.
+
+        Returns:
+            List of dicts with date, elo, match_id.
+        """
+        matches = self.db.query(Match).filter(
+            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
+        ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
+
+        history = []
+        for m in matches:
+            elo = m.elo_after_a if m.player_a_id == player_id else m.elo_after_b
+            history.append({
+                "date": m.date.isoformat(),
+                "elo": elo,
+                "match_id": m.id,
+            })
+        return history
+
+    def get_all_time_high_elo(self, player_id: int) -> dict:
+        """Get the highest Elo rating ever reached by a player.
+
+        Args:
+            player_id: The player's ID.
+
+        Returns:
+            Dict with max_elo and date_reached.
+        """
+        player = self.db.query(Player).filter(Player.id == player_id).first()
+        if player is None:
+            return {"max_elo": 0, "date_reached": None}
+
+        matches = self.db.query(Match).filter(
+            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
+        ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
+
+        if not matches:
+            return {"max_elo": float(player.start_elo), "date_reached": None}
+
+        max_elo = float(player.start_elo)
+        max_date = None
+        for m in matches:
+            elo = m.elo_after_a if m.player_a_id == player_id else m.elo_after_b
+            if elo > max_elo:
+                max_elo = elo
+                max_date = m.date.isoformat()
+
+        return {"max_elo": max_elo, "date_reached": max_date}
+
+    def get_all_time_high_ranking(self, player_id: int) -> dict:
+        """Get the best ranking position ever achieved by a player.
+
+        Considers all players (including inactive) at each match date.
+
+        Args:
+            player_id: The player's ID.
+
+        Returns:
+            Dict with best_rank and date_reached.
+        """
+        matches = self.db.query(Match).filter(
+            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
+        ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
+
+        if not matches:
+            return {"best_rank": None, "date_reached": None}
+
+        best_rank = None
+        best_date = None
+
+        for m in matches:
+            # Get all players' Elo at this match date
+            all_players = self.db.query(Player).filter(Player.disabled.is_(False)).all()
+            player_elos = []
+            for p in all_players:
+                elo = self._get_elo_at_date(p, m.date, before=False)
+                # Only include players with at least 1 match on or before this date
+                has_match = self.db.query(Match).filter(
+                    ((Match.player_a_id == p.id) | (Match.player_b_id == p.id))
+                    & (Match.date <= m.date)
+                ).first()
+                if has_match:
+                    player_elos.append((p.id, elo))
+
+            player_elos.sort(key=lambda x: (-x[1], x[0]))
+            for rank, (pid, _) in enumerate(player_elos, 1):
+                if pid == player_id:
+                    if best_rank is None or rank < best_rank:
+                        best_rank = rank
+                        best_date = m.date.isoformat()
+                    break
+
+        return {"best_rank": best_rank, "date_reached": best_date}

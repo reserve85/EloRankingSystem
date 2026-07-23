@@ -205,6 +205,43 @@
     <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
   </div>
   <div class="modal-body">
+    <!-- ATH Elo & ATH Rank -->
+    <div class="row g-3 mb-3">
+      <div class="col-6">
+        <div class="card card-sm bg-green-lt">
+          <div class="card-body text-center">
+            <div class="text-muted small">Best Elo Rating</div>
+            <div class="h3 mb-0 text-green" id="ps-ath-elo">-</div>
+            <div class="text-muted small" id="ps-ath-elo-date"></div>
+          </div>
+        </div>
+      </div>
+      <div class="col-6">
+        <div class="card card-sm bg-blue-lt">
+          <div class="card-body text-center">
+            <div class="text-muted small">Best Rank</div>
+            <div class="h3 mb-0" id="ps-ath-rank">-</div>
+            <div class="text-muted small" id="ps-ath-rank-date"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Elo Graph -->
+    <div class="card card-sm mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="card-title mb-0">Elo History</h4>
+        <div class="btn-group btn-group-sm" id="elo-chart-filters">
+          <button class="btn btn-outline-secondary active" onclick="filterEloChart('1y')">1Y</button>
+          <button class="btn btn-outline-secondary" onclick="filterEloChart('5y')">5Y</button>
+          <button class="btn btn-outline-secondary" onclick="filterEloChart('10y')">10Y</button>
+          <button class="btn btn-outline-secondary" onclick="filterEloChart('all')">ALL</button>
+        </div>
+      </div>
+      <div class="card-body" style="height:250px">
+        <canvas id="elo-chart"></canvas>
+      </div>
+    </div>
+    <!-- Period & All-time Stats -->
     <div class="row g-3">
       <!-- Period Stats -->
       <div class="col-12 col-md-6">
@@ -540,6 +577,9 @@ function showMatchDetail(idx) {
   new bootstrap.Modal(document.getElementById('match-detail-modal')).show();
 }
 
+let eloChart = null;
+let eloHistoryData = [];
+
 async function showPlayerStats(playerId) {
   const from = document.getElementById('ranking-from').value;
   const to = document.getElementById('ranking-to').value;
@@ -560,8 +600,86 @@ async function showPlayerStats(playerId) {
   document.getElementById('ps-alltime-180s').textContent = a.total_180s;
   document.getElementById('ps-alltime-hf').textContent = a.high_finishes.length;
   document.getElementById('ps-alltime-ld').textContent = a.low_darts.length;
+  // Fetch ATH data
+  try {
+    const athResp = await fetch('/rankings/player-stats/' + playerId + '/ath');
+    if (athResp.ok) {
+      const ath = await athResp.json();
+      document.getElementById('ps-ath-elo').textContent = ath.ath_elo.max_elo.toFixed(1);
+      document.getElementById('ps-ath-elo-date').textContent = ath.ath_elo.date_reached ? fmtDisplay(ath.ath_elo.date_reached) : '-';
+      if (ath.ath_rank.best_rank) {
+        const trophies = ['', '🥇', '🥈', '🥉'];
+        const trophy = ath.ath_rank.best_rank <= 3 ? trophies[ath.ath_rank.best_rank] + ' ' : '';
+        document.getElementById('ps-ath-rank').textContent = trophy + '#' + ath.ath_rank.best_rank;
+        document.getElementById('ps-ath-rank-date').textContent = fmtDisplay(ath.ath_rank.date_reached);
+      } else {
+        document.getElementById('ps-ath-rank').textContent = '-';
+        document.getElementById('ps-ath-rank-date').textContent = '';
+      }
+    }
+  } catch(e) {}
+  // Fetch Elo history for chart
+  try {
+    const histResp = await fetch('/rankings/player-stats/' + playerId + '/elo-history');
+    if (histResp.ok) {
+      const histData = await histResp.json();
+      eloHistoryData = histData.history || [];
+      renderEloChart('all');
+    }
+  } catch(e) {}
   new bootstrap.Modal(document.getElementById('player-stats-modal')).show();
 }
+
+function renderEloChart(range) {
+  const canvas = document.getElementById('elo-chart');
+  if (!canvas) return;
+  if (eloChart) { eloChart.destroy(); eloChart = null; }
+  // Filter data by range
+  let data = eloHistoryData;
+  if (range !== 'all') {
+    const now = new Date();
+    let cutoff;
+    if (range === '1y') { cutoff = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()); }
+    else if (range === '5y') { cutoff = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate()); }
+    else if (range === '10y') { cutoff = new Date(now.getFullYear() - 10, now.getMonth(), now.getDate()); }
+    if (cutoff) { data = data.filter(d => new Date(d.date) >= cutoff); }
+  }
+  if (data.length === 0) { return; }
+  const labels = data.map(d => d.date);
+  const elos = data.map(d => d.elo);
+  eloChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: 'Elo Rating',
+        data: elos,
+        borderColor: '#206bc4',
+        backgroundColor: 'rgba(32, 107, 196, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: data.length > 50 ? 0 : 3,
+        pointHoverRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: true, ticks: { maxTicksLimit: 10 } },
+        y: { display: true, beginAtZero: false }
+      }
+    }
+  });
+  // Update active button
+  document.querySelectorAll('#elo-chart-filters .btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.textContent.toLowerCase() === range) btn.classList.add('active');
+  });
+}
+
+function filterEloChart(range) { renderEloChart(range); }
 
 loadPlayers().then(() => { loadRanking(); loadMatches(); });
 

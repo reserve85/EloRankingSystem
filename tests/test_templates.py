@@ -886,3 +886,79 @@ class TestPeriodStatistics:
         assert "ps-period-180s" in resp.text
         assert "ps-period-hf" in resp.text
         assert "ps-period-ld" in resp.text
+
+
+class TestPlayerStatistics:
+    """Tests for Task 9: Player Statistics."""
+
+    def test_player_stats_has_ath_elo_card(self, client, db_session):
+        """Player stats modal should have ATH Elo card."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "ps-ath-elo" in resp.text
+        assert "Best Elo Rating" in resp.text
+
+    def test_player_stats_has_ath_rank_card(self, client, db_session):
+        """Player stats modal should have ATH Rank card."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "ps-ath-rank" in resp.text
+        assert "Best Rank" in resp.text
+
+    def test_player_stats_has_elo_chart(self, client, db_session):
+        """Player stats modal should have Elo chart canvas."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "elo-chart" in resp.text
+
+    def test_player_stats_has_chart_filters(self, client, db_session):
+        """Player stats modal should have 1Y/5Y/10Y/ALL filter buttons."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "filterEloChart" in resp.text
+        assert "elo-chart-filters" in resp.text
+
+    def test_chart_js_included(self, client, db_session):
+        """Chart.js CDN should be included in base template."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "chart.js" in resp.text.lower() or "chart.umd" in resp.text
+
+    def test_elo_history_endpoint_exists(self, client, db_session):
+        """Elo history API endpoint should exist and require auth."""
+        resp = client.get("/rankings/player-stats/1/elo-history")
+        assert resp.status_code == 401
+
+    def test_ath_endpoint_exists(self, client, db_session):
+        """ATH API endpoint should exist and require auth."""
+        resp = client.get("/rankings/player-stats/1/ath")
+        assert resp.status_code == 401
+
+    def test_elo_history_returns_data(self, client, db_session):
+        """Elo history endpoint should return history data for valid player."""
+        from app.models.player import Player
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        player = Player(name="Test", start_elo=1200, current_elo=1200.0, active=True, disabled=False)
+        db_session.add(player)
+        db_session.commit()
+        db_session.refresh(player)
+        resp = client.get(f"/rankings/player-stats/{player.id}/elo-history")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "history" in data
+        assert "player_name" in data
+
+    def test_ath_returns_data(self, client, db_session):
+        """ATH endpoint should return ATH data for valid player."""
+        from app.models.player import Player
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        player = Player(name="Test", start_elo=1200, current_elo=1200.0, active=True, disabled=False)
+        db_session.add(player)
+        db_session.commit()
+        db_session.refresh(player)
+        resp = client.get(f"/rankings/player-stats/{player.id}/ath")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "ath_elo" in data
+        assert "ath_rank" in data
+        assert "max_elo" in data["ath_elo"]

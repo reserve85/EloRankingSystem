@@ -67,3 +67,49 @@ def get_player_statistics(
     )
     stats["player_name"] = player.name
     return stats
+
+
+@router.get("/player-stats/{player_id}/elo-history")
+def get_elo_history(
+    player_id: int,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Get Elo history for a player (all matches with Elo after each).
+
+    Returns a list of {date, elo, match_id} entries for charting.
+    """
+    player_repo = PlayerRepository(db)
+    player = player_repo.get_by_id(player_id)
+    if player is None:
+        raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
+
+    service = RankingService(db)
+    history = service.get_elo_history(player_id)
+    return {"player_id": player_id, "player_name": player.name, "history": history}
+
+
+@router.get("/player-stats/{player_id}/ath")
+def get_all_time_highs(
+    player_id: int,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Get All Time High Elo and All Time High Ranking for a player.
+
+    Returns max_elo, date_reached, best_rank, rank_date_reached.
+    """
+    player_repo = PlayerRepository(db)
+    player = player_repo.get_by_id(player_id)
+    if player is None:
+        raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
+
+    service = RankingService(db)
+    ath_elo = service.get_all_time_high_elo(player_id)
+    ath_rank = service.get_all_time_high_ranking(player_id)
+    return {
+        "player_id": player_id,
+        "player_name": player.name,
+        "ath_elo": ath_elo,
+        "ath_rank": ath_rank,
+    }
