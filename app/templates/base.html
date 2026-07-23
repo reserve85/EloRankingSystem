@@ -60,9 +60,9 @@
   {% if user %}
   <header class="d-print-none">
     <div class="container-xl">
-      <!-- Line 1: Logo + Brand -->
-      <div class="d-flex align-items-center py-2 border-bottom">
-        <a href="/ui/dashboard" class="text-decoration-none d-flex align-items-center gap-2 flex-grow-1">
+      <!-- Line 1: Logo + Brand (centered) -->
+      <div class="d-flex justify-content-center align-items-center py-2 border-bottom">
+        <a href="/ui/dashboard" class="text-decoration-none d-flex align-items-center gap-2">
           <img id="header-logo" src="" alt="" style="height:32px;max-width:120px;object-fit:contain;display:none;" class="rounded">
           <span class="fw-bold text-reset">{% if club_name %}{{ club_name }} - Elo Ranking System{% else %}{{ app_name }}{% endif %}</span>
         </a>
