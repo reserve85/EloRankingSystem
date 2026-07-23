@@ -56,8 +56,8 @@ class RankingService:
         for player in players:
             elo_at_start = self._get_elo_at_date(player, from_date, before=True)
             elo_at_end = self._get_elo_at_date(player, to_date, before=False)
-            total_matches = self._get_total_match_count(player.id)
             stats = self._get_period_statistics(player.id, from_date, to_date)
+            total_matches = stats["match_count"]
 
             entries.append({
                 "player_id": player.id,
@@ -234,6 +234,7 @@ class RankingService:
             "total_180s": total_180s,
             "high_finishes": sorted(high_finishes, reverse=True),
             "low_darts": sorted(low_darts),
+            "match_count": len(matches),
         }
 
     def get_player_statistics(
