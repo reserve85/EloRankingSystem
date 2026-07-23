@@ -139,6 +139,10 @@
     <div class="card">
       <div class="card-header d-flex justify-content-between align-items-center">
         <h3 class="card-title">Ranking</h3>
+        <label class="form-check">
+          <input type="checkbox" id="ranking-include-inactive" class="form-check-input">
+          <span class="form-check-label small">Include inactive</span>
+        </label>
       </div>
       <div class="card-body">
       <div class="row mb-3">
@@ -366,6 +370,7 @@ preventFutureDate(document.getElementById('match-to'));
 // Auto-sync + auto-refresh date ranges
 document.getElementById('ranking-from').addEventListener('change', function() { syncDateRange(this, document.getElementById('ranking-to')); loadRanking(); });
 document.getElementById('ranking-to').addEventListener('change', function() { syncDateRange(document.getElementById('ranking-from'), this); loadRanking(); });
+document.getElementById('ranking-include-inactive').addEventListener('change', function() { loadRanking(); });
 document.getElementById('match-from').addEventListener('change', function() { syncDateRange(this, document.getElementById('match-to')); loadMatches(); });
 document.getElementById('match-to').addEventListener('change', function() { syncDateRange(document.getElementById('match-from'), this); loadMatches(); });
 
@@ -500,9 +505,11 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
 async function loadRanking() {
   const from = document.getElementById('ranking-from').value;
   const to = document.getElementById('ranking-to').value;
+  const includeInactive = document.getElementById('ranking-include-inactive').checked;
   let url = '/rankings/?';
   if (from) url += 'from_date=' + from + '&';
   if (to) url += 'to_date=' + to;
+  if (includeInactive) url += '&include_inactive=true';
   const resp = await fetch(url);
   if (!resp.ok) return;
   const data = await resp.json();
