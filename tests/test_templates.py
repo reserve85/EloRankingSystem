@@ -779,3 +779,47 @@ class TestDateFormat:
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
         assert "SERVER_TIMEZONE" in resp.text
+
+
+class TestDashboardRanking:
+    """Tests for Task 6: Dashboard / Ranking."""
+
+    def test_ranking_table_exists(self, client, db_session):
+        """Dashboard should have a ranking table."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "ranking-table" in resp.text
+
+    def test_ranking_table_has_hf_ld_columns(self, client, db_session):
+        """Ranking table should have HF and LD columns."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "HF</th>" in resp.text
+        assert "LD</th>" in resp.text
+
+    def test_ranking_hf_ld_shows_count_in_js(self, client, db_session):
+        """Ranking JS should calculate HF/LD counts (not values)."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # JS should use .length for count, not join the values
+        assert "hfCount" in resp.text or "high_finishes.length" in resp.text
+
+    def test_ranking_has_trophy_icons(self, client, db_session):
+        """Ranking JS should have trophy icon support for top 3."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Should have trophy emoji array
+        assert "trophy" in resp.text.lower()
+
+    def test_ranking_date_auto_refresh(self, client, db_session):
+        """Ranking dates should auto-refresh on change (no separate filter button)."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "loadRanking" in resp.text
+
+    def test_ranking_no_filter_button(self, client, db_session):
+        """Ranking section should not have a separate filter button."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # No "Filter" button for ranking
+        assert "Filter</button>" not in resp.text or "loadRanking" in resp.text

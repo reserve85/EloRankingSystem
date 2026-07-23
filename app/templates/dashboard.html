@@ -450,13 +450,15 @@ async function loadRanking() {
   const data = await resp.json();
   const tbody = document.querySelector('#ranking-table tbody');
   tbody.innerHTML = '';
+  const trophies = ['🥇', '🥈', '🥉'];
   data.entries.forEach(e => {
     const eloCls = e.elo_change > 0 ? 'text-green' : e.elo_change < 0 ? 'text-red' : '';
     const posCls = e.position_change > 0 ? 'text-green' : e.position_change < 0 ? 'text-red' : '';
     const posStr = e.position_change > 0 ? '+' + e.position_change : e.position_change < 0 ? '' + e.position_change : '-';
-    const hfText = Array.isArray(e.high_finishes) && e.high_finishes.length ? e.high_finishes.join(', ') : '-';
-    const ldText = Array.isArray(e.low_darts) && e.low_darts.length ? e.low_darts.join(', ') : '-';
-    tbody.innerHTML += '<tr><td>'+e.position+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+e.player_name+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+hfText+'</td><td>'+ldText+'</td><td>'+e.total_matches+'</td></tr>';
+    const hfCount = Array.isArray(e.high_finishes) ? e.high_finishes.length : 0;
+    const ldCount = Array.isArray(e.low_darts) ? e.low_darts.length : 0;
+    const trophy = e.position <= 3 ? trophies[e.position - 1] + ' ' : '';
+    tbody.innerHTML += '<tr><td>'+trophy+e.position+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+e.player_name+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+(hfCount||'-')+'</td><td>'+(ldCount||'-')+'</td><td>'+e.total_matches+'</td></tr>';
   });
 }
 
