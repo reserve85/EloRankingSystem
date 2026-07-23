@@ -176,7 +176,7 @@ class TestUserManagementAPI:
         """ADMIN should be able to create a new user."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.post("/users/", json={
-            "username": "newuser", "password": "pass123", "role": "USER"
+            "username": "newuser", "password": "Pass123!", "role": "USER"
         })
         assert resp.status_code == 201
         assert resp.json()["username"] == "newuser"
@@ -201,7 +201,7 @@ class TestUserManagementAPI:
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         # Create user first
         create_resp = client.post("/users/", json={
-            "username": "updatee", "password": "pass", "role": "USER"
+            "username": "updatee", "password": "Pass123!", "role": "USER"
         })
         user_id = create_resp.json()["id"]
 

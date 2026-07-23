@@ -257,7 +257,7 @@ class TestUserAudit:
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
 
         client.post("/users/", json={
-            "username": "newuser", "password": "pass123", "role": "USER"
+            "username": "newuser", "password": "Pass123!", "role": "USER"
         })
 
         logs = _get_audit_logs(db_session, "USER_CREATED")
@@ -289,13 +289,13 @@ class TestUserAudit:
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
         target = _create_user_db(db_session, "target", "pass", UserRole.USER)
 
-        client.put(f"/users/{target.id}", json={"password": "newpass"})
+        client.put(f"/users/{target.id}", json={"password": "NewPass123!"})
 
         logs = _get_audit_logs(db_session, "PASSWORD_RESET")
         assert len(logs) >= 1
         log = logs[-1]
         if log.new_value:
-            assert "newpass" not in log.new_value
+            assert "NewPass123!" not in log.new_value
 
 
 class TestSettingsAudit:

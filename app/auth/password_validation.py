@@ -19,7 +19,7 @@ def validate_password_strength(password: str) -> list[str]:
     - At least one uppercase letter
     - At least one lowercase letter
     - At least one digit
-    - Special character recommended but not required
+    - At least one special character
 
     Args:
         password: The password to validate.
@@ -40,5 +40,8 @@ def validate_password_strength(password: str) -> list[str]:
 
     if not re.search(r"[0-9]", password):
         errors.append("Password must contain at least one number")
+
+    if not re.search(r"[!@#$%^&*()_+\-=\[\]{};':\"\\|,.<>/?`~]", password):
+        errors.append("Password must contain at least one special character")
 
     return errors

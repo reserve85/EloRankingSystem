@@ -44,38 +44,44 @@ class TestPasswordValidation:
     def test_valid_password_accepted(self):
         """Valid password should pass validation."""
         from app.auth.password_validation import validate_password_strength
-        errors = validate_password_strength("SecurePass123")
+        errors = validate_password_strength("SecurePass123!")
         assert errors == []
 
     def test_too_short_rejected(self):
         """Password shorter than 8 chars should be rejected."""
         from app.auth.password_validation import validate_password_strength
-        errors = validate_password_strength("Ab1")
+        errors = validate_password_strength("Ab1!")
         assert any("8 characters" in e for e in errors)
 
     def test_no_uppercase_rejected(self):
         """Password without uppercase should be rejected."""
         from app.auth.password_validation import validate_password_strength
-        errors = validate_password_strength("lowercase123")
+        errors = validate_password_strength("lowercase123!")
         assert any("uppercase" in e for e in errors)
 
     def test_no_lowercase_rejected(self):
         """Password without lowercase should be rejected."""
         from app.auth.password_validation import validate_password_strength
-        errors = validate_password_strength("UPPERCASE123")
+        errors = validate_password_strength("UPPERCASE123!")
         assert any("lowercase" in e for e in errors)
 
     def test_no_number_rejected(self):
         """Password without number should be rejected."""
         from app.auth.password_validation import validate_password_strength
-        errors = validate_password_strength("NoNumbersHere")
+        errors = validate_password_strength("NoNumbersHere!")
         assert any("number" in e for e in errors)
+
+    def test_no_special_character_rejected(self):
+        """Password without special character should be rejected."""
+        from app.auth.password_validation import validate_password_strength
+        errors = validate_password_strength("NoSpecial123")
+        assert any("special" in e for e in errors)
 
     def test_multiple_failures(self):
         """Multiple failures should return all errors."""
         from app.auth.password_validation import validate_password_strength
         errors = validate_password_strength("abc")
-        assert len(errors) >= 3
+        assert len(errors) >= 4
 
 
 # ── Change Password Tests ──────────────────────────────────────────────
@@ -90,8 +96,8 @@ class TestPasswordChange:
 
         resp = client.post("/password/change", json={
             "current_password": "Test1234",
-            "new_password": "NewSecure123",
-            "confirm_new_password": "NewSecure123",
+            "new_password": "NewSecure123!",
+            "confirm_new_password": "NewSecure123!",
         })
         assert resp.status_code == 200
         data = resp.json()
@@ -104,8 +110,8 @@ class TestPasswordChange:
 
         resp = client.post("/password/change", json={
             "current_password": "WrongPass123",
-            "new_password": "NewSecure123",
-            "confirm_new_password": "NewSecure123",
+            "new_password": "NewSecure123!",
+            "confirm_new_password": "NewSecure123!",
         })
         assert resp.status_code == 200
         data = resp.json()
@@ -118,8 +124,8 @@ class TestPasswordChange:
 
         resp = client.post("/password/change", json={
             "current_password": "Test1234",
-            "new_password": "NewSecure123",
-            "confirm_new_password": "Different123",
+            "new_password": "NewSecure123!",
+            "confirm_new_password": "Different123!",
         })
         assert resp.status_code == 200
         data = resp.json()
@@ -162,8 +168,8 @@ class TestPasswordChange:
 
         client.post("/password/change", json={
             "current_password": "Test1234",
-            "new_password": "NewSecure123",
-            "confirm_new_password": "NewSecure123",
+            "new_password": "NewSecure123!",
+            "confirm_new_password": "NewSecure123!",
         })
 
         # Logout
@@ -172,7 +178,7 @@ class TestPasswordChange:
         # Login with new password
         resp = client.post("/auth/login", data={
             "username": "user1",
-            "password": "NewSecure123",
+            "password": "NewSecure123!",
         })
         assert resp.status_code == 200
 
@@ -182,8 +188,8 @@ class TestPasswordChange:
 
         client.post("/password/change", json={
             "current_password": "Test1234",
-            "new_password": "NewSecure123",
-            "confirm_new_password": "NewSecure123",
+            "new_password": "NewSecure123!",
+            "confirm_new_password": "NewSecure123!",
         })
 
         client.post("/auth/logout")
@@ -210,8 +216,8 @@ class TestPasswordChange:
 
         client.post("/password/change", json={
             "current_password": "Test1234",
-            "new_password": "NewSecure123",
-            "confirm_new_password": "NewSecure123",
+            "new_password": "NewSecure123!",
+            "confirm_new_password": "NewSecure123!",
         })
 
         logs = db_session.query(AuditLog).filter(
@@ -258,8 +264,8 @@ class TestPasswordReset:
 
         resp = client.post("/password/reset", json={
             "user_id": target.id,
-            "new_password": "ResetPass123",
-            "confirm_new_password": "ResetPass123",
+            "new_password": "ResetPass123!",
+            "confirm_new_password": "ResetPass123!",
         })
         assert resp.status_code == 200
         data = resp.json()
@@ -273,8 +279,8 @@ class TestPasswordReset:
 
         resp = client.post("/password/reset", json={
             "user_id": target.id,
-            "new_password": "ResetPass123",
-            "confirm_new_password": "ResetPass123",
+            "new_password": "ResetPass123!",
+            "confirm_new_password": "ResetPass123!",
         })
         assert resp.status_code == 200
         assert resp.json()["success"] is True
@@ -286,8 +292,8 @@ class TestPasswordReset:
 
         resp = client.post("/password/reset", json={
             "user_id": target.id,
-            "new_password": "ResetPass123",
-            "confirm_new_password": "ResetPass123",
+            "new_password": "ResetPass123!",
+            "confirm_new_password": "ResetPass123!",
         })
         assert resp.status_code == 403
 
@@ -295,8 +301,8 @@ class TestPasswordReset:
         """Unauthenticated request should return 401."""
         resp = client.post("/password/reset", json={
             "user_id": 1,
-            "new_password": "ResetPass123",
-            "confirm_new_password": "ResetPass123",
+            "new_password": "ResetPass123!",
+            "confirm_new_password": "ResetPass123!",
         })
         assert resp.status_code == 401
 
@@ -306,8 +312,8 @@ class TestPasswordReset:
 
         resp = client.post("/password/reset", json={
             "user_id": 99999,
-            "new_password": "ResetPass123",
-            "confirm_new_password": "ResetPass123",
+            "new_password": "ResetPass123!",
+            "confirm_new_password": "ResetPass123!",
         })
         assert resp.status_code == 200
         data = resp.json()
@@ -321,8 +327,8 @@ class TestPasswordReset:
 
         resp = client.post("/password/reset", json={
             "user_id": target.id,
-            "new_password": "ResetPass123",
-            "confirm_new_password": "Different123",
+            "new_password": "ResetPass123!",
+            "confirm_new_password": "Different123!",
         })
         assert resp.status_code == 200
         data = resp.json()
@@ -351,15 +357,15 @@ class TestPasswordReset:
 
         client.post("/password/reset", json={
             "user_id": target.id,
-            "new_password": "ResetPass123",
-            "confirm_new_password": "ResetPass123",
+            "new_password": "ResetPass123!",
+            "confirm_new_password": "ResetPass123!",
         })
 
         client.post("/auth/logout")
 
         resp = client.post("/auth/login", data={
             "username": "target",
-            "password": "ResetPass123",
+            "password": "ResetPass123!",
         })
         assert resp.status_code == 200
 
@@ -370,8 +376,8 @@ class TestPasswordReset:
 
         client.post("/password/reset", json={
             "user_id": target.id,
-            "new_password": "ResetPass123",
-            "confirm_new_password": "ResetPass123",
+            "new_password": "ResetPass123!",
+            "confirm_new_password": "ResetPass123!",
         })
 
         logs = db_session.query(AuditLog).filter(
@@ -386,8 +392,8 @@ class TestPasswordReset:
 
         resp = client.post("/password/reset", json={
             "user_id": sys_user.id,
-            "new_password": "ResetPass123",
-            "confirm_new_password": "ResetPass123",
+            "new_password": "ResetPass123!",
+            "confirm_new_password": "ResetPass123!",
         })
         assert resp.status_code == 200
         data = resp.json()

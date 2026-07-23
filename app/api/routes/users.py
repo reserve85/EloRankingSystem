@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.auth.dependencies import require_admin
 from app.auth.password import hash_password
+from app.auth.password_validation import validate_password_strength
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
 from app.services.audit import log_event, get_client_info
@@ -21,6 +22,9 @@ def create_user(request: Request, data: UserCreate, current_user: User = Depends
         raise HTTPException(status_code=409, detail=f"Username '{data.username}' already exists")
     if data.role == UserRole.SYSTEM:
         raise HTTPException(status_code=400, detail="Cannot create SYSTEM users via API")
+    strength_errors = validate_password_strength(data.password)
+    if strength_errors:
+        raise HTTPException(status_code=400, detail=strength_errors)
     user = User(username=data.username, password_hash=hash_password(data.password), role=data.role, active=True)
     db.add(user)
     db.commit()
@@ -64,6 +68,9 @@ def update_user(user_id: int, request: Request, data: UserUpdate, current_user: 
     old = {"role": user.role.value, "active": user.active}
 
     if data.password:
+        strength_errors = validate_password_strength(data.password)
+        if strength_errors:
+            raise HTTPException(status_code=400, detail=strength_errors)
         user.password_hash = hash_password(data.password)
     if data.role is not None:
         user.role = data.role
