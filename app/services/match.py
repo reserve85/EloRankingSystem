@@ -175,6 +175,7 @@ class MatchService:
                 if player is not None:
                     player.current_elo = float(player.start_elo)
                     player.last_match_date = None
+                    player.active = False
             self.db.commit()
             return
 
@@ -224,6 +225,8 @@ class MatchService:
             pb.current_elo = elo_result.new_rating_b
             pa.last_match_date = m.date
             pb.last_match_date = m.date
+            pa.active = True
+            pb.active = True
 
         self.db.commit()
 

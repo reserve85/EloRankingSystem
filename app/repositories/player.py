@@ -29,10 +29,14 @@ class PlayerRepository:
         return query.order_by(Player.name).all()
 
     def get_active(self) -> list[Player]:
-        """Get all active, non-disabled players."""
+        """Get all non-disabled players for match selection.
+
+        Returns both active and inactive (but not disabled) players,
+        so inactive players can be selected for their first match.
+        """
         return (
             self.db.query(Player)
-            .filter(Player.active.is_(True), Player.disabled.is_(False))
+            .filter(Player.disabled.is_(False))
             .order_by(Player.name)
             .all()
         )

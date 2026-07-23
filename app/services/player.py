@@ -40,7 +40,7 @@ class PlayerService:
             name=data.name,
             start_elo=start_elo,
             current_elo=float(start_elo),
-            active=True,
+            active=False,
             disabled=False,
         )
 

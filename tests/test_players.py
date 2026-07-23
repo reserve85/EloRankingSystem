@@ -60,7 +60,7 @@ class TestPlayerServiceCreate:
         assert player.name == "New Player"
         assert player.start_elo == 1200
         assert player.current_elo == 1200.0
-        assert player.active is True
+        assert player.active is False
         assert player.disabled is False
 
     def test_create_player_with_custom_elo(self, db_session, monkeypatch):
@@ -238,7 +238,7 @@ class TestPlayerRoutesAsAdmin:
         assert data["name"] == "New Player"
         assert data["start_elo"] == 1200
         assert data["current_elo"] == 1200.0
-        assert data["active"] is True
+        assert data["active"] is False
         assert data["disabled"] is False
 
     def test_create_player_custom_elo(self, client, db_session):
@@ -468,3 +468,87 @@ class TestPlayerDisabledState:
         # Disable again
         response = client.post(f"/players/{player.id}/disable")
         assert response.json()["disabled"] is True
+
+
+class TestPlayerInactiveByDefault:
+    """Tests for Task 11: new players are inactive by default."""
+
+    def test_new_player_created_inactive_via_api(self, client, db_session):
+        """Newly created player via API should be inactive by default."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+
+        response = client.post("/players/", json={"name": "New Inactive Player"})
+        assert response.status_code == 201
+        data = response.json()
+        assert data["active"] is False
+        assert data["disabled"] is False
+
+    def test_new_player_created_inactive_via_service(self, db_session, monkeypatch):
+        """Newly created player via service should be inactive by default."""
+        monkeypatch.setattr("app.services.player.settings.default_elo", 1200)
+        from app.services.player import PlayerService
+
+        service = PlayerService(db_session)
+        player = service.create_player(PlayerCreate(name="Service New Player"))
+        assert player.active is False
+        assert player.disabled is False
+
+    def test_inactive_player_selectable_for_match(self, client, db_session):
+        """Inactive (but not disabled) player should appear in /players/active."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+
+        # Create inactive player
+        response = client.post("/players/", json={"name": "Selectable"})
+        assert response.status_code == 201
+
+        # Should appear in /players/active
+        response = client.get("/players/active")
+        assert response.status_code == 200
+        names = [p["name"] for p in response.json()]
+        assert "Selectable" in names
+
+    def test_disabled_player_not_selectable_for_match(self, client, db_session):
+        """Disabled player should NOT appear in /players/active."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+
+        # Create then disable player
+        response = client.post("/players/", json={"name": "Disabled Selectable"})
+        player_id = response.json()["id"]
+        client.post(f"/players/{player_id}/disable")
+
+        # Should NOT appear in /players/active
+        response = client.get("/players/active")
+        names = [p["name"] for p in response.json()]
+        assert "Disabled Selectable" not in names
+
+    def test_first_match_activates_player(self, client, db_session, monkeypatch):
+        """Playing first match should automatically activate the player."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 999)
+
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+
+        # Create two inactive players
+        resp_a = client.post("/players/", json={"name": "Player A"})
+        resp_b = client.post("/players/", json={"name": "Player B"})
+        pa_id = resp_a.json()["id"]
+        pb_id = resp_b.json()["id"]
+
+        assert resp_a.json()["active"] is False
+        assert resp_b.json()["active"] is False
+
+        # Play a match
+        from datetime import date
+        match_resp = client.post("/matches/", json={
+            "date": str(date.today()),
+            "player_a_id": pa_id,
+            "player_b_id": pb_id,
+            "player1_score": 3,
+            "player2_score": 0,
+        })
+        assert match_resp.status_code == 200 or match_resp.status_code == 201
+
+        # Both players should now be active
+        pa_data = client.get(f"/players/{pa_id}").json()
+        pb_data = client.get(f"/players/{pb_id}").json()
+        assert pa_data["active"] is True
+        assert pb_data["active"] is True
