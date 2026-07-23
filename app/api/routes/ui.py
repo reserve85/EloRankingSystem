@@ -17,12 +17,18 @@ router = APIRouter(prefix="/ui", tags=["ui"])
 
 
 @router.get("/login")
-def login_page(request: Request):
-    """Render the login page."""
+def login_page(request: Request, current_user: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
+    """Render the login page. Redirect to dashboard if already authenticated."""
+    if current_user is not None:
+        return RedirectResponse(url="/ui/dashboard", status_code=302)
     return templates.TemplateResponse(
         request,
         "login.html",
-        {"app_name": settings.app_name, "version_info": get_version_info(settings.timezone)},
+        {
+            "app_name": settings.app_name,
+            "club_name": _get_club_name(db),
+            "version_info": get_version_info(settings.timezone),
+        },
     )
 
 

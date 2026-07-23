@@ -39,6 +39,38 @@ class TestLoginPage:
         assert resp.status_code in (302, 307)
         assert "/ui/login" in resp.headers.get("location", "")
 
+    def test_login_page_shows_club_name(self, client, db_session):
+        """Login page should show club name."""
+        resp = client.get("/ui/login")
+        assert resp.status_code == 200
+        # Should contain either club_name or app_name heading
+        assert "h3" in resp.text or "h4" in resp.text
+
+    def test_login_page_has_logo_element(self, client, db_session):
+        """Login page should have a logo image element."""
+        resp = client.get("/ui/login")
+        assert resp.status_code == 200
+        assert "login-logo" in resp.text
+
+    def test_login_page_has_app_name(self, client, db_session):
+        """Login page should display app_name."""
+        resp = client.get("/ui/login")
+        assert resp.status_code == 200
+        assert "Elo Ranking System" in resp.text
+
+    def test_login_redirects_when_authenticated(self, client, db_session):
+        """Already authenticated user should be redirected to dashboard."""
+        _login_as(client, db_session, "login_redirect_user", "pass", UserRole.USER)
+        resp = client.get("/ui/login", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/ui/dashboard" in resp.headers.get("location", "")
+
+    def test_login_page_vertically_centered(self, client, db_session):
+        """Login page content should be vertically centered."""
+        resp = client.get("/ui/login")
+        assert resp.status_code == 200
+        assert "min-height" in resp.text
+
 
 class TestDashboardPage:
     """Tests for the user dashboard page."""

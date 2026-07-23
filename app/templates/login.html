@@ -1,11 +1,17 @@
 {% extends "base.html" %}
-{% block title %}Login - Elo Ranking System{% endblock %}
+{% block title %}Login - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="row d-flex flex-column align-items-center justify-content-center" style="min-height: 80vh;">
   <div class="col-md-5 col-lg-4">
+    <div class="text-center mb-4">
+      <img id="login-logo" src="" alt="" style="max-height:80px;max-width:200px;object-fit:contain;display:none;" class="rounded mb-3">
+      {% if club_name %}
+        <h1 class="h3 mb-1">{{ club_name }}</h1>
+      {% endif %}
+      <h2 class="h4 text-muted">{{ app_name }}</h2>
+    </div>
     <div class="card card-md">
       <div class="card-body">
-        <h2 class="h2 text-center mb-4">{{ app_name }}</h2>
         <div id="error-alert" class="alert alert-danger d-none" role="alert"></div>
         <form id="login-form" autocomplete="off">
           <div class="mb-3">
@@ -27,6 +33,25 @@
 {% endblock %}
 {% block extra_js %}
 <script>
+// Load club logo
+(function() {
+  try {
+    var img = document.getElementById('login-logo');
+    if (img) {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/settings/logo', true);
+      xhr.responseType = 'blob';
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          img.src = URL.createObjectURL(xhr.response);
+          img.style.display = 'inline-block';
+        }
+      };
+      xhr.send();
+    }
+  } catch(e) {}
+})();
+
 document.getElementById('login-form').addEventListener('submit', async function(e) {
   e.preventDefault();
   const formData = new FormData(this);
