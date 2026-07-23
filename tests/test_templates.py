@@ -189,6 +189,24 @@ class TestUserManagementAPI:
         resp = client.put(f"/users/{sys_user.id}", json={"active": False})
         assert resp.status_code == 400
 
+    def test_system_user_cannot_change_role_to_user(self, client, db_session):
+        """SYSTEM user role cannot be changed to USER via API."""
+        sys_user = _login_as(client, db_session, "sys1", "pass", UserRole.SYSTEM)
+        resp = client.put(f"/users/{sys_user.id}", json={"role": "USER"})
+        assert resp.status_code == 400
+
+    def test_system_user_cannot_change_role_to_admin(self, client, db_session):
+        """SYSTEM user role cannot be changed to ADMIN via API."""
+        sys_user = _login_as(client, db_session, "sys1", "pass", UserRole.SYSTEM)
+        resp = client.put(f"/users/{sys_user.id}", json={"role": "ADMIN"})
+        assert resp.status_code == 400
+
+    def test_update_nonexistent_user_returns_404(self, client, db_session):
+        """Updating a non-existent user should return 404."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.put("/users/9999", json={"role": "ADMIN"})
+        assert resp.status_code == 404
+
 
 class TestSettingsAPI:
     """Tests for club settings API endpoints."""
@@ -646,3 +664,49 @@ class TestLegalPages:
         resp = client.get("/ui/admin")
         assert "admin-add-match-form" not in resp.text
         assert "loadAdminMatchPlayers" not in resp.text
+
+
+class TestMobileLayout:
+    """Tests for Task 3: Mobile View / Responsive Layout."""
+
+    def test_header_has_flex_wrap_for_mobile(self, client, db_session):
+        """Header should use flex-wrap so buttons don't overlap logo on mobile."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "flex-wrap" in resp.text
+
+    def test_user_button_is_icon_style(self, client, db_session):
+        """User button should use an icon (SVG) instead of a colored avatar."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Should have user icon SVG in header
+        assert "icon icon-sm" in resp.text
+        # Should not have the old avatar with bg-primary
+        assert 'avatar avatar-sm rounded-circle bg-primary' not in resp.text
+
+    def test_user_button_has_username_text(self, client, db_session):
+        """User button should show the username next to the icon."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/dashboard")
+        assert "admin1" in resp.text
+
+    def test_navbar_toggler_after_user_button(self, client, db_session):
+        """Navbar toggler should be placed after the user button area."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Both toggler and user dropdown should exist
+        assert "navbar-toggler" in resp.text
+        assert "dropdown-menu-end" in resp.text
+
+    def test_mobile_menu_has_spacing_from_content(self, client, db_session):
+        """Mobile menu collapse area should have margin-top for spacing."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "mt-2 mt-md-0" in resp.text
+
+    def test_dashboard_still_has_nav_links(self, client, db_session):
+        """Dashboard should still show Dashboard and Admin nav links."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/dashboard")
+        assert "/ui/dashboard" in resp.text
+        assert "/ui/admin" in resp.text
