@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.database import get_db
 from app.auth.dependencies import require_admin, get_optional_user
 from app.models.user import User
@@ -38,13 +39,13 @@ class SettingsResponse(BaseModel):
 @router.get("/", response_model=SettingsResponse)
 def get_settings(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     """Get club settings. Requires ADMIN or SYSTEM role."""
-    settings = db.query(ClubSettings).first()
-    if settings is None:
-        settings = ClubSettings()
-        db.add(settings)
+    cs = db.query(ClubSettings).first()
+    if cs is None:
+        cs = ClubSettings()
+        db.add(cs)
         db.commit()
-        db.refresh(settings)
-    return settings
+        db.refresh(cs)
+    return cs
 
 
 @router.post("/logo", response_model=SettingsResponse)
@@ -73,94 +74,94 @@ async def upload_logo(
     if len(content) > 2 * 1024 * 1024:
         raise HTTPException(status_code=400, detail="File too large. Maximum size: 2MB")
 
-    # Save file
-    upload_dir = os.path.join("uploads")
+    # Save file to configured upload directory
+    upload_dir = settings.upload_dir
     os.makedirs(upload_dir, exist_ok=True)
     safe_name = f"club_logo_{uuid.uuid4().hex}{ext}"
     file_path = os.path.join(upload_dir, safe_name)
 
     # Delete old logo if exists
-    settings = db.query(ClubSettings).first()
-    if settings is None:
-        settings = ClubSettings()
-        db.add(settings)
+    cs = db.query(ClubSettings).first()
+    if cs is None:
+        cs = ClubSettings()
+        db.add(cs)
         db.commit()
-        db.refresh(settings)
+        db.refresh(cs)
 
-    if settings.club_logo_path and os.path.exists(settings.club_logo_path):
+    if cs.club_logo_path and os.path.exists(cs.club_logo_path):
         try:
-            os.remove(settings.club_logo_path)
+            os.remove(cs.club_logo_path)
         except OSError:
             pass
 
     with open(file_path, "wb") as f:
         f.write(content)
 
-    old_path = settings.club_logo_path
-    settings.club_logo_path = file_path
+    old_path = cs.club_logo_path
+    cs.club_logo_path = file_path
     db.commit()
-    db.refresh(settings)
+    db.refresh(cs)
 
     log_event(
         db, action="CLUB_LOGO_UPLOADED", entity_type="club_settings",
-        entity_id=settings.id, user_id=current_user.id, username=current_user.username,
+        entity_id=cs.id, user_id=current_user.id, username=current_user.username,
         old_value={"club_logo_path": old_path}, new_value={"club_logo_path": file_path},
         ip_address=ip, user_agent=ua,
     )
 
-    return settings
+    return cs
 
 
 @router.get("/logo")
 def get_logo(current_user: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
     """Download the club logo. Publicly accessible."""
-    settings = db.query(ClubSettings).first()
-    if settings is None or not settings.club_logo_path or not os.path.exists(settings.club_logo_path):
+    cs = db.query(ClubSettings).first()
+    if cs is None or not cs.club_logo_path or not os.path.exists(cs.club_logo_path):
         raise HTTPException(status_code=404, detail="No logo uploaded")
 
-    return FileResponse(settings.club_logo_path, media_type="image/*")
+    return FileResponse(cs.club_logo_path, media_type="image/*")
 
 
 @router.put("/", response_model=SettingsResponse)
 def update_settings(request: Request, data: SettingsUpdate, db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
     """Update club settings. Requires ADMIN or SYSTEM role."""
-    settings = db.query(ClubSettings).first()
-    if settings is None:
-        settings = ClubSettings()
-        db.add(settings)
+    cs = db.query(ClubSettings).first()
+    if cs is None:
+        cs = ClubSettings()
+        db.add(cs)
         db.commit()
-        db.refresh(settings)
+        db.refresh(cs)
 
     old = {
-        "club_name": settings.club_name,
-        "default_elo": settings.default_elo,
-        "k_factor": settings.k_factor,
-        "inactivity_months": settings.inactivity_months,
+        "club_name": cs.club_name,
+        "default_elo": cs.default_elo,
+        "k_factor": cs.k_factor,
+        "inactivity_months": cs.inactivity_months,
     }
 
     if data.club_name is not None:
-        settings.club_name = data.club_name
+        cs.club_name = data.club_name
     if data.default_elo is not None:
-        settings.default_elo = data.default_elo
+        cs.default_elo = data.default_elo
     if data.k_factor is not None:
-        settings.k_factor = data.k_factor
+        cs.k_factor = data.k_factor
     if data.inactivity_months is not None:
-        settings.inactivity_months = data.inactivity_months
+        cs.inactivity_months = data.inactivity_months
     db.commit()
-    db.refresh(settings)
+    db.refresh(cs)
 
     new = {
-        "club_name": settings.club_name,
-        "default_elo": settings.default_elo,
-        "k_factor": settings.k_factor,
-        "inactivity_months": settings.inactivity_months,
+        "club_name": cs.club_name,
+        "default_elo": cs.default_elo,
+        "k_factor": cs.k_factor,
+        "inactivity_months": cs.inactivity_months,
     }
 
     ip, ua = get_client_info(request)
     log_event(
         db, action="CLUB_SETTINGS_CHANGED", entity_type="club_settings",
-        entity_id=settings.id, user_id=current_user.id, username=current_user.username,
+        entity_id=cs.id, user_id=current_user.id, username=current_user.username,
         old_value=old, new_value=new,
         ip_address=ip, user_agent=ua,
     )
-    return settings
+    return cs
