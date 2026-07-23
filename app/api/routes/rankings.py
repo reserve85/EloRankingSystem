@@ -89,6 +89,25 @@ def get_elo_history(
     return {"player_id": player_id, "player_name": player.name, "history": history}
 
 
+@router.get("/all-time-elo")
+def get_all_time_elo(
+    include_inactive: bool = False,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Get all-time highest Elo ratings for all players.
+
+    Returns a list of players with their highest Elo rating ever reached.
+    Players with 0 played games are excluded.
+    All authenticated users can view this data.
+    """
+    service = RankingService(db)
+    data = service.get_all_players_all_time_high_elo(
+        include_inactive=include_inactive,
+    )
+    return data
+
+
 @router.get("/player-stats/{player_id}/ath")
 def get_all_time_highs(
     player_id: int,

@@ -414,3 +414,133 @@ class TestRankingPermissions:
         """Unauthenticated request should return 401."""
         resp = _get_ranking(client, "2025-06-01", "2025-06-30")
         assert resp.status_code == 401
+
+
+class TestAllTimeEloChart:
+    """Tests for all-time Elo rating endpoint."""
+
+    def test_all_time_elo_returns_data(self, client, db_session, monkeypatch):
+        """Endpoint should return data for players with matches."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 999)
+
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        _create_match(client, pa.id, pb.id, pa.id, str(date.today()))
+
+        resp = client.get("/rankings/all-time-elo")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert isinstance(data, list)
+        assert len(data) == 2
+        # Should be sorted by max_elo descending
+        assert data[0]["max_elo"] >= data[1]["max_elo"]
+
+    def test_all_time_elo_excludes_zero_game_players(self, client, db_session, monkeypatch):
+        """Players with 0 games should be excluded."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 999)
+
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+        _create_player(db_session, "Charlie", elo=1200)  # No matches
+
+        _create_match(client, pa.id, pb.id, pa.id, str(date.today()))
+
+        resp = client.get("/rankings/all-time-elo")
+        data = resp.json()
+        names = [p["player_name"] for p in data]
+        assert "Charlie" not in names
+        assert "Alice" in names
+        assert "Bob" in names
+
+    def test_all_time_elo_excludes_inactive_by_default(self, client, db_session, monkeypatch):
+        """Inactive players should be excluded by default."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
+
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        _create_match(client, pa.id, pb.id, pa.id, "2024-01-01")
+
+        # Both players have old matches -> inactive
+        resp = client.get("/rankings/all-time-elo")
+        data = resp.json()
+        # All players should be excluded (inactive)
+        assert len(data) == 0
+
+    def test_all_time_elo_includes_inactive_with_flag(self, client, db_session, monkeypatch):
+        """Inactive players should appear with include_inactive=true."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
+
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        _create_match(client, pa.id, pb.id, pa.id, "2024-01-01")
+
+        resp = client.get("/rankings/all-time-elo?include_inactive=true")
+        data = resp.json()
+        names = [p["player_name"] for p in data]
+        assert "Alice" in names
+        assert "Bob" in names
+
+    def test_all_time_elo_response_structure(self, client, db_session, monkeypatch):
+        """Response should contain required fields."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 999)
+
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        _create_match(client, pa.id, pb.id, pa.id, str(date.today()))
+
+        resp = client.get("/rankings/all-time-elo")
+        data = resp.json()
+        for entry in data:
+            assert "player_id" in entry
+            assert "player_name" in entry
+            assert "max_elo" in entry
+            assert "date_reached" in entry
+            assert "inactive" in entry
+
+    def test_all_time_elo_max_elo_correct(self, client, db_session, monkeypatch):
+        """Max Elo should reflect the highest value reached."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 999)
+
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        _create_match(client, pa.id, pb.id, pa.id, str(date.today()))
+        _create_match(client, pa.id, pb.id, pb.id, str(date.today()))
+
+        resp = client.get("/rankings/all-time-elo")
+        data = resp.json()
+        alice = next(p for p in data if p["player_name"] == "Alice")
+        # Alice won first match, so max_elo should be after first match
+        assert alice["max_elo"] > 1200
+
+    def test_all_time_elo_disabled_excluded(self, client, db_session, monkeypatch):
+        """Disabled players should always be excluded."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 999)
+
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pd = _create_player(db_session, "Disabled Dave", elo=1200)
+        pd.disabled = True
+        db_session.commit()
+
+        _create_match(client, pa.id, pd.id, pa.id, str(date.today()))
+
+        resp = client.get("/rankings/all-time-elo?include_inactive=true")
+        data = resp.json()
+        names = [p["player_name"] for p in data]
+        assert "Disabled Dave" not in names
+
+    def test_all_time_elo_requires_auth(self, client, db_session):
+        """Unauthenticated request should return 401."""
+        resp = client.get("/rankings/all-time-elo")
+        assert resp.status_code == 401

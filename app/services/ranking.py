@@ -354,6 +354,91 @@ class RankingService:
 
         return {"max_elo": max_elo, "date_reached": max_date}
 
+    def get_all_players_all_time_high_elo(self, include_inactive: bool = False) -> list[dict]:
+        """Get the highest Elo rating ever reached for all players.
+
+        Only includes players with at least 1 match (ignores players with 0 games).
+
+        Args:
+            include_inactive: If True, include inactive players.
+
+        Returns:
+            List of dicts with player_id, player_name, max_elo, date_reached, inactive.
+        """
+        players = self.db.query(Player).filter(Player.disabled.is_(False)).all()
+
+        if not include_inactive:
+            # Filter out inactive players
+            inactivity_months = settings.inactivity_months
+            today = date.today()
+            cutoff_year = today.year
+            cutoff_month = today.month - inactivity_months
+            while cutoff_month <= 0:
+                cutoff_month += 12
+                cutoff_year -= 1
+            max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
+            cutoff_day = min(today.day, max_day)
+            cutoff_date = date(cutoff_year, cutoff_month, cutoff_day)
+            active_players = []
+            for p in players:
+                if p.last_match_date is None:
+                    # Player with no matches - check if they have any matches at all
+                    has_match = self.db.query(Match).filter(
+                        (Match.player_a_id == p.id) | (Match.player_b_id == p.id)
+                    ).first()
+                    if has_match is None:
+                        continue  # Skip players with 0 games
+                    # Player with matches but no last_match_date -> inactive
+                elif p.last_match_date >= cutoff_date:
+                    active_players.append(p)
+                # else: inactive player, skip
+            # Only include active players when not including inactive
+            players = active_players
+        else:
+            # When including inactive, still filter out players with 0 games
+            players_with_games = []
+            for p in players:
+                has_match = self.db.query(Match).filter(
+                    (Match.player_a_id == p.id) | (Match.player_b_id == p.id)
+                ).first()
+                if has_match is None:
+                    continue  # Skip players with 0 games
+                players_with_games.append(p)
+            players = players_with_games
+
+        result = []
+        for player in players:
+            ath = self.get_all_time_high_elo(player.id)
+            # Determine if player is inactive
+            is_inactive = False
+            if player.last_match_date is None:
+                is_inactive = True
+            else:
+                inactivity_months = settings.inactivity_months
+                today = date.today()
+                cutoff_year = today.year
+                cutoff_month = today.month - inactivity_months
+                while cutoff_month <= 0:
+                    cutoff_month += 12
+                    cutoff_year -= 1
+                max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
+                cutoff_day = min(today.day, max_day)
+                cutoff_date = date(cutoff_year, cutoff_month, cutoff_day)
+                if player.last_match_date < cutoff_date:
+                    is_inactive = True
+
+            result.append({
+                "player_id": player.id,
+                "player_name": player.name,
+                "max_elo": ath["max_elo"],
+                "date_reached": ath["date_reached"],
+                "inactive": is_inactive,
+            })
+
+        # Sort by max_elo descending
+        result.sort(key=lambda x: (-x["max_elo"], x["player_name"]))
+        return result
+
     def get_all_time_high_ranking(self, player_id: int) -> dict:
         """Get the best ranking position ever achieved by a player.
 
