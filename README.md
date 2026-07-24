@@ -10,13 +10,18 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 - **Elo-based ranking system** for dart club players with configurable K-factor and default rating
 - **Player management** with enable/disable, initial Elo rating, and automatic inactive player detection
 - **User management** with role-based access control (SYSTEM, ADMIN, USER)
-- **Match management** with Best-of-5 scoring and automatic Elo recalculation
+- **Match management** with configurable match format (Best-of-1 to Best-of-21) and automatic Elo recalculation
+- **Mixed match formats** — different formats can coexist (e.g., Best-of-5 and Best-of-9 matches in the same database)
+- **Match format stored per match** — each match records its own Best-of-N for correct validation
 - **Dart statistics** per match: 180s, High Finishes, Low Darts
 - **Match statistics detail view** with per-player stats side by side
 - **Player statistics view** (period and all-time) accessible from ranking table
 - **Admin statistics editing** for match details
 - **All Time Elo Rating chart** with interactive horizontal bar chart
 - **Historical Elo tracking** with interactive line chart per player
+- **Player statistics** with Match W/L, Legs W/L, match counts, 180s, High Finishes, Low Darts (period and all-time)
+- **Impossible high finish validation** — blocks values that cannot be checked out with 3 darts (159, 162, 163, 165, 166, 168, 169)
+- **Auto-fill score logic** — selecting a losing score auto-fills the opponent's winning score
 - **Date range filtering** on rankings, match history, and PDF export
 - **Automatic inactive player handling** based on interval-based match activity
 - **Interval-based "Include inactive" checkbox** — checks if players were active in the selected date range
@@ -251,6 +256,7 @@ Copy `.env.example` to `.env` and adjust as needed:
 | `HIGH_FINISH_MAX` | Maximum valid high finish score | `170` |
 | `LOW_DARTS_MIN` | Minimum valid low darts count | `9` |
 | `LOW_DARTS_MAX` | Maximum valid low darts count | `21` |
+| `BEST_OF_LEGS` | Default match format (must be odd: 1, 3, 5, 7, 9...21) | `5` |
 | `CONTACT_COMPANY` | Company/club name for Impressum | `Company` |
 | `CONTACT_NAME` | Contact person name for Impressum | `Max Mustermann` |
 | `CONTACT_STREET` | Street address for Impressum | `Musterstrasse 1` |
@@ -278,7 +284,7 @@ Copy `config.yaml.example` to `config.yaml` and adjust club-specific settings. T
 | `app` | `name`, `club_name`, `environment`, `debug`, `timezone`, `date_format` | Application identity & display |
 | `elo` | `default_rating`, `k_factor` | Elo system parameters |
 | `ranking` | `inactivity_months` | Inactive player threshold |
-| `statistics` | `high_finish_min`, `high_finish_max`, `low_darts_min`, `low_darts_max` | Dart statistics validation |
+| `statistics` | `high_finish_min`, `high_finish_max`, `low_darts_min`, `low_darts_max`, `best_of_legs` | Dart statistics & match format validation |
 | `legal` | `contact_company`, `contact_name`, `contact_street`, `contact_city`, `contact_email` | Impressum & Privacy page data |
 | `system_user` | `username`, `password` | Host administrator credentials |
 | `security` | `jwt_secret`, `jwt_algorithm`, `access_token_lifetime_minutes`, `cookie_secure`, `cookie_httponly`, `cookie_samesite` | Authentication & security |
