@@ -764,7 +764,7 @@ async function loadResetUsers() {
   const users = await resp.json();
   const sel = document.getElementById('reset-pw-user');
   sel.innerHTML = '<option value="">Select user...</option>';
-  users.forEach(u => { sel.add(new Option(u.username + ' (' + u.role + ')', u.id)); });
+  users.filter(u => u.active).forEach(u => { sel.add(new Option(u.username + ' (' + u.role + ')', u.id)); });
 }
 document.getElementById('reset-password-form').addEventListener('submit', async function(e) {
   e.preventDefault();
