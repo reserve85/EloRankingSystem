@@ -316,6 +316,7 @@
     <!-- Score Header -->
     <div class="text-center mb-3">
       <h3 id="modal-match-score" class="mb-1"></h3>
+      <div class="text-muted small" id="modal-match-format"></div>
     </div>
     <!-- Per-player stats -->
     <div class="row g-3">
@@ -629,6 +630,9 @@ function showMatchDetail(idx) {
 
   document.getElementById('modal-match-date').textContent = fmtDisplay(m.date);
   document.getElementById('modal-match-score').textContent = scoreA + ' : ' + scoreB;
+  const matchBol = m.best_of_legs || 5;
+  const matchWins = (matchBol + 1) / 2;
+  document.getElementById('modal-match-format').textContent = 'Best of ' + matchBol + ' \u2014 first to ' + matchWins;
   document.getElementById('modal-p1-name').textContent = nameA;
   document.getElementById('modal-p2-name').textContent = nameB;
   document.getElementById('modal-p1-result').textContent = resultA;
