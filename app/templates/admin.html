@@ -65,8 +65,8 @@
               </div>
               <div class="mb-3">
                 <label class="form-label">New Password</label>
-                <input type="password" name="new_password" class="form-control" required minlength="8">
-                <div class="form-hint text-muted">Min 8 chars, uppercase + lowercase + number + special character (!@#$%^&*...)</div>
+                <input type="password" name="new_password" class="form-control" required minlength="8" oninput="checkResetPasswordStrength(this.value)">
+                <div id="reset-pw-strength" class="mt-1 small"></div>
               </div>
               <div class="mb-3">
                 <label class="form-label">Confirm New Password</label>
@@ -903,8 +903,8 @@ function printQR() {
 }
 
 // --- Password Strength ---
-function checkPasswordStrength(pw) {
-  const el = document.getElementById('pw-strength');
+function _renderPwChecks(pw, elId) {
+  const el = document.getElementById(elId);
   if (!pw) { el.innerHTML = ''; return; }
   const checks = [
     { ok: pw.length >= 8, msg: 'Min 8 characters' },
@@ -926,6 +926,8 @@ function checkPasswordStrength(pw) {
   }
   el.innerHTML = html;
 }
+function checkPasswordStrength(pw) { _renderPwChecks(pw, 'pw-strength'); }
+function checkResetPasswordStrength(pw) { _renderPwChecks(pw, 'reset-pw-strength'); }
 
 // Init
 loadPlayers(); loadUsers(); loadMatches(); loadAuditLogs(); loadResetUsers(); loadLogo(); loadQRUsers();
