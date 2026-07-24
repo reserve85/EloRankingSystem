@@ -38,13 +38,13 @@ def _login_as(client, db_session, username, password, role):
     return user
 
 
-def _create_player(db_session, name="Player", elo=1200, last_match=None):
+def _create_player(db_session, name="Player", elo=1200, active=True, last_match=None):
     """Create a player with optional last_match_date."""
     player = Player(
         name=name,
         start_elo=elo,
         current_elo=float(elo),
-        active=True,
+        active=active,
         disabled=False,
         last_match_date=last_match,
     )
@@ -113,7 +113,7 @@ class TestInactivePlayerHiddenFromRanking:
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         pa = _create_player(db_session, "Active", elo=1200)
         opponent = _create_player(db_session, "Opponent", elo=1200)
-        _create_player(db_session, "Inactive", elo=1300,
+        _create_player(db_session, "Inactive", elo=1300, active=False,
                                   last_match=date.today() - timedelta(days=120))
 
         # Create a match for Active player within the interval (vs Opponent, not vs Inactive)
@@ -227,12 +227,11 @@ class TestInactivePlayerReactivated:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        inactive = _create_player(db_session, "Returning", elo=1200,
+        inactive = _create_player(db_session, "Returning", elo=1200, active=False,
                                   last_match=date.today() - timedelta(days=120))
-        opponent = _create_player(db_session, "Opponent", elo=1200,
-                                  last_match=date.today())
+        opponent = _create_player(db_session, "Opponent", elo=1200)
 
-        # Before match: not in active ranking
+        # Before match: not in active ranking (active=False, no matches in interval)
         resp = _get_ranking(
             client,
             str(date.today().replace(day=1)),

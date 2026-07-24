@@ -26,14 +26,15 @@ def _login_as(client, db_session, username, password, role):
     return user
 
 
-def _create_player(db_session, name="Player", elo=1200):
+def _create_player(db_session, name="Player", elo=1200, active=True, last_match=None):
     """Create a player directly in the database."""
     player = Player(
         name=name,
         start_elo=elo,
         current_elo=float(elo),
-        active=True,
+        active=active,
         disabled=False,
+        last_match_date=last_match,
     )
     db_session.add(player)
     db_session.commit()
@@ -80,9 +81,9 @@ class TestRankingGeneration:
         assert data["entries"] == []
 
     def test_single_player_no_matches_excluded(self, client, db_session):
-        """Player with no matches should be excluded from active ranking."""
+        """Player with no matches and active=False should be excluded from active ranking."""
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        _create_player(db_session, "Alice", elo=1200)
+        _create_player(db_session, "Alice", elo=1200, active=False)
 
         resp = _get_ranking(client, "2025-06-01", "2025-06-30")
         data = resp.json()
@@ -334,11 +335,7 @@ class TestInactivePlayers:
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         _create_player(db_session, "Active Alice", elo=1300)
         _create_player(db_session, "Active Bob", elo=1200)
-        pc = _create_player(db_session, "Inactive Charlie", elo=1100)
-
-        # Give Charlie a very old last_match_date
-        pc.last_match_date = date(2024, 1, 1)
-        db_session.commit()
+        pc = _create_player(db_session, "Inactive Charlie", elo=1100, active=False)
 
         resp = _get_ranking(
             client,

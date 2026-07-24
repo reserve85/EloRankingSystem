@@ -130,7 +130,7 @@ class RankingService:
         query = self.db.query(Player).filter(Player.disabled.is_(False))
 
         if not include_inactive:
-            # Check interval-based activity: player must have at least 1 match in interval
+            # Include players who have at least 1 match in the interval OR are active
             interval_start = from_date or as_of_date
             active_player_ids = self.db.query(
                 Match.player_a_id
@@ -144,7 +144,10 @@ class RankingService:
                 )
             ).distinct().subquery()
 
-            query = query.filter(Player.id.in_(active_player_ids.select()))
+            from sqlalchemy import or_
+            query = query.filter(
+                or_(Player.id.in_(active_player_ids.select()), Player.active.is_(True))
+            )
 
         return query.all()
 
