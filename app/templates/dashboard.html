@@ -774,8 +774,8 @@ function renderAthChart() {
     return '#206bc4'; // default blue
   });
 
-  // Dynamically size chart: ~84px per player, min 600px
-  const chartHeight = Math.max(600, athData.length * 84);
+  // Dynamically size chart: ~120px per player, min 800px
+  const chartHeight = Math.max(800, athData.length * 120);
   canvas.style.height = chartHeight + 'px';
   canvas.parentElement.style.height = chartHeight + 'px';
 
@@ -796,6 +796,8 @@ function renderAthChart() {
         backgroundColor: barColors,
         borderColor: barColors.map(c => c),
         borderWidth: 1,
+        barPercentage: 0.7,
+        categoryPercentage: 0.9,
       }]
     },
     options: {
