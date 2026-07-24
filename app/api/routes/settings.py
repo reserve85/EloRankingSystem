@@ -145,7 +145,7 @@ def generate_qrcode(
         raise HTTPException(status_code=400, detail="User account is disabled")
 
     # Verify password
-    if not verify_password(data.password, target_user.password_hash):
+    if not verify_password(target_user.password_hash, data.password):
         raise HTTPException(status_code=401, detail="Invalid password")
 
     # Generate QR code
