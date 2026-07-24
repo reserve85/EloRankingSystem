@@ -431,17 +431,41 @@ async function loadUsers() {
 }
 async function saveUser() {
   const id = document.getElementById('user-edit-id').value;
-  const username = document.getElementById('user-username').value;
+  const username = document.getElementById('user-username').value.trim();
   const password = document.getElementById('user-password').value;
   const role = document.getElementById('user-role').value;
+
+  // Client-side validation for new users
+  if (!id) {
+    if (!username) { alert('Username is required.'); return; }
+    if (!password) { alert('Password is required.'); return; }
+    // Check password strength
+    const pwErrors = [];
+    if (password.length < 8) pwErrors.push('Min 8 characters');
+    if (!/[A-Z]/.test(password)) pwErrors.push('Uppercase letter');
+    if (!/[a-z]/.test(password)) pwErrors.push('Lowercase letter');
+    if (!/[0-9]/.test(password)) pwErrors.push('Number');
+    if (!/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(password)) pwErrors.push('Special character');
+    if (pwErrors.length) { alert('Password does not meet requirements:\n• ' + pwErrors.join('\n• ')); return; }
+  }
+
   if (id) {
     const body = { role: role };
     if (password) body.password = password;
-    await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const resp = await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    if (resp.ok) { bootstrap.Modal.getInstance(document.getElementById('user-modal')).hide(); loadUsers(); }
   } else {
-    await fetch('/users/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,password,role}) });
+    const resp = await fetch('/users/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,password,role}) });
+    if (resp.ok) {
+      bootstrap.Modal.getInstance(document.getElementById('user-modal')).hide();
+      loadUsers();
+    } else {
+      const data = await resp.json();
+      let msg = data.detail || 'Failed to create user';
+      if (data.detail && Array.isArray(data.detail)) { msg = data.detail.map(e => e.msg || JSON.stringify(e)).join(', '); }
+      alert(msg);
+    }
   }
-  bootstrap.Modal.getInstance(document.getElementById('user-modal')).hide(); loadUsers();
 }
 function editUser(id) {
   fetch('/users/'+id).then(r=>r.json()).then(u => {
