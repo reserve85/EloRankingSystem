@@ -514,11 +514,18 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
 
   // Validate high finishes range
   const hfMin = {{ hf_min }}, hfMax = {{ hf_max }};
+  const bogeyNumbers = new Set([159, 162, 163, 165, 166, 168, 169]);
   const hfInputs = document.querySelectorAll('#p1-hf-list .hf-input, #p2-hf-list .hf-input');
   for (const inp of hfInputs) {
     const val = parseInt(inp.value);
     if (!isNaN(val) && (val < hfMin || val > hfMax)) {
       errEl.textContent = 'Invalid high finish value: ' + val + '. Must be between ' + hfMin + ' and ' + hfMax + '.';
+      errEl.classList.remove('d-none');
+      inp.focus();
+      return;
+    }
+    if (!isNaN(val) && bogeyNumbers.has(val)) {
+      errEl.textContent = 'Invalid checkout: ' + val + ' cannot be finished with a double (bogey number).';
       errEl.classList.remove('d-none');
       inp.focus();
       return;

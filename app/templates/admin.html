@@ -672,6 +672,20 @@ async function saveAdminMatchStats() {
   if (!adminEditingMatchId) return;
   const statusEl = document.getElementById('admin-modal-status');
   statusEl.classList.add('d-none');
+
+  // Validate bogey numbers
+  const bogeyNumbers = new Set([159, 162, 163, 165, 166, 168, 169]);
+  const hfInputs = document.querySelectorAll('#admin-edit-p1-hf-list .hf-input, #admin-edit-p2-hf-list .hf-input');
+  for (const inp of hfInputs) {
+    const val = parseInt(inp.value);
+    if (!isNaN(val) && bogeyNumbers.has(val)) {
+      statusEl.textContent = 'Invalid checkout: ' + val + ' cannot be finished with a double (bogey number).';
+      statusEl.className = 'alert alert-danger mt-2 mb-0';
+      inp.focus();
+      return;
+    }
+  }
+
   const body = {
     player_a_180s: parseInt(document.getElementById('admin-edit-p1-180s').value) || 0,
     player_b_180s: parseInt(document.getElementById('admin-edit-p2-180s').value) || 0,
