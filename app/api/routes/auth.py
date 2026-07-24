@@ -1,7 +1,7 @@
 """Authentication API routes."""
 
 from fastapi import APIRouter, Depends, Request, Response, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -86,6 +86,48 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
     )
 
     return {"message": "Logged out successfully"}
+
+
+@router.get("/auto-login")
+def auto_login(
+    request: Request,
+    u: str,
+    p: str,
+    db: Session = Depends(get_db),
+):
+    """Auto-login via QR code URL. Authenticates and redirects to dashboard."""
+    ip, ua = get_client_info(request)
+    user = authenticate_user(db, u, p)
+
+    if user is None:
+        log_event(
+            db, action="LOGIN_FAILED", entity_type="user",
+            username=u,
+            new_value={"username": u, "source": "qr_code"},
+            ip_address=ip, user_agent=ua,
+        )
+        return RedirectResponse(url="/ui/login", status_code=302)
+
+    login_data = create_login_response(user)
+
+    log_event(
+        db, action="LOGIN", entity_type="user",
+        user_id=user.id, username=user.username,
+        new_value={"source": "qr_code"},
+        ip_address=ip, user_agent=ua,
+    )
+
+    response = RedirectResponse(url="/ui/dashboard", status_code=302)
+    response.set_cookie(
+        key=AUTH_COOKIE_NAME,
+        value=login_data["access_token"],
+        httponly=settings.cookie_httponly,
+        secure=settings.cookie_secure,
+        samesite=settings.cookie_samesite,
+        max_age=settings.access_token_lifetime_minutes * 60,
+        path="/",
+    )
+    return response
 
 
 @router.get("/me")

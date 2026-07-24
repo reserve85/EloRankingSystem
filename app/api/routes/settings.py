@@ -3,7 +3,7 @@
 import os
 import uuid
 from fastapi import APIRouter, Depends, HTTPException, Request, UploadFile, File
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -113,6 +113,22 @@ async def upload_logo(
     # Override club_name from env/config
     cs.club_name = settings.club_name or settings.app_name
     return cs
+
+
+@router.get("/qrcode")
+def get_qrcode(request: Request, current_user: User = Depends(require_admin)):
+    """Generate QR code for auto-login URL."""
+    import io
+    import qrcode
+
+    base_url = str(request.base_url).rstrip("/")
+    url = f"{base_url}/auth/auto-login?u={settings.system_user_username}&p={settings.system_user_password}"
+
+    img = qrcode.make(url)
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="image/png")
 
 
 @router.get("/logo")

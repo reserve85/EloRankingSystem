@@ -11,6 +11,7 @@
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-pdf">Export PDF</a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-users">Users</a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-club">Club Settings</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-qr">QR Code</a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-audit">Audit Log</a></li>
 </ul>
 
@@ -173,6 +174,27 @@
       </div>
     </div>
   </div>
+  <!-- QR Code Tab -->
+  <div class="tab-pane" id="tab-qr">
+    <div class="row">
+      <div class="col-lg-6">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">QR Code — Club Auto-Login</h3></div>
+          <div class="card-body text-center">
+            <p class="text-muted mb-3">Print this QR code and hang it in the club. Members can scan it to log in automatically without entering credentials.</p>
+            <div class="mb-3">
+              <img id="qr-code-img" src="/settings/qrcode" alt="QR Code" style="max-width:300px; border:1px solid #ddd; border-radius:8px; padding:12px; background:#fff;" class="img-fluid">
+            </div>
+            <a href="/settings/qrcode" download="club-qr-code.png" class="btn btn-outline-primary btn-sm mt-2">
+              <svg xmlns="http://www.w3.org/2000/svg" class="icon me-1" width="16" height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download QR Code
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Audit Log Tab -->
   <div class="tab-pane" id="tab-audit">
     <div class="card">
