@@ -200,7 +200,6 @@
                 <div style="font-weight:bold; font-size:18px; margin-bottom:8px;">{{ club_name }}</div>
                 <div style="font-size:12px; color:#666; margin-bottom:12px;">Scan to log in to {{ app_name }}</div>
                 <img id="qr-code-img" alt="QR Code" style="width:283px; height:283px;">
-                <div style="font-size:11px; color:#999; margin-top:8px;">Open camera → Scan → Start playing darts!</div>
               </div>
               <div class="mt-3 d-flex gap-2 justify-content-center">
                 <button type="button" class="btn btn-outline-primary" onclick="downloadQR()">
@@ -898,7 +897,7 @@ function downloadQR() {
 function printQR() {
   const printArea = document.getElementById('qr-print-area').innerHTML;
   const win = window.open('', '_blank');
-  win.document.write('<html><head><title>QR Code</title><style>body{text-align:center;font-family:Arial,sans-serif;padding:40px} img{width:283px;height:283px}</style></head><body>' + printArea + '</body></html>');
+  win.document.write('<html><head><title>QR Code</title><style>body{text-align:center;font-family:Arial,sans-serif;padding:40px} img{width:283px;height:283px} @page{margin:0} @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>' + printArea + '</body></html>');
   win.document.close();
   win.print();
 }
