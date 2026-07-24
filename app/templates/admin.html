@@ -222,7 +222,7 @@
           </select>
           <span id="admin-modal-score-edit-p2" class="fw-bold"></span>
         </div>
-        <div class="form-hint text-muted small">Valid: 3:0, 3:1, 3:2, 2:3, 1:3, 0:3</div>
+        <div class="form-hint text-muted small" id="admin-modal-format-label"></div>
       </div>
       <button class="btn btn-sm btn-outline-primary mt-1" id="admin-toggle-score-edit" onclick="toggleScoreEdit()">Edit Result</button>
     </div>
@@ -532,11 +532,22 @@ function showAdminMatchDetail(idx) {
   document.getElementById('admin-modal-match-score').textContent = scoreA + ' : ' + scoreB;
   document.getElementById('admin-modal-p1-name').textContent = nameA;
   document.getElementById('admin-modal-p2-name').textContent = nameB;
-  // Populate score edit fields
+  // Populate score edit fields with dynamic options based on match's best_of_legs
   document.getElementById('admin-modal-score-edit-p1').textContent = nameA;
   document.getElementById('admin-modal-score-edit-p2').textContent = nameB;
-  document.getElementById('admin-edit-score-a').value = m.player1_score != null ? m.player1_score : 3;
-  document.getElementById('admin-edit-score-b').value = m.player2_score != null ? m.player2_score : 0;
+  const matchBol = m.best_of_legs || {{ best_of_legs }};
+  const matchWins = (matchBol + 1) / 2;
+  document.getElementById('admin-modal-format-label').textContent = 'Best of ' + matchBol + ' — first to ' + matchWins;
+  const edSelA = document.getElementById('admin-edit-score-a');
+  const edSelB = document.getElementById('admin-edit-score-b');
+  edSelA.innerHTML = '';
+  edSelB.innerHTML = '';
+  for (let i = 0; i <= matchWins; i++) {
+    edSelA.add(new Option(i, i));
+    edSelB.add(new Option(i, i));
+  }
+  edSelA.value = m.player1_score != null ? m.player1_score : matchWins;
+  edSelB.value = m.player2_score != null ? m.player2_score : 0;
   document.getElementById('admin-modal-score-edit').style.display = 'none';
   document.getElementById('admin-toggle-score-edit').textContent = 'Edit Result';
   document.getElementById('admin-toggle-score-edit').className = 'btn btn-sm btn-outline-primary mt-1';
