@@ -258,14 +258,13 @@ class TestSettingsAPI:
         """ADMIN should be able to update club settings."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.put("/settings/", json={
-            "club_name": "New Club Name",
             "default_elo": 1500,
             "k_factor": 24,
             "inactivity_months": 6,
         })
         assert resp.status_code == 200
         data = resp.json()
-        assert data["club_name"] == "New Club Name"
+        # club_name now comes from env/config, not from DB update
         assert data["default_elo"] == 1500
 
     def test_user_cannot_get_settings(self, client, db_session):

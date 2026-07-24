@@ -19,7 +19,6 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 
 
 class SettingsUpdate(BaseModel):
-    club_name: Optional[str] = None
     default_elo: Optional[int] = None
     k_factor: Optional[float] = None
     inactivity_months: Optional[int] = None
@@ -45,6 +44,8 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(req
         db.add(cs)
         db.commit()
         db.refresh(cs)
+    # Override club_name from env/config, not from DB
+    cs.club_name = settings.club_name or settings.app_name
     return cs
 
 
@@ -109,6 +110,8 @@ async def upload_logo(
         ip_address=ip, user_agent=ua,
     )
 
+    # Override club_name from env/config
+    cs.club_name = settings.club_name or settings.app_name
     return cs
 
 
@@ -133,14 +136,11 @@ def update_settings(request: Request, data: SettingsUpdate, db: Session = Depend
         db.refresh(cs)
 
     old = {
-        "club_name": cs.club_name,
         "default_elo": cs.default_elo,
         "k_factor": cs.k_factor,
         "inactivity_months": cs.inactivity_months,
     }
 
-    if data.club_name is not None:
-        cs.club_name = data.club_name
     if data.default_elo is not None:
         cs.default_elo = data.default_elo
     if data.k_factor is not None:
@@ -151,7 +151,6 @@ def update_settings(request: Request, data: SettingsUpdate, db: Session = Depend
     db.refresh(cs)
 
     new = {
-        "club_name": cs.club_name,
         "default_elo": cs.default_elo,
         "k_factor": cs.k_factor,
         "inactivity_months": cs.inactivity_months,
@@ -164,4 +163,6 @@ def update_settings(request: Request, data: SettingsUpdate, db: Session = Depend
         old_value=old, new_value=new,
         ip_address=ip, user_agent=ua,
     )
+    # Override club_name from env/config
+    cs.club_name = settings.club_name or settings.app_name
     return cs

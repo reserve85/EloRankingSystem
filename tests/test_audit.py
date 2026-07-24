@@ -305,13 +305,13 @@ class TestSettingsAudit:
         """Settings change should be logged."""
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
 
-        client.put("/settings/", json={"club_name": "New Name"})
+        client.put("/settings/", json={"default_elo": 1500})
 
         logs = _get_audit_logs(db_session, "CLUB_SETTINGS_CHANGED")
         assert len(logs) >= 1
         log = logs[-1]
         assert log.entity_type == "club_settings"
-        assert "New Name" in (log.new_value or "")
+        assert "1500" in (log.new_value or "")
 
 
 class TestPdfAudit:
