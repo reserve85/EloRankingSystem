@@ -7,6 +7,19 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
   <style>
+    /* Hamburger button: no border, no background on any state */
+    #navbar-toggle-btn,
+    #navbar-toggle-btn:focus,
+    #navbar-toggle-btn:active,
+    #navbar-toggle-btn:hover,
+    #navbar-toggle-btn:focus-visible {
+      border: none !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      outline: none !important;
+      -webkit-tap-highlight-color: transparent;
+    }
+
     /* Mobile responsive fixes */
     @media (max-width: 767.98px) {
       /* Ensure cards take full width */
@@ -87,7 +100,7 @@
         </ul>
         <!-- Mobile hamburger + user -->
         <div class="d-md-none">
-          <button class="btn btn-outline-secondary me-2 p-2" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu" style="min-width:44px;min-height:44px">
+          <button id="navbar-toggle-btn" class="btn me-2 p-2 border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navbar-menu" style="min-width:44px;min-height:44px;background:transparent;outline:none;box-shadow:none;">
             <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
           </button>
         </div>
