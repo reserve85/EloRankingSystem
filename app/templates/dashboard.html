@@ -774,8 +774,8 @@ function renderAthChart() {
     return '#206bc4'; // default blue
   });
 
-  // Dynamically size chart: ~28px per player, min 400px
-  const chartHeight = Math.max(400, athData.length * 28);
+  // Dynamically size chart: ~56px per player, min 500px
+  const chartHeight = Math.max(500, athData.length * 56);
   canvas.style.height = chartHeight + 'px';
   canvas.parentElement.style.height = chartHeight + 'px';
 
