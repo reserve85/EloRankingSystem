@@ -31,6 +31,7 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 - **Responsive web interface** (Bootstrap 5 / Tabler UI) with mobile-friendly layout
 - **Cookie consent banner** (EU compliance)
 - **Impressum and Privacy Policy pages** (GDPR compliant)
+- **QR code auto-login** — generate printable QR codes for USER accounts so members can log in by scanning
 - **Docker deployment** with GitHub Container Registry
 - **Portainer Stack deployment** support
 - **Confirmation dialogs** on all modifying actions
@@ -248,6 +249,7 @@ Copy `.env.example` to `.env` and adjust as needed:
 | `CONFIG_PATH` | Path to config.yaml | `config.yaml` |
 | `TIMEZONE` | Timezone for date display (IANA format) | `Europe/Berlin` |
 | `DATE_FORMAT` | Date format for display | `dd/MM/yyyy` |
+| `APP_BASE_URL` | Public base URL for QR code behind reverse proxy (e.g. `https://darts.example.com`) | *(empty, uses request URL)* |
 | `DATABASE_URL` | Database connection string | `sqlite:///./data/database.db` |
 | `DEFAULT_ELO` | Default Elo rating for new players | `1200` |
 | `K_FACTOR` | Elo K-factor (rating sensitivity) | `32` |

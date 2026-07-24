@@ -151,7 +151,7 @@ def generate_qrcode(
     # Generate QR code
     import qrcode
 
-    base_url = str(request.base_url).rstrip("/")
+    base_url = settings.app_base_url.rstrip("/") if settings.app_base_url else str(request.base_url).rstrip("/")
     url = f"{base_url}/auth/auto-login?u={data.username}&p={data.password}"
 
     # 10x10cm at 72 DPI ≈ 283px, use box_size=10, border=2 for clean output

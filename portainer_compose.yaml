@@ -50,6 +50,7 @@ services:
       - CONFIG_PATH=/app/config.yaml                    # Path to config.yaml inside container | Any valid path | Default: /app/config.yaml
       - TIMEZONE=Europe/Berlin                          # Timezone for date display | Any IANA timezone (e.g. Europe/Berlin, America/New_York) | Default: Europe/Berlin
       - DATE_FORMAT=dd/MM/yyyy                          # Date format for display | dd/MM/yyyy, MM/dd/yyyy, yyyy-MM-dd, dd.MM.yyyy | Default: dd/MM/yyyy
+      - APP_BASE_URL=                                    # Public base URL for QR code behind reverse proxy | Any URL, e.g. https://darts.example.com | Default: (empty, uses request URL)
 
       # ── Database ──────────────────────────────────────────────────────
       - DATABASE_URL=sqlite:////data/database.db        # SQLite database file path (absolute) | Any sqlite URL | Default: sqlite:////data/database.db

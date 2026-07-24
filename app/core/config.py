@@ -63,6 +63,7 @@ def _yaml_to_env_defaults(yaml_config: dict) -> dict[str, str]:
         ("app", "club_name", "CLUB_NAME"),
         ("app", "environment", "APP_ENV"),
         ("app", "debug", "APP_DEBUG"),
+        ("app", "base_url", "APP_BASE_URL"),
         ("elo", "default_rating", "DEFAULT_ELO"),
         ("elo", "k_factor", "K_FACTOR"),
         ("ranking", "inactivity_months", "INACTIVITY_MONTHS"),
@@ -114,6 +115,7 @@ class Settings(BaseSettings):
     club_name: str = Field(default="", alias="CLUB_NAME")
     app_env: str = Field(default="development", alias="APP_ENV")
     app_debug: bool = Field(default=False, alias="APP_DEBUG")
+    app_base_url: str = Field(default="", alias="APP_BASE_URL")
 
     # ── Database ─────────────────────────────────────────
     database_url: str = Field(
