@@ -47,8 +47,9 @@ def export_ranking_pdf(
         include_inactive=include_inactive,
     )
 
+    from app.api.routes.ui import _get_club_name
     club_settings = db.query(ClubSettings).first()
-    club_name = club_settings.club_name if club_settings else settings.app_name
+    club_name = _get_club_name(db)
     logo_path = club_settings.club_logo_path if club_settings else None
 
     pdf_bytes = generate_ranking_pdf(
