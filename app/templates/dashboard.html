@@ -273,6 +273,7 @@
           <div class="card-header"><h4 class="card-title">Period Statistics</h4></div>
           <div class="card-body">
             <table class="table table-sm mb-0">
+              <tr><td class="text-muted">Matches</td><td id="ps-period-matches">0</td></tr>
               <tr><td class="text-muted">Total 180s</td><td id="ps-period-180s">0</td></tr>
               <tr><td class="text-muted">High Finishes</td><td id="ps-period-hf">-</td></tr>
               <tr><td class="text-muted">Low Darts</td><td id="ps-period-ld">-</td></tr>
@@ -286,6 +287,7 @@
           <div class="card-header"><h4 class="card-title">All-Time Statistics</h4></div>
           <div class="card-body">
             <table class="table table-sm mb-0">
+              <tr><td class="text-muted">Matches</td><td id="ps-alltime-matches">0</td></tr>
               <tr><td class="text-muted">Total 180s</td><td id="ps-alltime-180s">0</td></tr>
               <tr><td class="text-muted">High Finishes</td><td id="ps-alltime-hf">0</td></tr>
               <tr><td class="text-muted">Low Darts</td><td id="ps-alltime-ld">0</td></tr>
@@ -635,11 +637,13 @@ async function showPlayerStats(playerId) {
   document.getElementById('player-stats-title').textContent = stats.player_name + ' — Statistics';
   // Period
   const p = stats.period;
+  document.getElementById('ps-period-matches').textContent = p.total_matches || 0;
   document.getElementById('ps-period-180s').textContent = p.total_180s;
   document.getElementById('ps-period-hf').textContent = p.high_finishes.length ? '(' + p.high_finishes.length + 'x) ' + p.high_finishes.join(', ') : '-';
   document.getElementById('ps-period-ld').textContent = p.low_darts.length ? '(' + p.low_darts.length + 'x) ' + p.low_darts.join(', ') : '-';
   // All-time
   const a = stats.all_time;
+  document.getElementById('ps-alltime-matches').textContent = a.total_matches || 0;
   document.getElementById('ps-alltime-180s').textContent = a.total_180s;
   document.getElementById('ps-alltime-hf').textContent = a.high_finishes.length;
   document.getElementById('ps-alltime-ld').textContent = a.low_darts.length;

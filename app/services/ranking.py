@@ -299,6 +299,7 @@ class RankingService:
                     if m.player_b_low_darts:
                         low_darts.extend(m.player_b_low_darts)
             return {
+                "total_matches": len(matches),
                 "total_180s": total_180s,
                 "high_finishes": sorted(high_finishes, reverse=True),
                 "low_darts": sorted(low_darts),
