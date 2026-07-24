@@ -44,7 +44,7 @@ class RankingService:
             from_date = date(to_date.year, to_date.month, 1)
 
         # Get eligible players
-        players = self._get_eligible_players(include_inactive, to_date)
+        players = self._get_eligible_players(include_inactive, to_date, from_date)
 
         # For each player, calculate:
         # - Elo at period start (Elo after the last match before from_date)
@@ -111,13 +111,18 @@ class RankingService:
         )
 
     def _get_eligible_players(
-        self, include_inactive: bool, as_of_date: date
+        self, include_inactive: bool, as_of_date: date,
+        from_date: Optional[date] = None,
     ) -> list[Player]:
         """Get players eligible for ranking.
+
+        If include_inactive is False, only players with at least 1 match
+        in the selected date interval are included.
 
         Args:
             include_inactive: If True, include inactive players.
             as_of_date: Date to check inactivity against.
+            from_date: Start of interval for activity check.
 
         Returns:
             List of eligible players.
@@ -125,20 +130,21 @@ class RankingService:
         query = self.db.query(Player).filter(Player.disabled.is_(False))
 
         if not include_inactive:
-            # Exclude inactive players (no match in last N months)
-            inactivity_months = settings.inactivity_months
-            cutoff_year = as_of_date.year
-            cutoff_month = as_of_date.month - inactivity_months
-            while cutoff_month <= 0:
-                cutoff_month += 12
-                cutoff_year -= 1
-            max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
-            cutoff_day = min(as_of_date.day, max_day)
-            cutoff_date = date(cutoff_year, cutoff_month, cutoff_day)
+            # Check interval-based activity: player must have at least 1 match in interval
+            interval_start = from_date or as_of_date
+            active_player_ids = self.db.query(
+                Match.player_a_id
+            ).filter(
+                Match.date >= interval_start, Match.date <= as_of_date
+            ).union(
+                self.db.query(
+                    Match.player_b_id
+                ).filter(
+                    Match.date >= interval_start, Match.date <= as_of_date
+                )
+            ).distinct().subquery()
 
-            query = query.filter(
-                Player.last_match_date >= cutoff_date
-            )
+            query = query.filter(Player.id.in_(active_player_ids.select()))
 
         return query.all()
 

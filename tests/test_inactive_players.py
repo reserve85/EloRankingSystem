@@ -107,14 +107,23 @@ class TestInactivePlayerHiddenFromRanking:
     """Tests that inactive players are hidden from active rankings."""
 
     def test_inactive_not_in_active_ranking(self, client, db_session, monkeypatch):
-        """Inactive player should not appear in active ranking."""
+        """Player with no matches in the selected interval should not appear in active ranking."""
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        _create_player(db_session, "Active", elo=1200,
-                                last_match=date.today() - timedelta(days=5))
+        pa = _create_player(db_session, "Active", elo=1200)
+        opponent = _create_player(db_session, "Opponent", elo=1200)
         _create_player(db_session, "Inactive", elo=1300,
                                   last_match=date.today() - timedelta(days=120))
+
+        # Create a match for Active player within the interval (vs Opponent, not vs Inactive)
+        client.post("/matches/", json={
+            "date": str(date.today()),
+            "player_a_id": pa.id,
+            "player_b_id": opponent.id,
+            "player1_score": 3,
+            "player2_score": 0,
+        })
 
         resp = _get_ranking(
             client,
