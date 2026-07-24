@@ -448,7 +448,9 @@ async function loadMatches() {
   const tbody = document.querySelector('#matches-table tbody'); tbody.innerHTML = '';
   matches.forEach((m, idx) => {
     const cls = m.elo_change_a > 0 ? 'text-green' : 'text-red';
-    const score = (m.player1_score != null && m.player2_score != null) ? m.player1_score + ':' + m.player2_score : '-';
+    const winnerScore = m.winner_id === m.player_a_id ? m.player1_score : m.player2_score;
+    const loserScore = m.winner_id === m.player_a_id ? m.player2_score : m.player1_score;
+    const score = (winnerScore != null) ? winnerScore + ':' + loserScore : '-';
     const total180s = (m.player_a_180s || 0) + (m.player_b_180s || 0);
     const totalHF = countArr(m.player_a_high_finishes) + countArr(m.player_b_high_finishes);
     const totalLD = countArr(m.player_a_low_darts) + countArr(m.player_b_low_darts);

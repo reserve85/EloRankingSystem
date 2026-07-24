@@ -568,7 +568,9 @@ async function loadMatches() {
       const totalLD = countArray(m.player_a_low_darts) + countArray(m.player_b_low_darts);
       const eloWinner = m.winner_id === m.player_a_id ? m.elo_change_a : m.elo_change_b;
       const eloLoser = m.winner_id === m.player_a_id ? m.elo_change_b : m.elo_change_a;
-      tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span> <span class="text-green small">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span></td><td><strong>'+(m.player1_score != null ? m.player1_score+':'+m.player2_score : '-')+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span> <span class="text-red small">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
+      const winnerScore = m.winner_id === m.player_a_id ? m.player1_score : m.player2_score;
+      const loserScore = m.winner_id === m.player_a_id ? m.player2_score : m.player1_score;
+      tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span> <span class="text-green small">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span></td><td><strong>'+(winnerScore != null ? winnerScore+':'+loserScore : '-')+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span> <span class="text-red small">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
     });
     $('#match-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true, lengthChange: false, info: false });
   } catch (e) { console.error('loadMatches failed:', e); }
