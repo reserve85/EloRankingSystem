@@ -31,24 +31,18 @@
 
           <!-- Row 2: Score -->
           <div class="mb-3">
-            <label class="form-label">Score (Best of 5)</label>
+            <label class="form-label">Score (Best of {{ best_of_legs }})</label>
             <div class="row g-2">
               <div class="col-6">
                 <select name="player1_score" class="form-select" id="score-a" required>
                   <option value="">P1 Score</option>
-                  <option value="0">0</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
+                  {% for i in range(wins_needed + 1) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
                 </select>
               </div>
               <div class="col-6">
                 <select name="player2_score" class="form-select" id="score-b" required>
                   <option value="">P2 Score</option>
-                  <option value="0">0</option>
-                  <option value="1">1</option>
-                  <option value="2">2</option>
-                  <option value="3">3</option>
+                  {% for i in range(wins_needed + 1) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
                 </select>
               </div>
             </div>
@@ -274,7 +268,9 @@
           <div class="card-body">
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Matches</td><td id="ps-period-matches">0</td></tr>
-              <tr><td class="text-muted">Total 180s</td><td id="ps-period-180s">0</td></tr>
+              <tr><td class="text-muted">Match W/L</td><td id="ps-period-wl">0/0</td></tr>
+              <tr><td class="text-muted">Legs W/L</td><td id="ps-period-legs">0/0</td></tr>
+              <tr><td class="text-muted">180s</td><td id="ps-period-180s">0</td></tr>
               <tr><td class="text-muted">High Finishes</td><td id="ps-period-hf">-</td></tr>
               <tr><td class="text-muted">Low Darts</td><td id="ps-period-ld">-</td></tr>
             </table>
@@ -288,6 +284,8 @@
           <div class="card-body">
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Matches</td><td id="ps-alltime-matches">0</td></tr>
+              <tr><td class="text-muted">Match W/L</td><td id="ps-alltime-wl">0/0</td></tr>
+              <tr><td class="text-muted">Legs W/L</td><td id="ps-alltime-legs">0/0</td></tr>
               <tr><td class="text-muted">Total 180s</td><td id="ps-alltime-180s">0</td></tr>
               <tr><td class="text-muted">High Finishes</td><td id="ps-alltime-hf">0</td></tr>
               <tr><td class="text-muted">Low Darts</td><td id="ps-alltime-ld">0</td></tr>
@@ -638,12 +636,16 @@ async function showPlayerStats(playerId) {
   // Period
   const p = stats.period;
   document.getElementById('ps-period-matches').textContent = p.total_matches || 0;
+  document.getElementById('ps-period-wl').textContent = (p.wins||0) + '/' + (p.losses||0);
+  document.getElementById('ps-period-legs').textContent = (p.legs_won||0) + '/' + (p.legs_lost||0);
   document.getElementById('ps-period-180s').textContent = p.total_180s;
   document.getElementById('ps-period-hf').textContent = p.high_finishes.length ? '(' + p.high_finishes.length + 'x) ' + p.high_finishes.join(', ') : '-';
   document.getElementById('ps-period-ld').textContent = p.low_darts.length ? '(' + p.low_darts.length + 'x) ' + p.low_darts.join(', ') : '-';
   // All-time
   const a = stats.all_time;
   document.getElementById('ps-alltime-matches').textContent = a.total_matches || 0;
+  document.getElementById('ps-alltime-wl').textContent = (a.wins||0) + '/' + (a.losses||0);
+  document.getElementById('ps-alltime-legs').textContent = (a.legs_won||0) + '/' + (a.legs_lost||0);
   document.getElementById('ps-alltime-180s').textContent = a.total_180s;
   document.getElementById('ps-alltime-hf').textContent = a.high_finishes.length;
   document.getElementById('ps-alltime-ld').textContent = a.low_darts.length;

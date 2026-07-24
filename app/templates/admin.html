@@ -214,11 +214,11 @@
         <div class="d-inline-flex align-items-center gap-2">
           <span id="admin-modal-score-edit-p1" class="fw-bold"></span>
           <select class="form-select form-select-sm" id="admin-edit-score-a" style="width:60px">
-            <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            {% for i in range(wins_needed + 1) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
           </select>
           <span>:</span>
           <select class="form-select form-select-sm" id="admin-edit-score-b" style="width:60px">
-            <option value="0">0</option><option value="1">1</option><option value="2">2</option><option value="3">3</option>
+            {% for i in range(wins_needed + 1) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
           </select>
           <span id="admin-modal-score-edit-p2" class="fw-bold"></span>
         </div>

@@ -75,6 +75,7 @@ def _yaml_to_env_defaults(yaml_config: dict) -> dict[str, str]:
         ("statistics", "high_finish_max", "HIGH_FINISH_MAX"),
         ("statistics", "low_darts_min", "LOW_DARTS_MIN"),
         ("statistics", "low_darts_max", "LOW_DARTS_MAX"),
+        ("statistics", "best_of_legs", "BEST_OF_LEGS"),
         ("system_user", "username", "SYSTEM_USER_USERNAME"),
         ("system_user", "password", "SYSTEM_USER_PASSWORD"),
         ("app", "timezone", "TIMEZONE"),
@@ -139,6 +140,7 @@ class Settings(BaseSettings):
     high_finish_max: int = Field(default=170, alias="HIGH_FINISH_MAX")
     low_darts_min: int = Field(default=9, alias="LOW_DARTS_MIN")
     low_darts_max: int = Field(default=21, alias="LOW_DARTS_MAX")
+    best_of_legs: int = Field(default=5, alias="BEST_OF_LEGS")
 
     # ── System User ──────────────────────────────────────
     system_user_username: str = Field(

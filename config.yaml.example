@@ -23,6 +23,7 @@ statistics:
   high_finish_max: 170
   low_darts_min: 9
   low_darts_max: 21
+  best_of_legs: 5  # Must be odd: 1, 3, 5, 7, 9...
 
 legal:
   contact_company: Company

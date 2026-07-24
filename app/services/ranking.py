@@ -268,10 +268,13 @@ class RankingService:
         ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
 
         if not all_matches:
+            empty = {"total_matches": 0, "wins": 0, "losses": 0,
+                     "legs_won": 0, "legs_lost": 0, "total_180s": 0,
+                     "high_finishes": [], "low_darts": []}
             return {
                 "player_id": player_id,
-                "period": {"total_180s": 0, "high_finishes": [], "low_darts": []},
-                "all_time": {"total_180s": 0, "high_finishes": [], "low_darts": []},
+                "period": dict(empty),
+                "all_time": dict(empty),
             }
 
         # Period matches
@@ -285,8 +288,13 @@ class RankingService:
             total_180s = 0
             high_finishes: list[int] = []
             low_darts: list[int] = []
+            wins = 0
+            losses = 0
+            legs_won = 0
+            legs_lost = 0
             for m in matches:
-                if m.player_a_id == pid:
+                is_a = m.player_a_id == pid
+                if is_a:
                     total_180s += m.player_a_180s or 0
                     if m.player_a_high_finishes:
                         high_finishes.extend(m.player_a_high_finishes)
@@ -298,8 +306,20 @@ class RankingService:
                         high_finishes.extend(m.player_b_high_finishes)
                     if m.player_b_low_darts:
                         low_darts.extend(m.player_b_low_darts)
+                my_score = m.player1_score if is_a else m.player2_score
+                opp_score = m.player2_score if is_a else m.player1_score
+                legs_won += my_score or 0
+                legs_lost += opp_score or 0
+                if m.winner_id == pid:
+                    wins += 1
+                else:
+                    losses += 1
             return {
                 "total_matches": len(matches),
+                "wins": wins,
+                "losses": losses,
+                "legs_won": legs_won,
+                "legs_lost": legs_lost,
                 "total_180s": total_180s,
                 "high_finishes": sorted(high_finishes, reverse=True),
                 "low_darts": sorted(low_darts),
