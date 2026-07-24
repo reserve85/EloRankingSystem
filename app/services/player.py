@@ -88,6 +88,9 @@ class PlayerService:
     def update_player(self, player_id: int, data: PlayerUpdate) -> Player:
         """Update a player's information.
 
+        If start_elo changes, a full Elo recalculation is triggered
+        for all matches involving this player.
+
         Args:
             player_id: The player's ID.
             data: Fields to update.
@@ -100,6 +103,7 @@ class PlayerService:
             HTTPException 409: If new name conflicts with existing player.
         """
         player = self.get_player(player_id)
+        start_elo_changed = False
 
         if data.name is not None:
             if data.name != player.name:
@@ -111,10 +115,19 @@ class PlayerService:
                     )
             player.name = data.name
 
-        if data.start_elo is not None:
+        if data.start_elo is not None and data.start_elo != player.start_elo:
             player.start_elo = data.start_elo
+            start_elo_changed = True
 
-        return self.repo.update(player)
+        player = self.repo.update(player)
+
+        # Trigger full Elo recalculation if start_elo changed
+        if start_elo_changed:
+            from app.services.match import MatchService
+            match_service = MatchService(self.repo.db)
+            match_service._recalculate_elo_timeline({player_id})
+
+        return player
 
     def disable_player(self, player_id: int) -> Player:
         """Disable a player.
