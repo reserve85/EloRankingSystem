@@ -427,6 +427,20 @@ function updatePlayerLabels() {
 document.getElementById('player-a-select').addEventListener('change', updatePlayerLabels);
 document.getElementById('player-b-select').addEventListener('change', updatePlayerLabels);
 
+// --- Auto-fill score logic (Task 18) ---
+document.getElementById('score-a').addEventListener('change', function() {
+  const val = parseInt(this.value);
+  if (val >= 0 && val <= 2) {
+    document.getElementById('score-b').value = '3';
+  }
+});
+document.getElementById('score-b').addEventListener('change', function() {
+  const val = parseInt(this.value);
+  if (val >= 0 && val <= 2) {
+    document.getElementById('score-a').value = '3';
+  }
+});
+
 function getStatsFromForm() {
   const stats = {};
   // 180s
