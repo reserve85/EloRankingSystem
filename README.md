@@ -31,7 +31,9 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 - **Responsive web interface** (Bootstrap 5 / Tabler UI) with mobile-friendly layout
 - **Cookie consent banner** (EU compliance)
 - **Impressum and Privacy Policy pages** (GDPR compliant)
-- **QR code auto-login** — generate printable QR codes for USER accounts so members can log in by scanning
+- **QR code auto-login** — generate printable QR codes for USER accounts so members can log in by scanning (USER-only, admins blocked)
+- **Real-time password strength validation** with ✅/❌ indicators on user creation and password reset
+- **Client-side validation** blocks save for weak passwords or duplicate usernames
 - **Docker deployment** with GitHub Container Registry
 - **Portainer Stack deployment** support
 - **Confirmation dialogs** on all modifying actions
