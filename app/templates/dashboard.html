@@ -383,7 +383,7 @@ async function loadPlayers() {
   const selB = document.getElementById('player-b-select');
   selA.innerHTML = '<option value="">Select player...</option>';
   selB.innerHTML = '<option value="">Select player...</option>';
-  players.forEach(p => {
+  players.sort((a, b) => a.name.localeCompare(b.name)).forEach(p => {
     playerMap[p.id] = p.name;
     selA.add(new Option(p.name, p.id));
     selB.add(new Option(p.name, p.id));
