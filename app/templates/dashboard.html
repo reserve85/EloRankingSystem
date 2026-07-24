@@ -796,8 +796,8 @@ function renderAthChart() {
         backgroundColor: barColors,
         borderColor: barColors.map(c => c),
         borderWidth: 1,
-        barPercentage: 0.7,
-        categoryPercentage: 0.9,
+        barPercentage: 0.5,
+        categoryPercentage: 0.8,
       }]
     },
     options: {
@@ -824,7 +824,8 @@ function renderAthChart() {
         },
         y: {
           display: true,
-          ticks: { font: { size: 14 }, autoSkip: false }
+          ticks: { font: { size: 13 }, autoSkip: false, padding: 8 },
+          grid: { offset: true }
         }
       }
     }
