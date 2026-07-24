@@ -36,12 +36,12 @@ system_user:
   password: change_me
 
 security:
-  jwt_secret: change_me
+  jwt_secret: change_me  # CHANGE THIS IN PRODUCTION! Generate with: openssl rand -hex 32
   jwt_algorithm: HS256
   access_token_lifetime_minutes: 480
-  cookie_secure: true
+  cookie_secure: true  # Set to false for local HTTP development
   cookie_httponly: true
-  cookie_samesite: strict
+  cookie_samesite: strict  # Use 'lax' for local development if needed
 
 storage:
   data_dir: /data

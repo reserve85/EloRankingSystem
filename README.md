@@ -4,17 +4,30 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 
 ## Features
 
-- Elo-based ranking system for dart club players
-- Player management
-- User management with role-based access control (SYSTEM, ADMIN, USER)
-- Match management with automatic Elo recalculation
-- Historical Elo tracking
-- Automatic inactive player handling
-- PDF ranking report export
-- Audit logging
-- Backup and restore
-- Responsive web interface (Bootstrap 5 / Tabler UI)
-- Docker deployment with GitHub Container Registry
+- **Elo-based ranking system** for dart club players with configurable K-factor and default rating
+- **Player management** with enable/disable, initial Elo rating, and automatic inactive player detection
+- **User management** with role-based access control (SYSTEM, ADMIN, USER)
+- **Match management** with Best-of-5 scoring and automatic Elo recalculation
+- **Dart statistics** per match: 180s, High Finishes, Low Darts
+- **Match statistics detail view** with per-player stats side by side
+- **Player statistics view** (period and all-time) accessible from ranking table
+- **Admin statistics editing** for match details
+- **All Time Elo Rating chart** with interactive horizontal bar chart
+- **Historical Elo tracking** with interactive line chart per player
+- **Date range filtering** on rankings, match history, and PDF export
+- **Automatic inactive player handling** based on interval-based match activity
+- **Interval-based "Include inactive" checkbox** — checks if players were active in the selected date range
+- **PDF ranking report export** with configurable date range
+- **Audit logging** for all important actions
+- **Backup and restore** with download/restore from file
+- **Responsive web interface** (Bootstrap 5 / Tabler UI) with mobile-friendly layout
+- **Cookie consent banner** (EU compliance)
+- **Impressum and Privacy Policy pages** (GDPR compliant)
+- **Docker deployment** with GitHub Container Registry
+- **Portainer Stack deployment** support
+- **Confirmation dialogs** on all modifying actions
+- **Auto-refresh** of affected UI components after changes
+- **Configurable date format** and timezone display
 
 ## Technology Stack
 
@@ -22,7 +35,7 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 - **ORM:** SQLAlchemy
 - **Database:** SQLite (designed for future PostgreSQL migration)
 - **Migrations:** Alembic
-- **Frontend:** Bootstrap 5, Tabler UI, Jinja2, DataTables
+- **Frontend:** Bootstrap 5, Tabler UI, Jinja2, DataTables, Chart.js
 - **PDF:** reportlab
 - **Auth:** JWT with Argon2 password hashing, secure HttpOnly cookies
 - **Testing:** pytest, pytest-cov, httpx
@@ -221,21 +234,33 @@ Copy `.env.example` to `.env` and adjust as needed:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `APP_NAME` | Application name | `Elo Ranking System` |
+| `CLUB_NAME` | Club name displayed in header and reports | `My Dart Club` |
 | `APP_ENV` | Application environment | `development` |
 | `APP_DEBUG` | Debug mode | `false` |
 | `CONFIG_PATH` | Path to config.yaml | `config.yaml` |
+| `TIMEZONE` | Timezone for date display (IANA format) | `Europe/Berlin` |
+| `DATE_FORMAT` | Date format for display | `dd/MM/yyyy` |
 | `DATABASE_URL` | Database connection string | `sqlite:///./data/database.db` |
 | `DEFAULT_ELO` | Default Elo rating for new players | `1200` |
 | `K_FACTOR` | Elo K-factor (rating sensitivity) | `32` |
 | `INACTIVITY_MONTHS` | Months before player is considered inactive | `3` |
+| `HIGH_FINISH_MIN` | Minimum valid high finish score | `100` |
+| `HIGH_FINISH_MAX` | Maximum valid high finish score | `170` |
+| `LOW_DARTS_MIN` | Minimum valid low darts count | `9` |
+| `LOW_DARTS_MAX` | Maximum valid low darts count | `21` |
+| `CONTACT_COMPANY` | Company/club name for Impressum | `Company` |
+| `CONTACT_NAME` | Contact person name for Impressum | `Max Mustermann` |
+| `CONTACT_STREET` | Street address for Impressum | `Musterstrasse 1` |
+| `CONTACT_CITY` | City for Impressum | `11111 Musterstadt` |
+| `CONTACT_EMAIL` | Contact email for Impressum | `max.Mustermann@Muster.mu` |
 | `SYSTEM_USER_USERNAME` | System admin username | `system` |
 | `SYSTEM_USER_PASSWORD` | System admin password | `change_me` |
 | `JWT_SECRET` | JWT signing secret | `change_me` |
 | `JWT_ALGORITHM` | JWT algorithm | `HS256` |
 | `ACCESS_TOKEN_LIFETIME_MINUTES` | Token lifetime in minutes | `480` |
-| `COOKIE_SECURE` | Secure cookie flag | `false` |
+| `COOKIE_SECURE` | Secure cookie flag | `true` |
 | `COOKIE_HTTPONLY` | HttpOnly cookie flag | `true` |
-| `COOKIE_SAMESITE` | SameSite cookie policy | `lax` |
+| `COOKIE_SAMESITE` | SameSite cookie policy | `strict` |
 | `DATA_DIR` | Data storage path | `./data` |
 | `UPLOAD_DIR` | Upload storage path | `./uploads` |
 | `LOG_DIR` | Log storage path | `./logs` |
@@ -247,9 +272,11 @@ Copy `config.yaml.example` to `config.yaml` and adjust club-specific settings. T
 
 | Section | Keys | Description |
 |---------|------|-------------|
-| `app` | `name`, `environment`, `debug` | Application identity |
+| `app` | `name`, `club_name`, `environment`, `debug`, `timezone`, `date_format` | Application identity & display |
 | `elo` | `default_rating`, `k_factor` | Elo system parameters |
 | `ranking` | `inactivity_months` | Inactive player threshold |
+| `statistics` | `high_finish_min`, `high_finish_max`, `low_darts_min`, `low_darts_max` | Dart statistics validation |
+| `legal` | `contact_company`, `contact_name`, `contact_street`, `contact_city`, `contact_email` | Impressum & Privacy page data |
 | `system_user` | `username`, `password` | Host administrator credentials |
 | `security` | `jwt_secret`, `jwt_algorithm`, `access_token_lifetime_minutes`, `cookie_secure`, `cookie_httponly`, `cookie_samesite` | Authentication & security |
 | `storage` | `data_dir`, `upload_dir`, `log_dir`, `backup_dir` | File storage paths |
@@ -257,6 +284,46 @@ Copy `config.yaml.example` to `config.yaml` and adjust club-specific settings. T
 Values in `.env` or environment variables always override values in `config.yaml`.
 
 See `config.yaml.example` for the full reference.
+
+## Default System User
+
+The system user is automatically provisioned on first startup from the configuration. It cannot be deleted or downgraded through the UI.
+
+**You MUST change the default password before deploying to production.**
+
+To configure:
+```yaml
+# config.yaml
+system_user:
+  username: system
+  password: change_me
+```
+Or via environment variable:
+```
+SYSTEM_USER_USERNAME=system
+SYSTEM_USER_PASSWORD=your_strong_password
+```
+
+## User Roles
+
+| Role | Permissions |
+|------|-------------|
+| **SYSTEM** | Full access. Cannot be deleted or downgraded. |
+| **ADMIN** | Manage players, users, matches, settings, exports, backups. |
+| **USER** | Create matches, view rankings. No admin access. |
+
+## Backup and Restore
+
+### Create Backup
+
+Navigate to **Admin > Backup** to create a downloadable ZIP containing:
+- SQLite database
+- Uploaded club logo
+- Application data
+
+### Restore Backup
+
+Upload a previously downloaded backup ZIP to restore. A pre-restore backup is automatically created before restoring.
 
 ## Development Setup
 
@@ -310,6 +377,14 @@ app/
 tests/
 ├── conftest.py       # Test fixtures and configuration
 ├── test_health.py    # Health endpoint tests
+├── test_elo.py       # Elo calculation tests
+├── test_rankings.py  # Ranking generation tests
+├── test_inactive_players.py  # Inactive player handling tests
+├── test_matches.py   # Match management tests
+├── test_statistics.py # Dart statistics tests
+├── test_reports.py   # PDF report tests
+├── test_backup.py    # Backup/restore tests
+├── test_templates.py # UI template tests
 └── ...
 
 requirements.txt      # Python dependencies
@@ -318,6 +393,7 @@ pyproject.toml        # Project config, pytest, coverage settings
 config.yaml.example   # YAML configuration template
 Dockerfile            # Container image definition
 docker-compose.yml    # Docker Compose configuration
+portainer_compose.yaml # Portainer Stack deployment
 .gitignore            # Git ignore rules
 ```
 

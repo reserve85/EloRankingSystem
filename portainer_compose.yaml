@@ -26,8 +26,6 @@
 #
 # ============================================================================
 
-version: "3.8"
-
 services:
   elo:
     image: ghcr.io/reserve85/elo_ranking_system:latest
@@ -45,56 +43,57 @@ services:
       - /volume1/docker/elo/backups:/backups
     environment:
       # ── Application Settings ──────────────────────────────────────────
-      - APP_NAME=Elo Ranking System            # Display name of the application | Any string | Default: Elo Ranking System
-      - CLUB_NAME=My Dart Club                 # Club name displayed in header and reports | Any string | Default: (uses APP_NAME if empty)
-      - APP_ENV=production                      # Application environment | development, production | Default: development
-      - APP_DEBUG=false                         # Enable debug mode (verbose errors) | true, false | Default: false
-          - CONFIG_PATH=/app/config.yaml
-      - TIMEZONE=Europe/Berlin    # Timezone for date display | Any IANA timezone (e.g. Europe/Berlin, America/New_York) | Default: UTC            # Path to config.yaml inside container | Any valid path | Default: /app/config.yaml
+      - APP_NAME=Elo Ranking System                    # Display name of the application | Any string | Default: Elo Ranking System
+      - CLUB_NAME=My Dart Club                         # Club name displayed in header and reports | Any string | Default: (uses APP_NAME if empty)
+      - APP_ENV=production                              # Application environment | development, production | Default: development
+      - APP_DEBUG=false                                 # Enable debug mode (verbose errors) | true, false | Default: false
+      - CONFIG_PATH=/app/config.yaml                    # Path to config.yaml inside container | Any valid path | Default: /app/config.yaml
+      - TIMEZONE=Europe/Berlin                          # Timezone for date display | Any IANA timezone (e.g. Europe/Berlin, America/New_York) | Default: Europe/Berlin
+      - DATE_FORMAT=dd/MM/yyyy                          # Date format for display | dd/MM/yyyy, MM/dd/yyyy, yyyy-MM-dd, dd.MM.yyyy | Default: dd/MM/yyyy
 
       # ── Database ──────────────────────────────────────────────────────
-      - DATABASE_URL=sqlite:////data/database.db # SQLite database file path (absolute) | Any sqlite URL | Default: sqlite:////data/database.db
+      - DATABASE_URL=sqlite:////data/database.db        # SQLite database file path (absolute) | Any sqlite URL | Default: sqlite:////data/database.db
 
       # ── Elo Rating Settings ───────────────────────────────────────────
-      - DEFAULT_ELO=1200                        # Default Elo rating for new players | Any integer | Default: 1200
-      - K_FACTOR=32                             # Elo K-factor (rating sensitivity) | Any integer (e.g. 16, 24, 32, 48) | Default: 32
+      - DEFAULT_ELO=1200                                # Default Elo rating for new players | Any integer | Default: 1200
+      - K_FACTOR=32                                     # Elo K-factor (rating sensitivity) | Any integer (e.g. 16, 24, 32, 48) | Default: 32
 
       # ── Ranking Settings ──────────────────────────────────────────────
-      - INACTIVITY_MONTHS=3                     # Months of inactivity before player is hidden from ranking | Any integer | Default: 3
+      - INACTIVITY_MONTHS=3                             # Months of inactivity before player is hidden from ranking | Any integer | Default: 3
 
       # ── System User (Host Administrator) ──────────────────────────────
       # This user is automatically provisioned on first startup.
       # It cannot be deleted or downgraded through the UI.
-      - SYSTEM_USER_USERNAME=system             # System admin username | Any string | Default: system
-      - SYSTEM_USER_PASSWORD=CHANGE_ME_HERE     # System admin password | Any strong password | Default: change_me ⚠️ CHANGE THIS
+      - SYSTEM_USER_USERNAME=system                      # System admin username | Any string | Default: system
+      - SYSTEM_USER_PASSWORD=CHANGE_ME_HERE              # System admin password | Any strong password | Default: change_me ⚠️ CHANGE THIS
 
       # ── Security / Authentication ─────────────────────────────────────
       # JWT_SECRET is used to sign authentication tokens.
       # Generate a strong value with: openssl rand -hex 32
-      - JWT_SECRET=CHANGE_ME_GENERATE_RANDOM    # Secret key for JWT token signing | Any random string (min 32 chars) | Default: change_me ⚠️ CHANGE THIS
-      - JWT_ALGORITHM=HS256                     # JWT signing algorithm | HS256, HS384, HS512 | Default: HS256
-      - ACCESS_TOKEN_LIFETIME_MINUTES=480       # Session token lifetime in minutes | Any integer | Default: 480 (8 hours)
-      - COOKIE_SECURE=false                     # Set to true when using HTTPS | true, false | Default: false
-      - COOKIE_HTTPONLY=true                    # Prevent JavaScript access to auth cookie | true, false | Default: true
-      - COOKIE_SAMESITE=lax                     # SameSite cookie policy | strict, lax, none | Default: lax
+      - JWT_SECRET=CHANGE_ME_GENERATE_RANDOM             # Secret key for JWT token signing | Any random string (min 32 chars) | Default: change_me ⚠️ CHANGE THIS
+      - JWT_ALGORITHM=HS256                              # JWT signing algorithm | HS256, HS384, HS512 | Default: HS256
+      - ACCESS_TOKEN_LIFETIME_MINUTES=480                # Session token lifetime in minutes | Any integer | Default: 480 (8 hours)
+      - COOKIE_SECURE=false                              # Set to true when using HTTPS | true, false | Default: true
+      - COOKIE_HTTPONLY=true                             # Prevent JavaScript access to auth cookie | true, false | Default: true
+      - COOKIE_SAMESITE=strict                           # SameSite cookie policy | strict, lax, none | Default: strict
 
       # ── Storage Paths (inside container) ──────────────────────────────
-      - DATA_DIR=/data                          # Path to database storage | Any valid path | Default: /data
-      - UPLOAD_DIR=/uploads                     # Path to file uploads (club logo) | Any valid path | Default: /uploads
-      - LOG_DIR=/logs                           # Path to application logs | Any valid path | Default: /logs
-      - BACKUP_DIR=/backups                     # Path to backup files | Any valid path | Default: /backups
+      - DATA_DIR=/data                                   # Path to database storage | Any valid path | Default: /data
+      - UPLOAD_DIR=/uploads                              # Path to file uploads (club logo) | Any valid path | Default: /uploads
+      - LOG_DIR=/logs                                    # Path to application logs | Any valid path | Default: /logs
+      - BACKUP_DIR=/backups                              # Path to backup files | Any valid path | Default: /backups
 
       # ── Statistics Validation ─────────────────────────────────────────
       # Configure valid ranges for dart statistics inputs.
-      - HIGH_FINISH_MIN=100                     # Minimum valid high finish score | Any integer | Default: 100
-      - HIGH_FINISH_MAX=170                     # Maximum valid high finish score | Any integer | Default: 170
-      - LOW_DARTS_MIN=9                         # Minimum valid low darts count | Any integer | Default: 9
-      - LOW_DARTS_MAX=21                        # Maximum valid low darts count | Any integer | Default: 21
+      - HIGH_FINISH_MIN=100                              # Minimum valid high finish score | Any integer | Default: 100
+      - HIGH_FINISH_MAX=170                              # Maximum valid high finish score | Any integer | Default: 170
+      - LOW_DARTS_MIN=9                                  # Minimum valid low darts count | Any integer | Default: 9
+      - LOW_DARTS_MAX=21                                 # Maximum valid low darts count | Any integer | Default: 21
 
       # ── Legal / Impressum ─────────────────────────────────────────────
       # Contact information displayed on the Impressum and Privacy Policy pages.
-      - CONTACT_COMPANY=Company                 # Company or club name | Any string | Default: Company
-      - CONTACT_NAME=Max Mustermann             # Contact person full name | Any string | Default: Max Mustermann
-      - CONTACT_STREET=Musterstrasse 1          # Street address | Any string | Default: Musterstrasse 1
-      - CONTACT_CITY=11111 Musterstadt          # City and postal code | Any string | Default: 11111 Musterstadt
-      - CONTACT_EMAIL=max.Mustermann@Muster.mu  # Contact email address | Any valid email | Default: max.Mustermann@Muster.mu
+      - CONTACT_COMPANY=Company                          # Company or club name | Any string | Default: Company
+      - CONTACT_NAME=Max Mustermann                      # Contact person full name | Any string | Default: Max Mustermann
+      - CONTACT_STREET=Musterstrasse 1                   # Street address | Any string | Default: Musterstrasse 1
+      - CONTACT_CITY=11111 Musterstadt                   # City and postal code | Any string | Default: 11111 Musterstadt
+      - CONTACT_EMAIL=max.Mustermann@Muster.mu           # Contact email address | Any valid email | Default: max.Mustermann@Muster.mu
