@@ -358,6 +358,7 @@ class RankingService:
         """Get the highest Elo rating ever reached for all players.
 
         Only includes players with at least 1 match (ignores players with 0 games).
+        Optimized: loads all matches in a single query and computes ATH in memory.
 
         Args:
             include_inactive: If True, include inactive players.
@@ -365,73 +366,73 @@ class RankingService:
         Returns:
             List of dicts with player_id, player_name, max_elo, date_reached, inactive.
         """
-        players = self.db.query(Player).filter(Player.disabled.is_(False)).all()
+        players = {p.id: p for p in self.db.query(Player).filter(Player.disabled.is_(False)).all()}
 
-        if not include_inactive:
-            # Filter out inactive players
-            inactivity_months = settings.inactivity_months
-            today = date.today()
-            cutoff_year = today.year
-            cutoff_month = today.month - inactivity_months
-            while cutoff_month <= 0:
-                cutoff_month += 12
-                cutoff_year -= 1
-            max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
-            cutoff_day = min(today.day, max_day)
-            cutoff_date = date(cutoff_year, cutoff_month, cutoff_day)
-            active_players = []
-            for p in players:
-                if p.last_match_date is None:
-                    # Player with no matches - check if they have any matches at all
-                    has_match = self.db.query(Match).filter(
-                        (Match.player_a_id == p.id) | (Match.player_b_id == p.id)
-                    ).first()
-                    if has_match is None:
-                        continue  # Skip players with 0 games
-                    # Player with matches but no last_match_date -> inactive
-                elif p.last_match_date >= cutoff_date:
-                    active_players.append(p)
-                # else: inactive player, skip
-            # Only include active players when not including inactive
-            players = active_players
-        else:
-            # When including inactive, still filter out players with 0 games
-            players_with_games = []
-            for p in players:
-                has_match = self.db.query(Match).filter(
-                    (Match.player_a_id == p.id) | (Match.player_b_id == p.id)
-                ).first()
-                if has_match is None:
-                    continue  # Skip players with 0 games
-                players_with_games.append(p)
-            players = players_with_games
+        # Load ALL matches in one query, sorted chronologically
+        all_matches = self.db.query(Match).order_by(
+            Match.date.asc(), Match.created_at.asc(), Match.id.asc()
+        ).all()
+
+        # Compute ATH Elo per player in memory
+        player_ath: dict[int, dict] = {}  # pid -> {"max_elo": float, "date": str}
+        players_with_games: set[int] = set()
+
+        for m in all_matches:
+            players_with_games.add(m.player_a_id)
+            players_with_games.add(m.player_b_id)
+
+            # Player A
+            pid_a = m.player_a_id
+            elo_a = m.elo_after_a
+            if pid_a not in player_ath or elo_a > player_ath[pid_a]["max_elo"]:
+                player_ath[pid_a] = {"max_elo": elo_a, "date": m.date.isoformat()}
+
+            # Player B
+            pid_b = m.player_b_id
+            elo_b = m.elo_after_b
+            if pid_b not in player_ath or elo_b > player_ath[pid_b]["max_elo"]:
+                player_ath[pid_b] = {"max_elo": elo_b, "date": m.date.isoformat()}
+
+        # Fallback for players with start_elo but no ATH from matches
+        for pid, p in players.items():
+            if pid not in player_ath:
+                player_ath[pid] = {"max_elo": float(p.start_elo), "date": None}
+
+        # Determine inactive cutoff
+        inactivity_months = settings.inactivity_months
+        today = date.today()
+        cutoff_year = today.year
+        cutoff_month = today.month - inactivity_months
+        while cutoff_month <= 0:
+            cutoff_month += 12
+            cutoff_year -= 1
+        max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
+        cutoff_day = min(today.day, max_day)
+        cutoff_date = date(cutoff_year, cutoff_month, cutoff_day)
 
         result = []
-        for player in players:
-            ath = self.get_all_time_high_elo(player.id)
-            # Determine if player is inactive
-            is_inactive = False
-            if player.last_match_date is None:
-                is_inactive = True
-            else:
-                inactivity_months = settings.inactivity_months
-                today = date.today()
-                cutoff_year = today.year
-                cutoff_month = today.month - inactivity_months
-                while cutoff_month <= 0:
-                    cutoff_month += 12
-                    cutoff_year -= 1
-                max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
-                cutoff_day = min(today.day, max_day)
-                cutoff_date = date(cutoff_year, cutoff_month, cutoff_day)
-                if player.last_match_date < cutoff_date:
-                    is_inactive = True
+        for pid, p in players.items():
+            # Skip players with 0 games
+            if pid not in players_with_games:
+                continue
 
+            # Determine inactive status
+            is_inactive = False
+            if p.last_match_date is None:
+                is_inactive = True
+            elif p.last_match_date < cutoff_date:
+                is_inactive = True
+
+            # Filter by include_inactive
+            if not include_inactive and is_inactive:
+                continue
+
+            ath = player_ath.get(pid, {"max_elo": float(p.start_elo), "date": None})
             result.append({
-                "player_id": player.id,
-                "player_name": player.name,
+                "player_id": pid,
+                "player_name": p.name,
                 "max_elo": ath["max_elo"],
-                "date_reached": ath["date_reached"],
+                "date_reached": ath["date"],
                 "inactive": is_inactive,
             })
 
