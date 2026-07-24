@@ -502,6 +502,26 @@ function populateModalHfLd(containerId, values, inputClass) {
   });
 }
 
+// Auto-fill opponent score when selecting a non-winning score in edit modal
+document.getElementById('admin-edit-score-a').addEventListener('change', function() {
+  const m = adminMatchData.find(x => x.id === adminEditingMatchId);
+  const bol = m ? (m.best_of_legs || {{ best_of_legs }}) : {{ best_of_legs }};
+  const wins = (bol + 1) / 2;
+  const val = parseInt(this.value);
+  if (val >= 0 && val < wins) {
+    document.getElementById('admin-edit-score-b').value = String(wins);
+  }
+});
+document.getElementById('admin-edit-score-b').addEventListener('change', function() {
+  const m = adminMatchData.find(x => x.id === adminEditingMatchId);
+  const bol = m ? (m.best_of_legs || {{ best_of_legs }}) : {{ best_of_legs }};
+  const wins = (bol + 1) / 2;
+  const val = parseInt(this.value);
+  if (val >= 0 && val < wins) {
+    document.getElementById('admin-edit-score-a').value = String(wins);
+  }
+});
+
 function toggleScoreEdit() {
   const el = document.getElementById('admin-modal-score-edit');
   const btn = document.getElementById('admin-toggle-score-edit');
