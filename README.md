@@ -461,4 +461,4 @@ No custom secrets are required. The workflows use the built-in `GITHUB_TOKEN` fo
 
 ## License
 
-See [LICENSE](LICENSE) for details.
+This project is licensed under the **GNU General Public License v3.0** — see the [LICENSE](LICENSE) file for details.
