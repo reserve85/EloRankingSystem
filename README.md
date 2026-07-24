@@ -2,6 +2,9 @@
 
 A dart club ranking system using the [Elo Rating System](https://en.wikipedia.org/wiki/Elo_rating_system).
 
+## Donate and become a Sponsor
+[![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donate_LG.gif)](https://paypal.me/TobiasWKraft/5)
+
 ## Features
 
 - **Elo-based ranking system** for dart club players with configurable K-factor and default rating
