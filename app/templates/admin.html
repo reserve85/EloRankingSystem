@@ -341,7 +341,7 @@
     <form id="user-form">
       <input type="hidden" id="user-edit-id">
       <div class="mb-3"><label class="form-label">Username</label><input type="text" id="user-username" class="form-control" required></div>
-      <div class="mb-3" id="user-password-group"><label class="form-label">Password</label><input type="password" id="user-password" class="form-control"></div>
+      <div class="mb-3" id="user-password-group"><label class="form-label">Password</label><input type="password" id="user-password" class="form-control" oninput="checkPasswordStrength(this.value)"><div id="pw-strength" class="mt-1 small"></div></div>
       <div class="mb-3"><label class="form-label">Role</label>
         <select id="user-role" class="form-select"><option value="USER">USER</option><option value="ADMIN">ADMIN</option></select>
       </div>
@@ -412,7 +412,7 @@ async function reactivatePlayer(id) {
 }
 
 // --- Users ---
-function resetUserForm() { document.getElementById('user-edit-id').value=''; document.getElementById('user-username').value=''; document.getElementById('user-password').value=''; document.getElementById('user-role').value='USER'; document.getElementById('user-modal-title').textContent='Add User'; document.getElementById('user-password-group').style.display=''; document.getElementById('user-username').readOnly=false; }
+function resetUserForm() { document.getElementById('user-edit-id').value=''; document.getElementById('user-username').value=''; document.getElementById('user-password').value=''; document.getElementById('user-role').value='USER'; document.getElementById('user-modal-title').textContent='Add User'; document.getElementById('user-password-group').style.display=''; document.getElementById('user-username').readOnly=false; document.getElementById('pw-strength').innerHTML=''; }
 async function loadUsers() {
   const resp = await fetch('/users/');
   if (!resp.ok) return;
@@ -900,6 +900,31 @@ function printQR() {
   win.document.write('<html><head><title>QR Code</title><style>body{text-align:center;font-family:Arial,sans-serif;padding:40px} img{width:283px;height:283px} @page{margin:0} @media print{body{-webkit-print-color-adjust:exact;print-color-adjust:exact}}</style></head><body>' + printArea + '</body></html>');
   win.document.close();
   win.print();
+}
+
+// --- Password Strength ---
+function checkPasswordStrength(pw) {
+  const el = document.getElementById('pw-strength');
+  if (!pw) { el.innerHTML = ''; return; }
+  const checks = [
+    { ok: pw.length >= 8, msg: 'Min 8 characters' },
+    { ok: /[A-Z]/.test(pw), msg: 'Uppercase letter' },
+    { ok: /[a-z]/.test(pw), msg: 'Lowercase letter' },
+    { ok: /[0-9]/.test(pw), msg: 'Number' },
+    { ok: /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?`~]/.test(pw), msg: 'Special character' },
+  ];
+  const passed = checks.filter(c => c.ok).length;
+  let html = '<div class="d-flex flex-wrap gap-1">';
+  checks.forEach(c => {
+    const icon = c.ok ? '✅' : '❌';
+    const cls = c.ok ? 'text-green' : 'text-red';
+    html += '<span class="' + cls + '">' + icon + ' ' + c.msg + '</span>';
+  });
+  html += '</div>';
+  if (passed === checks.length) {
+    html = '<div class="text-green fw-bold mb-1">✓ Password meets all requirements</div>' + html;
+  }
+  el.innerHTML = html;
 }
 
 // Init
