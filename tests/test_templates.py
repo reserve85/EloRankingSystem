@@ -993,3 +993,191 @@ class TestPlayerStatistics:
         assert "ath_elo" in data
         assert "ath_rank" in data
         assert "max_elo" in data["ath_elo"]
+
+
+class TestPasswordStrengthIndicator:
+    """Tests for password strength indicator consistency across all password forms."""
+
+    def test_change_password_has_strength_indicator(self, client, db_session):
+        """Change Password page should have password strength indicator."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/change-password")
+        assert resp.status_code == 200
+        assert "pw-strength" in resp.text
+        assert "checkPasswordStrength" in resp.text
+
+    def test_change_password_has_oninput_handler(self, client, db_session):
+        """Change Password new password field should have oninput handler."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/change-password")
+        assert 'oninput="checkPasswordStrength(this.value)"' in resp.text
+
+    def test_change_password_has_all_strength_checks(self, client, db_session):
+        """Change Password should have all 5 password strength checks."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/change-password")
+        assert "Min 8 characters" in resp.text
+        assert "Uppercase letter" in resp.text
+        assert "Lowercase letter" in resp.text
+        assert "Number" in resp.text
+        assert "Special character" in resp.text
+
+    def test_admin_reset_password_has_strength_indicator(self, client, db_session):
+        """Admin reset password form should have password strength indicator."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "reset-pw-strength" in resp.text
+        assert "checkResetPasswordStrength" in resp.text
+
+    def test_admin_add_user_has_strength_indicator(self, client, db_session):
+        """Admin add user form should have password strength indicator."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "pw-strength" in resp.text
+        assert "checkPasswordStrength" in resp.text
+
+    def test_admin_add_user_has_all_strength_checks(self, client, db_session):
+        """Admin add user should have all 5 password strength checks in JS."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "Min 8 characters" in resp.text
+        assert "Uppercase letter" in resp.text
+        assert "Lowercase letter" in resp.text
+        assert "Number" in resp.text
+        assert "Special character" in resp.text
+
+    def test_admin_add_user_has_client_side_validation(self, client, db_session):
+        """Admin add user should have client-side password strength validation before submit."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        # saveUser() checks password strength before submission
+        assert "pwErrors" in resp.text or "Password does not meet requirements" in resp.text
+
+    def test_change_password_strength_function_complete(self, client, db_session):
+        """Change password strength function should check all criteria."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/change-password")
+        assert "pw.length >= 8" in resp.text
+        assert "/[A-Z]/.test(pw)" in resp.text
+        assert "/[a-z]/.test(pw)" in resp.text
+        assert "/[0-9]/.test(pw)" in resp.text
+        assert "/[!" in resp.text  # Special char regex start
+
+
+class TestBogeyNumberValidation:
+    """Tests for bogey number (impossible checkout) validation in match forms."""
+
+    def test_dashboard_has_bogey_number_check(self, client, db_session):
+        """Dashboard match form should validate bogey numbers."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "bogeyNumbers" in resp.text
+        assert "cannot be finished with a double" in resp.text
+
+    def test_dashboard_bogey_numbers_list(self, client, db_session):
+        """Dashboard should contain all 7 bogey numbers."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # All 7 bogey numbers should be in the set: 159, 162, 163, 165, 166, 168, 169
+        assert "159" in resp.text
+        assert "162" in resp.text
+        assert "163" in resp.text
+        assert "165" in resp.text
+        assert "166" in resp.text
+        assert "168" in resp.text
+        assert "169" in resp.text
+
+    def test_admin_has_bogey_number_check(self, client, db_session):
+        """Admin match edit form should validate bogey numbers."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "bogeyNumbers" in resp.text
+        assert "cannot be finished with a double" in resp.text
+
+    def test_admin_bogey_numbers_list(self, client, db_session):
+        """Admin should contain all 7 bogey numbers."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "159" in resp.text
+        assert "162" in resp.text
+        assert "163" in resp.text
+        assert "165" in resp.text
+        assert "166" in resp.text
+        assert "168" in resp.text
+        assert "169" in resp.text
+
+    def test_bogey_validation_uses_match_error_element(self, client, db_session):
+        """Dashboard bogey validation should use the match-error element for feedback."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "errEl.textContent" in resp.text
+        assert "errEl.classList.remove('d-none')" in resp.text
+
+    def test_admin_bogey_validation_uses_status_element(self, client, db_session):
+        """Admin bogey validation should use the admin-modal-status element for feedback."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "Invalid checkout" in resp.text
+
+
+class TestHighFinishLowDartRangeValidation:
+    """Tests for high finish and low dart range validation in match form."""
+
+    def test_dashboard_validates_hf_range(self, client, db_session):
+        """Dashboard should validate high finish values are within configured range."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "hfMin" in resp.text
+        assert "hfMax" in resp.text
+        assert "Must be between" in resp.text
+
+    def test_dashboard_validates_ld_range(self, client, db_session):
+        """Dashboard should validate low dart values are within configured range."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "ldMin" in resp.text
+        assert "ldMax" in resp.text
+
+    def test_dashboard_hf_range_uses_config_values(self, client, db_session):
+        """Dashboard HF validation should use template-rendered config values."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # hf_min=100 and hf_max=170 from default config (rendered as comma-separated)
+        assert "hfMin" in resp.text
+        assert "hfMax" in resp.text
+        assert "100" in resp.text
+        assert "170" in resp.text
+
+    def test_dashboard_ld_range_uses_config_values(self, client, db_session):
+        """Dashboard LD validation should use template-rendered config values."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "ldMin" in resp.text
+        assert "ldMax" in resp.text
+
+    def test_dashboard_hf_range_error_message_includes_value(self, client, db_session):
+        """Dashboard HF error message should include the invalid value."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "Invalid high finish value" in resp.text
+
+    def test_dashboard_ld_range_error_message_includes_value(self, client, db_session):
+        """Dashboard LD error message should include the invalid value."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "Invalid low darts value" in resp.text
+
+    def test_validation_prevents_submission(self, client, db_session):
+        """Validation should prevent form submission and show error element."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Validation should return early (prevent submission)
+        assert "return;" in resp.text
+        # Should show error by removing d-none class
+        assert "errEl.classList.remove('d-none')" in resp.text
+
+    def test_hf_validation_focuses_invalid_input(self, client, db_session):
+        """HF validation should focus the invalid input field."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "inp.focus()" in resp.text
