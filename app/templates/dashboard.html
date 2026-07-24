@@ -512,6 +512,31 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
   const sucEl = document.getElementById('match-success');
   errEl.classList.add('d-none'); sucEl.classList.add('d-none');
 
+  // Validate high finishes range
+  const hfMin = {{ hf_min }}, hfMax = {{ hf_max }};
+  const hfInputs = document.querySelectorAll('#p1-hf-list .hf-input, #p2-hf-list .hf-input');
+  for (const inp of hfInputs) {
+    const val = parseInt(inp.value);
+    if (!isNaN(val) && (val < hfMin || val > hfMax)) {
+      errEl.textContent = 'Invalid high finish value: ' + val + '. Must be between ' + hfMin + ' and ' + hfMax + '.';
+      errEl.classList.remove('d-none');
+      inp.focus();
+      return;
+    }
+  }
+  // Validate low darts range
+  const ldMin = {{ ld_min }}, ldMax = {{ ld_max }};
+  const ldInputs = document.querySelectorAll('#p1-ld-list .ld-input, #p2-ld-list .ld-input');
+  for (const inp of ldInputs) {
+    const val = parseInt(inp.value);
+    if (!isNaN(val) && (val < ldMin || val > ldMax)) {
+      errEl.textContent = 'Invalid low darts value: ' + val + '. Must be between ' + ldMin + ' and ' + ldMax + '.';
+      errEl.classList.remove('d-none');
+      inp.focus();
+      return;
+    }
+  }
+
   const p1Name = document.getElementById('player-a-select').selectedOptions[0]?.text || 'Player 1';
   const p2Name = document.getElementById('player-b-select').selectedOptions[0]?.text || 'Player 2';
   const score1 = fd.get('player1_score');
