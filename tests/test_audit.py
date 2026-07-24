@@ -401,3 +401,17 @@ class TestAuditApi:
         assert "Audit Log" in resp.text
         assert "tab-audit" in resp.text
         assert "audit-table" in resp.text
+
+    def test_audit_log_timestamp_uses_configured_format(self, client, db_session):
+        """Audit log timestamps should be formatted with configured timezone and date format."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+
+        resp = client.get("/audit/")
+        assert resp.status_code == 200
+        logs = resp.json()
+        if len(logs) > 0:
+            ts = logs[0]["timestamp"]
+            # Should not be ISO format (should be formatted with configured date format)
+            assert "T" not in ts  # No ISO 'T' separator
+            # Should contain time portion
+            assert ":" in ts

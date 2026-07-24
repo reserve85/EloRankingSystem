@@ -454,7 +454,7 @@ async function loadMatches() {
     const totalLD = countArr(m.player_a_low_darts) + countArr(m.player_b_low_darts);
     const eloWinner = m.winner_id === m.player_a_id ? m.elo_change_a : m.elo_change_b;
     const eloLoser = m.winner_id === m.player_a_id ? m.elo_change_b : m.elo_change_a;
-    tbody.innerHTML += '<tr style="cursor:pointer" onclick="showAdminMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+m.date+'</td><td>'+adminPmap[m.player_a_id]+'</td><td>'+adminPmap[m.player_b_id]+'</td><td><strong>'+score+'</strong></td><td>'
+    tbody.innerHTML += '<tr style="cursor:pointer" onclick="showAdminMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td>'+adminPmap[m.player_a_id]+'</td><td>'+adminPmap[m.player_b_id]+'</td><td><strong>'+score+'</strong></td><td>'
       +'<span class="badge bg-green-lt">'+adminPmap[m.winner_id]+'</span></td><td><span class="text-green">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span> / <span class="text-red">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td>'
       +'<td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td>'
       +'<td><button class="btn btn-sm btn-ghost-red" onclick="event.stopPropagation();deleteMatch('+m.id+')">Delete</button></td></tr>';
@@ -528,7 +528,7 @@ function showAdminMatchDetail(idx) {
   const resultB = m.winner_id === m.player_b_id ? 'Win' : 'Loss';
   const resClsA = resultA === 'Win' ? 'text-green fw-bold' : 'text-red fw-bold';
   const resClsB = resultB === 'Win' ? 'text-green fw-bold' : 'text-red fw-bold';
-  document.getElementById('admin-modal-match-date').textContent = m.date;
+  document.getElementById('admin-modal-match-date').textContent = fmtDisplay(m.date);
   document.getElementById('admin-modal-match-score').textContent = scoreA + ' : ' + scoreB;
   document.getElementById('admin-modal-p1-name').textContent = nameA;
   document.getElementById('admin-modal-p2-name').textContent = nameB;
@@ -632,7 +632,7 @@ async function loadAuditLogs() {
   const logs = await resp.json();
   const tbody = document.querySelector('#audit-table tbody'); tbody.innerHTML = '';
   logs.forEach(l => {
-    const ts = l.timestamp ? l.timestamp.replace('T', ' ').slice(0, 19) : '';
+    const ts = l.timestamp || '';
     const actionBadge = '<span class="badge bg-blue-lt">' + l.action + '</span>';
     const entity = l.entity_type || '';
     const entityId = l.entity_id || '';
