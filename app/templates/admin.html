@@ -592,6 +592,9 @@ async function saveAdminMatchStats() {
   if (scoreEdit.style.display !== 'none') {
     body.player1_score = parseInt(document.getElementById('admin-edit-score-a').value);
     body.player2_score = parseInt(document.getElementById('admin-edit-score-b').value);
+    // Send the match's best_of_legs for correct validation
+    const matchBol2 = adminMatchData.find(m => m.id === adminEditingMatchId);
+    if (matchBol2 && matchBol2.best_of_legs) body.best_of_legs = matchBol2.best_of_legs;
   }
   const resp = await fetch('/matches/' + adminEditingMatchId, {
     method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)

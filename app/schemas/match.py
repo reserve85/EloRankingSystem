@@ -197,18 +197,19 @@ class MatchUpdate(MatchStatisticsUpdate):
     date: Optional[date] = None
     player1_score: Optional[int] = Field(default=None, ge=0)
     player2_score: Optional[int] = Field(default=None, ge=0)
+    best_of_legs: Optional[int] = Field(default=None, ge=0, description="Best of N legs (None=keep original)")
 
     @model_validator(mode="after")
     def validate_scores(self):
         """Validate score combination if both are provided."""
         if self.player1_score is not None and self.player2_score is not None:
-            valid = get_valid_scores()
+            bol = self.best_of_legs if self.best_of_legs and self.best_of_legs > 0 else settings.best_of_legs
+            valid = get_valid_scores(bol)
             if (self.player1_score, self.player2_score) not in valid:
-                best_of = settings.best_of_legs
-                wins = (best_of + 1) // 2
+                wins = (bol + 1) // 2
                 raise ValueError(
                     f"Invalid score combination {self.player1_score}:{self.player2_score}. "
-                    f"Best of {best_of}: first to {wins} wins."
+                    f"Best of {bol}: first to {wins} wins."
                 )
         elif self.player1_score is not None or self.player2_score is not None:
             raise ValueError("Both player1_score and player2_score must be provided together")

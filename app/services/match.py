@@ -98,7 +98,10 @@ class MatchService:
             match.date = data.date
 
         if data.player1_score is not None and data.player2_score is not None:
-            winner_label = determine_winner(data.player1_score, data.player2_score)
+            bol = data.best_of_legs if data.best_of_legs and data.best_of_legs > 0 else match.best_of_legs
+            winner_label = determine_winner(data.player1_score, data.player2_score, bol)
+            if data.best_of_legs and data.best_of_legs > 0:
+                match.best_of_legs = data.best_of_legs
             match.player1_score = data.player1_score
             match.player2_score = data.player2_score
             match.winner_id = match.player_a_id if winner_label == 1 else match.player_b_id
