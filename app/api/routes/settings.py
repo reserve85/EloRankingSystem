@@ -115,16 +115,51 @@ async def upload_logo(
     return cs
 
 
-@router.get("/qrcode")
-def get_qrcode(request: Request, current_user: User = Depends(require_admin)):
-    """Generate QR code for auto-login URL."""
+class QRCodeRequest(BaseModel):
+    username: str
+    password: str
+
+
+@router.post("/qrcode")
+def generate_qrcode(
+    request: Request,
+    data: QRCodeRequest,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
+    """Generate QR code for auto-login URL. Only USER role accounts allowed."""
     import io
+    from app.auth.password import verify_password
+    from app.models.user import UserRole
+
+    # Find the target user
+    target_user = db.query(User).filter(User.username == data.username).first()
+    if target_user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Only USER role allowed for QR code
+    if target_user.role != UserRole.USER:
+        raise HTTPException(status_code=403, detail="QR code can only be generated for USER role accounts, not ADMIN or SYSTEM")
+
+    if not target_user.active:
+        raise HTTPException(status_code=400, detail="User account is disabled")
+
+    # Verify password
+    if not verify_password(data.password, target_user.password_hash):
+        raise HTTPException(status_code=401, detail="Invalid password")
+
+    # Generate QR code
     import qrcode
 
     base_url = str(request.base_url).rstrip("/")
-    url = f"{base_url}/auth/auto-login?u={settings.system_user_username}&p={settings.system_user_password}"
+    url = f"{base_url}/auth/auto-login?u={data.username}&p={data.password}"
 
-    img = qrcode.make(url)
+    # 10x10cm at 72 DPI ≈ 283px, use box_size=10, border=2 for clean output
+    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=2)
+    qr.add_data(url)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     buf.seek(0)

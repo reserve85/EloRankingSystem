@@ -108,6 +108,11 @@ def auto_login(
         )
         return RedirectResponse(url="/ui/login", status_code=302)
 
+    # Only USER role allowed via QR code auto-login
+    from app.models.user import UserRole
+    if user.role != UserRole.USER:
+        return RedirectResponse(url="/ui/login", status_code=302)
+
     login_data = create_login_response(user)
 
     log_event(
