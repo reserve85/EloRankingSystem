@@ -342,7 +342,7 @@
     <form id="user-form">
       <input type="hidden" id="user-edit-id">
       <div class="mb-3"><label class="form-label">Username</label><input type="text" id="user-username" class="form-control" required></div>
-      <div class="mb-3"><label class="form-label">Password</label><input type="password" id="user-password" class="form-control"></div>
+      <div class="mb-3" id="user-password-group"><label class="form-label">Password</label><input type="password" id="user-password" class="form-control"></div>
       <div class="mb-3"><label class="form-label">Role</label>
         <select id="user-role" class="form-select"><option value="USER">USER</option><option value="ADMIN">ADMIN</option></select>
       </div>
@@ -413,7 +413,7 @@ async function reactivatePlayer(id) {
 }
 
 // --- Users ---
-function resetUserForm() { document.getElementById('user-edit-id').value=''; document.getElementById('user-username').value=''; document.getElementById('user-password').value=''; document.getElementById('user-role').value='USER'; document.getElementById('user-modal-title').textContent='Add User'; }
+function resetUserForm() { document.getElementById('user-edit-id').value=''; document.getElementById('user-username').value=''; document.getElementById('user-password').value=''; document.getElementById('user-role').value='USER'; document.getElementById('user-modal-title').textContent='Add User'; document.getElementById('user-password-group').style.display=''; document.getElementById('user-username').readOnly=false; }
 async function loadUsers() {
   const resp = await fetch('/users/');
   if (!resp.ok) return;
@@ -448,7 +448,9 @@ function editUser(id) {
   fetch('/users/'+id).then(r=>r.json()).then(u => {
     document.getElementById('user-edit-id').value = u.id;
     document.getElementById('user-username').value = u.username;
+    document.getElementById('user-username').readOnly = true;
     document.getElementById('user-password').value = '';
+    document.getElementById('user-password-group').style.display = 'none';
     document.getElementById('user-role').value = u.role;
     document.getElementById('user-modal-title').textContent = 'Edit User';
     new bootstrap.Modal(document.getElementById('user-modal')).show();
