@@ -20,9 +20,7 @@ from app.core.database import Base
 class Match(Base):
     """Match model for recording dart game results.
 
-    Best-of-5 format: player scores determine the winner.
-    Valid scores: 3:0, 3:1, 3:2, 2:3, 1:3, 0:3
-    Winner is the player with score 3.
+    Match format (best_of_legs) is stored per match, allowing mixed formats.
     """
 
     __tablename__ = "matches"
@@ -38,7 +36,10 @@ class Match(Base):
         Integer, ForeignKey("players.id"), nullable=False, index=True
     )
 
-    # Best-of-5 scores
+    # Match format (best of N legs, stored per match)
+    best_of_legs: Mapped[int] = mapped_column(Integer, default=5, server_default="5", nullable=False)
+
+    # Scores
     player1_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     player2_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 

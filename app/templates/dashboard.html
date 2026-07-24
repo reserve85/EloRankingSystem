@@ -31,18 +31,25 @@
 
           <!-- Row 2: Score -->
           <div class="mb-3">
-            <label class="form-label">Score (Best of {{ best_of_legs }})</label>
             <div class="row g-2">
-              <div class="col-6">
-                <select name="player1_score" class="form-select" id="score-a" required>
-                  <option value="">P1 Score</option>
-                  {% for i in range(wins_needed + 1) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
+              <div class="col-4">
+                <label class="form-label">Format</label>
+                <select name="best_of_legs" class="form-select" id="best-of-select">
+                  {% for n in [1,3,5,7,9,11,13,15,17,19,21] %}
+                  <option value="{{ n }}" {% if n == best_of_legs %}selected{% endif %}>Best of {{ n }}</option>
+                  {% endfor %}
                 </select>
               </div>
-              <div class="col-6">
+              <div class="col-4">
+                <label class="form-label">P1 Score</label>
+                <select name="player1_score" class="form-select" id="score-a" required>
+                  <option value="">-</option>
+                </select>
+              </div>
+              <div class="col-4">
+                <label class="form-label">P2 Score</label>
                 <select name="player2_score" class="form-select" id="score-b" required>
-                  <option value="">P2 Score</option>
-                  {% for i in range(wins_needed + 1) %}<option value="{{ i }}">{{ i }}</option>{% endfor %}
+                  <option value="">-</option>
                 </select>
               </div>
             </div>
@@ -427,17 +434,41 @@ function updatePlayerLabels() {
 document.getElementById('player-a-select').addEventListener('change', updatePlayerLabels);
 document.getElementById('player-b-select').addEventListener('change', updatePlayerLabels);
 
-// --- Auto-fill score logic (Task 18) ---
+// --- Dynamic score dropdowns based on best-of selection ---
+function updateScoreOptions() {
+  const bol = parseInt(document.getElementById('best-of-select').value) || {{ best_of_legs }};
+  const wins = (bol + 1) / 2;
+  const selA = document.getElementById('score-a');
+  const selB = document.getElementById('score-b');
+  const prevA = selA.value;
+  const prevB = selB.value;
+  selA.innerHTML = '<option value="">-</option>';
+  selB.innerHTML = '<option value="">-</option>';
+  for (let i = 0; i <= wins; i++) {
+    selA.add(new Option(i, i));
+    selB.add(new Option(i, i));
+  }
+  if (prevA && parseInt(prevA) <= wins) selA.value = prevA;
+  if (prevB && parseInt(prevB) <= wins) selB.value = prevB;
+}
+document.getElementById('best-of-select').addEventListener('change', updateScoreOptions);
+updateScoreOptions();
+
+// --- Auto-fill score logic ---
 document.getElementById('score-a').addEventListener('change', function() {
+  const bol = parseInt(document.getElementById('best-of-select').value) || {{ best_of_legs }};
+  const wins = (bol + 1) / 2;
   const val = parseInt(this.value);
-  if (val >= 0 && val <= 2) {
-    document.getElementById('score-b').value = '3';
+  if (val >= 0 && val < wins) {
+    document.getElementById('score-b').value = String(wins);
   }
 });
 document.getElementById('score-b').addEventListener('change', function() {
+  const bol = parseInt(document.getElementById('best-of-select').value) || {{ best_of_legs }};
+  const wins = (bol + 1) / 2;
   const val = parseInt(this.value);
-  if (val >= 0 && val <= 2) {
-    document.getElementById('score-a').value = '3';
+  if (val >= 0 && val < wins) {
+    document.getElementById('score-a').value = String(wins);
   }
 });
 
@@ -492,6 +523,7 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
     date: fd.get('date'),
     player_a_id: parseInt(fd.get('player_a_id')),
     player_b_id: parseInt(fd.get('player_b_id')),
+    best_of_legs: parseInt(fd.get('best_of_legs')) || 0,
     player1_score: parseInt(fd.get('player1_score')),
     player2_score: parseInt(fd.get('player2_score')),
     ...getStatsFromForm()

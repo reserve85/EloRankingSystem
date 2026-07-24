@@ -11,14 +11,21 @@ from app.core.config import settings
 IMPOSSIBLE_HIGH_FINISHES = {169, 168, 166, 165, 163, 162, 159}
 
 
-def get_valid_scores() -> set[tuple[int, int]]:
-    """Generate valid score combinations based on BEST_OF_LEGS setting.
+# Valid best_of_legs values (odd numbers 1-21)
+VALID_BEST_OF = {1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21}
+
+
+def get_valid_scores(best_of: int = 0) -> set[tuple[int, int]]:
+    """Generate valid score combinations for a given best_of_legs.
+
+    Args:
+        best_of: The best_of_legs value. If 0, uses settings default.
 
     Returns:
         Set of (score_a, score_b) tuples where one score equals wins_needed.
     """
-    best_of = settings.best_of_legs
-    # Ensure best_of is odd
+    if best_of <= 0:
+        best_of = settings.best_of_legs
     if best_of % 2 == 0:
         best_of = best_of - 1
     wins_needed = (best_of + 1) // 2
@@ -30,7 +37,7 @@ def get_valid_scores() -> set[tuple[int, int]]:
     return valid
 
 
-def determine_winner(score1: int, score2: int) -> int:
+def determine_winner(score1: int, score2: int, best_of: int = 0) -> int:
     """Determine winner from scores.
 
     Returns:
@@ -39,9 +46,10 @@ def determine_winner(score1: int, score2: int) -> int:
     Raises:
         ValueError: If scores are invalid.
     """
-    valid = get_valid_scores()
+    valid = get_valid_scores(best_of)
     if (score1, score2) not in valid:
-        best_of = settings.best_of_legs
+        if best_of <= 0:
+            best_of = settings.best_of_legs
         wins = (best_of + 1) // 2
         raise ValueError(
             f"Invalid score combination {score1}:{score2}. "
@@ -107,6 +115,7 @@ class MatchCreate(MatchStatisticsCreate):
     player_b_id: int
     player1_score: int = Field(..., ge=0, description="Legs won by player A")
     player2_score: int = Field(..., ge=0, description="Legs won by player B")
+    best_of_legs: int = Field(default=0, ge=0, description="Best of N legs (0=use default)")
 
     @model_validator(mode="after")
     def validate_match(self):
@@ -114,14 +123,16 @@ class MatchCreate(MatchStatisticsCreate):
         if self.player_a_id == self.player_b_id:
             raise ValueError("Player A and Player B cannot be the same player")
 
-        # Validate scores
-        valid = get_valid_scores()
+        bol = self.best_of_legs if self.best_of_legs > 0 else settings.best_of_legs
+        if bol not in VALID_BEST_OF:
+            raise ValueError(f"best_of_legs must be one of {sorted(VALID_BEST_OF)}, got {bol}")
+
+        valid = get_valid_scores(bol)
         if (self.player1_score, self.player2_score) not in valid:
-            best_of = settings.best_of_legs
-            wins = (best_of + 1) // 2
+            wins = (bol + 1) // 2
             raise ValueError(
                 f"Invalid score combination {self.player1_score}:{self.player2_score}. "
-                f"Best of {best_of}: first to {wins} wins."
+                f"Best of {bol}: first to {wins} wins."
             )
 
         return self
@@ -211,6 +222,7 @@ class MatchResponse(BaseModel):
     date: date
     player_a_id: int
     player_b_id: int
+    best_of_legs: int = 5
     player1_score: Optional[int] = None
     player2_score: Optional[int] = None
     winner_id: int

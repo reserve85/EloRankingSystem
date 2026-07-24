@@ -19,6 +19,7 @@ from sqlalchemy.orm import Session
 from app.models.match import Match
 from app.models.player import Player
 from app.models.audit_log import AuditLog
+from app.core.config import settings
 from app.repositories.match import MatchRepository
 from app.repositories.player import PlayerRepository
 from app.schemas.match import MatchCreate, MatchUpdate, determine_winner
@@ -47,7 +48,8 @@ class MatchService:
             raise HTTPException(status_code=400, detail="Player A and Player B cannot be the same player")
 
         # Determine winner from scores
-        winner_label = determine_winner(data.player1_score, data.player2_score)
+        bol = data.best_of_legs if data.best_of_legs > 0 else settings.best_of_legs
+        winner_label = determine_winner(data.player1_score, data.player2_score, bol)
         winner_id = data.player_a_id if winner_label == 1 else data.player_b_id
         loser_id = data.player_b_id if winner_label == 1 else data.player_a_id
 
@@ -56,6 +58,7 @@ class MatchService:
             date=data.date,
             player_a_id=data.player_a_id,
             player_b_id=data.player_b_id,
+            best_of_legs=bol,
             player1_score=data.player1_score,
             player2_score=data.player2_score,
             winner_id=winner_id,
