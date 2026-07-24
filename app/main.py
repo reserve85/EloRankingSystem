@@ -72,3 +72,4 @@ app.include_router(ui_router)
 def root_redirect():
     """Redirect root to login page."""
     return RedirectResponse(url="/ui/login")
+  
