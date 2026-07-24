@@ -306,6 +306,105 @@ class TestMatchAuditLog:
         assert log.entity_id == match_id
 
 
+# ── Mixed Format Tests ─────────────────────────────────────────────────
+
+
+class TestMixedFormatMatches:
+    """Tests that matches with different best_of_legs can coexist."""
+
+    def test_mixed_formats_coexist(self, client, db_session):
+        """Matches with different best_of_legs (3:2, 4:1, 7:4) should all be valid."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        # Best of 5 (3:2)
+        resp1 = client.post("/matches/", json={
+            "date": "2025-06-10", "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 2, "best_of_legs": 5
+        })
+        assert resp1.status_code == 201
+
+        # Best of 7 (4:1)
+        resp2 = client.post("/matches/", json={
+            "date": "2025-06-15", "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 4, "player2_score": 1, "best_of_legs": 7
+        })
+        assert resp2.status_code == 201
+
+        # Best of 13 (7:4)
+        resp3 = client.post("/matches/", json={
+            "date": "2025-06-20", "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 7, "player2_score": 4, "best_of_legs": 13
+        })
+        assert resp3.status_code == 201
+
+        # All three matches should exist with correct formats
+        matches = client.get("/matches/?from_date=2025-06-01&to_date=2025-06-30").json()
+        assert len(matches) == 3
+        bols = {m["best_of_legs"] for m in matches}
+        assert bols == {5, 7, 13}
+
+    def test_best_of_5_rejects_4_1(self, client, db_session):
+        """Best of 5 should reject 4:1 score."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        resp = client.post("/matches/", json={
+            "date": "2025-06-10", "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 4, "player2_score": 1, "best_of_legs": 5
+        })
+        assert resp.status_code == 422
+
+    def test_best_of_7_accepts_4_3(self, client, db_session):
+        """Best of 7 should accept 4:3 score."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        resp = client.post("/matches/", json={
+            "date": "2025-06-10", "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 4, "player2_score": 3, "best_of_legs": 7
+        })
+        assert resp.status_code == 201
+        assert resp.json()["best_of_legs"] == 7
+
+    def test_best_of_legs_stored_per_match(self, client, db_session):
+        """Each match should store its own best_of_legs."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        client.post("/matches/", json={
+            "date": "2025-06-10", "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 1, "best_of_legs": 5
+        })
+        client.post("/matches/", json={
+            "date": "2025-06-15", "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 5, "player2_score": 3, "best_of_legs": 9
+        })
+
+        matches = client.get("/matches/?from_date=2025-06-01&to_date=2025-06-30").json()
+        assert len(matches) == 2
+        bol_map = {m["id"]: m["best_of_legs"] for m in matches}
+        assert bol_map[matches[0]["id"]] == 5
+        assert bol_map[matches[1]["id"]] == 9
+
+    def test_default_best_of_legs_used(self, client, db_session):
+        """When best_of_legs=0, the global default should be used."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        resp = client.post("/matches/", json={
+            "date": "2025-06-10", "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0, "best_of_legs": 0
+        })
+        assert resp.status_code == 201
+        assert resp.json()["best_of_legs"] == 5
+
+
 # ── List and Get Tests ──────────────────────────────────────────────────
 
 
