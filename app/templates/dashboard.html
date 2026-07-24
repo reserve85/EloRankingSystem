@@ -213,7 +213,7 @@
         </label>
       </div>
       <div class="card-body">
-        <div id="ath-chart-container" style="height:280px">
+        <div id="ath-chart-container" style="overflow-y:auto;max-height:80vh">
           <canvas id="ath-elo-chart"></canvas>
         </div>
         <div id="ath-empty" class="text-muted text-center d-none" style="padding:40px 0">No data available.</div>
@@ -773,6 +773,11 @@ function renderAthChart() {
     if (i === 2) return '#cd7f32'; // bronze
     return '#206bc4'; // default blue
   });
+
+  // Dynamically size chart: ~28px per player, min 400px
+  const chartHeight = Math.max(400, athData.length * 28);
+  canvas.style.height = chartHeight + 'px';
+  canvas.parentElement.style.height = chartHeight + 'px';
 
   // Scale: lowest bar at 10% width, highest bar at 90% width
   const minElo = Math.min(...elos);
