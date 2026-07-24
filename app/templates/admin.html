@@ -453,12 +453,14 @@ async function saveUser() {
     const body = { role: role };
     if (password) body.password = password;
     const resp = await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-    if (resp.ok) { bootstrap.Modal.getInstance(document.getElementById('user-modal')).hide(); loadUsers(); }
+    if (resp.ok) { bootstrap.Modal.getInstance(document.getElementById('user-modal')).hide(); loadUsers(); loadResetUsers(); loadQRUsers(); }
   } else {
     const resp = await fetch('/users/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,password,role}) });
     if (resp.ok) {
       bootstrap.Modal.getInstance(document.getElementById('user-modal')).hide();
       loadUsers();
+      loadResetUsers();
+      loadQRUsers();
     } else {
       const data = await resp.json();
       let msg = data.detail || 'Failed to create user';
