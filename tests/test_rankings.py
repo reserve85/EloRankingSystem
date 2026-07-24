@@ -335,7 +335,7 @@ class TestInactivePlayers:
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         _create_player(db_session, "Active Alice", elo=1300)
         _create_player(db_session, "Active Bob", elo=1200)
-        pc = _create_player(db_session, "Inactive Charlie", elo=1100, active=False)
+        _create_player(db_session, "Inactive Charlie", elo=1100, active=False)
 
         resp = _get_ranking(
             client,
