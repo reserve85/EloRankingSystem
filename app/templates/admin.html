@@ -485,8 +485,8 @@ async function toggleUser(id, active) {
   const action = active ? 'Enable' : 'Disable';
   const confirmed = await showConfirmDialog(`${action} this user?`, `${action} User`);
   if (!confirmed) return;
-  await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({active}) });
-  loadUsers();
+  const resp = await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({active}) });
+  if (resp.ok) { loadUsers(); loadResetUsers(); loadQRUsers(); }
 }
 
 // --- Matches ---
