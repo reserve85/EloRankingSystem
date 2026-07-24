@@ -151,7 +151,13 @@ def generate_qrcode(
     # Generate QR code
     import qrcode
 
-    base_url = settings.app_base_url.rstrip("/") if settings.app_base_url else str(request.base_url).rstrip("/")
+    if settings.app_base_url:
+        base_url = settings.app_base_url.rstrip("/")
+    else:
+        # Respect reverse proxy headers (X-Forwarded-Proto, X-Forwarded-Host)
+        scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
+        host = request.headers.get("x-forwarded-host", request.headers.get("host", str(request.base_url).rstrip("/")))
+        base_url = f"{scheme}://{host}".rstrip("/")
     url = f"{base_url}/auth/auto-login?u={data.username}&p={data.password}"
 
     # 10x10cm at 72 DPI ≈ 283px, use box_size=10, border=2 for clean output
