@@ -193,7 +193,7 @@
           </div>
         </div>
         <table id="match-table" class="table table-vcenter table-hover table-striped" style="width:100%">
-          <thead><tr><th>ID</th><th>Date</th><th>Winner</th><th>Score</th><th>Loser</th><th>Elo +/-</th><th>180</th><th>HF</th><th>LD</th></tr></thead>
+          <thead><tr><th>ID</th><th>Date</th><th>Winner</th><th>Score</th><th>Loser</th><th>180</th><th>HF</th><th>LD</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -535,8 +535,8 @@ async function loadRanking() {
     const posStr = e.position_change > 0 ? '+' + e.position_change : e.position_change < 0 ? '' + e.position_change : '-';
     const hfCount = Array.isArray(e.high_finishes) ? e.high_finishes.length : 0;
     const ldCount = Array.isArray(e.low_darts) ? e.low_darts.length : 0;
-    const trophy = e.position <= 3 ? trophies[e.position - 1] + ' ' : '';
-    tbody.innerHTML += '<tr><td>'+trophy+e.position+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+e.player_name+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+(hfCount||'-')+'</td><td>'+(ldCount||'-')+'</td><td>'+e.total_matches+'</td></tr>';
+    const trophy = e.position <= 3 ? trophies[e.position - 1] : '';
+    tbody.innerHTML += '<tr><td>'+(trophy || e.position)+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+e.player_name+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+(hfCount||'-')+'</td><td>'+(ldCount||'-')+'</td><td>'+e.total_matches+'</td></tr>';
   });
 }
 
@@ -568,7 +568,7 @@ async function loadMatches() {
       const totalLD = countArray(m.player_a_low_darts) + countArray(m.player_b_low_darts);
       const eloWinner = m.winner_id === m.player_a_id ? m.elo_change_a : m.elo_change_b;
       const eloLoser = m.winner_id === m.player_a_id ? m.elo_change_b : m.elo_change_a;
-      tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span></td><td><strong>'+score+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span></td><td><span class="text-green">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span> / <span class="text-red">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
+      tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span> <span class="text-green small">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span></td><td><strong>'+(m.player1_score != null ? m.player1_score+':'+m.player2_score : '-')+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span> <span class="text-red small">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
     });
     $('#match-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true, lengthChange: false, info: false });
   } catch (e) { console.error('loadMatches failed:', e); }
