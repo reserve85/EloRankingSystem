@@ -7,12 +7,17 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">
   <link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/dataTables.bootstrap5.min.css">
   <style>
-    /* Hamburger button: no border, no background on any state */
+    /* Hamburger & Profile toggle buttons: no border, no background on any state */
     #navbar-toggle-btn,
     #navbar-toggle-btn:focus,
     #navbar-toggle-btn:active,
     #navbar-toggle-btn:hover,
-    #navbar-toggle-btn:focus-visible {
+    #navbar-toggle-btn:focus-visible,
+    #profile-toggle-btn,
+    #profile-toggle-btn:focus,
+    #profile-toggle-btn:active,
+    #profile-toggle-btn:hover,
+    #profile-toggle-btn:focus-visible {
       border: none !important;
       background: transparent !important;
       box-shadow: none !important;
@@ -104,11 +109,12 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
           </button>
         </div>
-        <div class="ms-auto">
+        <!-- Profile: desktop dropdown (hidden on mobile) -->
+        <div class="ms-auto d-none d-md-block">
           <div class="nav-item dropdown">
-            <a href="#" class="nav-link d-flex align-items-center text-reset p-1 rounded text-decoration-none" data-bs-toggle="dropdown" style="cursor:pointer">
-              <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-sm me-1" width="20" height="20" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 10m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M6.168 18.849a4 4 0 0 1 3.832 -2.849h4a4 4 0 0 1 3.834 2.855" /></svg>
-              <span class="d-none d-sm-inline small text-muted">{{ user.username }}</span>
+            <a href="#" class="nav-link d-flex align-items-center text-reset text-decoration-none" data-bs-toggle="dropdown" style="cursor:pointer">
+              <span class="nav-link-icon"><svg xmlns="http://www.w3.org/2000/svg" class="icon" width="20" height="20" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 10m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M6.168 18.849a4 4 0 0 1 3.832 -2.849h4a4 4 0 0 1 3.834 2.855" /></svg></span>
+              <span class="nav-link-title">{{ user.username }}</span>
             </a>
             <div class="dropdown-menu dropdown-menu-end dropdown-menu-arrow">
               <a href="/ui/change-password" class="dropdown-item">Change Password</a>
@@ -117,8 +123,14 @@
             </div>
           </div>
         </div>
+        <!-- Profile: mobile toggle button (hidden on desktop) -->
+        <div class="d-md-none ms-auto">
+          <button id="profile-toggle-btn" class="btn p-2 border-0" type="button" data-bs-toggle="collapse" data-bs-target="#profile-menu" style="min-width:44px;min-height:44px;background:transparent;outline:none;box-shadow:none;">
+            <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 10m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M6.168 18.849a4 4 0 0 1 3.832 -2.849h4a4 4 0 0 1 3.834 2.855" /></svg>
+          </button>
+        </div>
       </div>
-      <!-- Mobile collapse menu -->
+      <!-- Mobile collapse menu (left: navigation) -->
       <div class="collapse d-md-none" id="navbar-menu">
         <ul class="nav flex-column border-top pt-1 pb-2">
           <li class="nav-item">
@@ -135,6 +147,29 @@
             </a>
           </li>
           {% endif %}
+        </ul>
+      </div>
+      <!-- Mobile collapse menu (right: profile) -->
+      <div class="collapse d-md-none" id="profile-menu">
+        <ul class="nav flex-column border-top pt-1 pb-2">
+          <li class="nav-item">
+            <span class="nav-link text-muted">
+              <span class="nav-link-icon"><svg xmlns="http://www.w3.org/2000/svg" class="icon" width="20" height="20" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 10m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M6.168 18.849a4 4 0 0 1 3.832 -2.849h4a4 4 0 0 1 3.834 2.855" /></svg></span>
+              <span class="nav-link-title">{{ user.username }}</span>
+            </span>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/ui/change-password">
+              <span class="nav-link-icon"><svg xmlns="http://www.w3.org/2000/svg" class="icon" width="20" height="20" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M5 13a2 2 0 0 1 2 -2h10a2 2 0 0 1 2 2v6a2 2 0 0 1 -2 2h-10a2 2 0 0 1 -2 -2v-6z" /><path d="M11 16a1 1 0 1 0 2 0a1 1 0 0 0 -2 0" /><path d="M8 11v-4a4 4 0 1 1 8 0v4" /></svg></span>
+              <span class="nav-link-title">Change Password</span>
+            </a>
+          </li>
+          <li class="nav-item">
+            <a class="nav-link" href="/ui/logout" id="logout-link-mobile">
+              <span class="nav-link-icon"><svg xmlns="http://www.w3.org/2000/svg" class="icon" width="20" height="20" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M14 8v-2a2 2 0 0 0 -2 -2h-7a2 2 0 0 0 -2 2v12a2 2 0 0 0 2 2h7a2 2 0 0 0 2 -2v-2" /><path d="M9 12h12l-3 -3" /><path d="M18 15l3 -3" /></svg></span>
+              <span class="nav-link-title">Logout</span>
+            </a>
+          </li>
         </ul>
       </div>
     </div>
@@ -320,6 +355,23 @@
       fromEl.value = toEl.value;
     }
   }
+  </script>
+  <!-- Mutual exclusion: close profile menu when burger opens, and vice versa -->
+  <script>
+  (function() {
+    var navbarMenu = document.getElementById('navbar-menu');
+    var profileMenu = document.getElementById('profile-menu');
+    if (navbarMenu && profileMenu) {
+      navbarMenu.addEventListener('show.bs.collapse', function() {
+        var bsCollapse = bootstrap.Collapse.getInstance(profileMenu);
+        if (bsCollapse) bsCollapse.hide();
+      });
+      profileMenu.addEventListener('show.bs.collapse', function() {
+        var bsCollapse = bootstrap.Collapse.getInstance(navbarMenu);
+        if (bsCollapse) bsCollapse.hide();
+      });
+    }
+  })();
   </script>
   {% block extra_js %}{% endblock %}
 </body>
