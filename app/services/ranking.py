@@ -469,7 +469,9 @@ class RankingService:
     def get_all_time_high_ranking(self, player_id: int) -> dict:
         """Get the best ranking position ever achieved by a player.
 
-        Considers all players (including inactive) at each match date.
+        Considers ALL non-disabled players (including inactive and those with
+        0 matches) at each date the player played a match. This ensures that
+        players with high start_elo but no matches are counted in rankings.
 
         Args:
             player_id: The player's ID.
@@ -477,36 +479,63 @@ class RankingService:
         Returns:
             Dict with best_rank and date_reached.
         """
-        matches = self.db.query(Match).filter(
-            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
-        ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
-
-        if not matches:
+        # Load all non-disabled players
+        all_players = self.db.query(Player).filter(Player.disabled.is_(False)).all()
+        if not all_players:
             return {"best_rank": None, "date_reached": None}
 
+        player_map = {p.id: p for p in all_players}
+        if player_id not in player_map:
+            return {"best_rank": None, "date_reached": None}
+
+        # Load all matches sorted chronologically
+        all_matches = self.db.query(Match).order_by(
+            Match.date.asc(), Match.created_at.asc(), Match.id.asc()
+        ).all()
+
+        if not all_matches:
+            return {"best_rank": None, "date_reached": None}
+
+        # Build Elo snapshots: at each match, track each player's running Elo
+        # Initialize all players to their start_elo
+        current_elos: dict[int, float] = {
+            p.id: float(p.start_elo) for p in all_players
+        }
+
+        # Collect unique dates where the target player played
+        target_match_dates: list[date] = []
+        for m in all_matches:
+            if m.player_a_id == player_id or m.player_b_id == player_id:
+                target_match_dates.append(m.date)
+
+        if not target_match_dates:
+            return {"best_rank": None, "date_reached": None}
+
+        target_date_set = set(target_match_dates)
         best_rank = None
         best_date = None
 
-        for m in matches:
-            # Get all players' Elo at this match date
-            all_players = self.db.query(Player).filter(Player.disabled.is_(False)).all()
-            player_elos = []
-            for p in all_players:
-                elo = self._get_elo_at_date(p, m.date, before=False)
-                # Only include players with at least 1 match on or before this date
-                has_match = self.db.query(Match).filter(
-                    ((Match.player_a_id == p.id) | (Match.player_b_id == p.id))
-                    & (Match.date <= m.date)
-                ).first()
-                if has_match:
-                    player_elos.append((p.id, elo))
+        # Walk through all matches, updating Elo, and check ranking at
+        # every date the target player played
+        for m in all_matches:
+            # Update elos for this match
+            if m.player_a_id in current_elos:
+                current_elos[m.player_a_id] = m.elo_after_a
+            if m.player_b_id in current_elos:
+                current_elos[m.player_b_id] = m.elo_after_b
 
-            player_elos.sort(key=lambda x: (-x[1], x[0]))
-            for rank, (pid, _) in enumerate(player_elos, 1):
-                if pid == player_id:
-                    if best_rank is None or rank < best_rank:
-                        best_rank = rank
-                        best_date = m.date.isoformat()
-                    break
+            # Only compute ranking at dates the target player played
+            if m.date in target_date_set:
+                # Rank ALL non-disabled players by their current Elo
+                rankings = sorted(
+                    current_elos.items(),
+                    key=lambda x: (-x[1], x[0]),
+                )
+                for rank, (pid, _) in enumerate(rankings, 1):
+                    if pid == player_id:
+                        if best_rank is None or rank < best_rank:
+                            best_rank = rank
+                            best_date = m.date.isoformat()
+                        break
 
         return {"best_rank": best_rank, "date_reached": best_date}
