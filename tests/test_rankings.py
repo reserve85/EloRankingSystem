@@ -445,9 +445,9 @@ class TestAllTimeEloChart:
         # Should be sorted by max_elo descending
         assert data[0]["max_elo"] >= data[1]["max_elo"]
 
-    def test_all_time_elo_excludes_zero_game_players(self, client, db_session, monkeypatch):
-        """Players with 0 games should be excluded."""
-        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 999)
+    def test_all_time_elo_includes_zero_game_players_when_inactive(self, client, db_session, monkeypatch):
+        """Players with 0 games should be included when include_inactive=True."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         pa = _create_player(db_session, "Alice", elo=1200)
@@ -456,12 +456,23 @@ class TestAllTimeEloChart:
 
         _create_match(client, pa.id, pb.id, pa.id, str(date.today()))
 
+        # Charlie excluded by default (inactive, no matches)
         resp = client.get("/rankings/all-time-elo")
         data = resp.json()
         names = [p["player_name"] for p in data]
         assert "Charlie" not in names
         assert "Alice" in names
         assert "Bob" in names
+
+        # Charlie included when include_inactive=True
+        resp = client.get("/rankings/all-time-elo?include_inactive=true")
+        data = resp.json()
+        names = [p["player_name"] for p in data]
+        assert "Charlie" in names
+        # Charlie should show start_elo since no matches
+        charlie = [p for p in data if p["player_name"] == "Charlie"][0]
+        assert charlie["max_elo"] == 1200.0
+        assert charlie["date_reached"] is None
 
     def test_all_time_elo_excludes_inactive_by_default(self, client, db_session, monkeypatch):
         """Inactive players should be excluded by default."""

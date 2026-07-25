@@ -387,7 +387,7 @@ class RankingService:
     def get_all_players_all_time_high_elo(self, include_inactive: bool = False) -> list[dict]:
         """Get the highest Elo rating ever reached for all players.
 
-        Only includes players with at least 1 match (ignores players with 0 games).
+        Includes all non-disabled players, even those with 0 matches (shows start_elo).
         Optimized: loads all matches in a single query and computes ATH in memory.
 
         Args:
@@ -442,10 +442,6 @@ class RankingService:
 
         result = []
         for pid, p in players.items():
-            # Skip players with 0 games
-            if pid not in players_with_games:
-                continue
-
             # Determine inactive status
             is_inactive = False
             if p.last_match_date is None:
