@@ -1,7 +1,5 @@
 # Coding Agent Rules
 
-You are implementing this project based on MASTER_CONTEXT.md.
-
 ## General Rules
 - Read "Master_Context_File.md" completely before making changes.
 - Do not implement everything in one step.
@@ -15,6 +13,10 @@ You are implementing this project based on MASTER_CONTEXT.md.
 - Always update README.md when setup or usage changes.
 - Master_Context_File.md is the project definition. When you add or remove a feature, update Master_Context_File.md to reflect the change immediately after implementation.
 - After every implementation step, run all tests in this order: lint first, then pytest and all the other defined tests. If anything fails, fix it and rerun all tests before proceeding.
+- Run the LINT check with exactly the same parameters as the GitHub Action.
+- The local LINT result must show the same errors as the GitHub Action.
+- For every modification, Task, bugfix, or new feature, add or update unit tests.
+- commit every feature after implemented.
 
 ## Architecture Rules
 - Do not put business logic directly into route handlers.
@@ -24,6 +26,7 @@ You are implementing this project based on MASTER_CONTEXT.md.
 - Use Pydantic schemas for input/output validation.
 - Use Alembic for migrations.
 - Follow the folder structure defined in MASTER_CONTEXT.md.
+- dont write duplicated code for identical functions. Reuse the function!
 
 ## Security Rules
 - Enforce all permissions and role checks in the backend.
@@ -38,8 +41,9 @@ You are implementing this project based on MASTER_CONTEXT.md.
 
 ## Testing Rules
 - Write tests for every new feature.
-- Maintain minimum 80% test coverage.
-- Tests must cover: Elo logic, ranking logic, inactive players, match validation, permissions, security.
+- Maintain minimum 90% test coverage.
+- Run lint before every commit: `ruff check app/ tests/ --select E,F,W --ignore E501`
+- Lint must pass with zero errors before proceeding.
 
 ## Development Rules
 - Local development uses Python directly, not Docker.
@@ -48,4 +52,5 @@ You are implementing this project based on MASTER_CONTEXT.md.
 
 ## Documentation Rules
 - Keep README.md up to date.
+- Always update the README.md after any new Feature is implemented!
 - Document new features, setup steps, and configuration changes.
