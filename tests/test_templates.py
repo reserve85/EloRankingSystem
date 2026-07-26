@@ -745,6 +745,30 @@ class TestLegalPages:
         assert "loadAdminMatchPlayers" not in resp.text
 
 
+class TestAdminMobileLayout:
+    """Tests for Task 28: Admin Panel / Mobile View Improvements."""
+
+    def test_admin_tabs_have_scrollable_wrapper(self, client, db_session):
+        """Admin tabs should be wrapped in a scrollable container for mobile."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-tabs-wrapper" in resp.text
+        assert "overflow-x:auto" in resp.text
+
+    def test_admin_tabs_flex_nowrap(self, client, db_session):
+        """Admin tabs should use flex-nowrap to prevent wrapping on mobile."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "flex-nowrap" in resp.text
+        assert "white-space:nowrap" in resp.text
+
+    def test_admin_tabs_touch_scrolling(self, client, db_session):
+        """Admin tabs should have smooth touch scrolling support."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "-webkit-overflow-scrolling:touch" in resp.text
+
+
 class TestMobileLayout:
     """Tests for Task 3: Mobile View / Responsive Layout."""
 
