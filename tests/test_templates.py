@@ -745,6 +745,40 @@ class TestLegalPages:
         assert "loadAdminMatchPlayers" not in resp.text
 
 
+class TestAuthRedirect:
+    """Tests for Task 32: Authentication / Auto-Redirect to Login."""
+
+    def test_global_401_handler_exists(self, client, db_session):
+        """Base template should have global fetch interceptor for 401 redirect."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "resp.status === 401" in resp.text
+        assert "window.location.href = '/ui/login'" in resp.text
+
+    def test_unauthenticated_api_returns_401(self, client, db_session):
+        """API calls without auth should return 401."""
+        resp = client.get("/players/active")
+        assert resp.status_code == 401
+
+    def test_login_page_redirects_authenticated_user(self, client, db_session):
+        """Authenticated user visiting login page should be redirected to dashboard."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/login", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/ui/dashboard" in resp.headers.get("location", "")
+
+    def test_unauthenticated_dashboard_returns_401(self, client, db_session):
+        """Dashboard should return 401 for unauthenticated requests."""
+        resp = client.get("/ui/dashboard")
+        assert resp.status_code == 401
+
+    def test_401_handler_excludes_login_page(self, client, db_session):
+        """401 handler should not redirect when already on login page."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "!window.location.pathname.startsWith('/ui/login')" in resp.text
+
+
 class TestDarkMode:
     """Tests for Task 29: Global Dark Mode / Full GUI Theme."""
 

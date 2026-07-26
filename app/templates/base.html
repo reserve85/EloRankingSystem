@@ -380,6 +380,20 @@
     }
   })();
   </script>
+  <!-- Global 401 Handler: auto-redirect to login on expired session -->
+  <script>
+  (function() {
+    var origFetch = window.fetch;
+    window.fetch = function() {
+      return origFetch.apply(this, arguments).then(function(resp) {
+        if (resp.status === 401 && !window.location.pathname.startsWith('/ui/login')) {
+          window.location.href = '/ui/login';
+        }
+        return resp;
+      });
+    };
+  })();
+  </script>
   <!-- Theme Toggle Script -->
   <script>
   (function() {
