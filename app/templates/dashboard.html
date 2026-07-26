@@ -304,6 +304,23 @@
   <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
 </div></div></div>
 
+<!-- Duplicate Match Confirmation Modal -->
+<div class="modal fade" id="duplicate-match-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
+  <div class="modal-header bg-warning">
+    <h5 class="modal-title">⚠️ Duplicate Match Detected</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+  </div>
+  <div class="modal-body">
+    <p>A match with the same result on the same day already exists.</p>
+    <p id="duplicate-match-details" class="text-muted small"></p>
+    <p>Do you want to save this match anyway?</p>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="button" class="btn btn-warning" id="duplicate-confirm-btn">Save Anyway</button>
+  </div>
+</div></div></div>
+
 <!-- Match Detail Modal -->
 <div class="modal fade" id="match-detail-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
   <div class="modal-header">
@@ -581,14 +598,10 @@ async function submitMatchForm(force) {
     resetStatsForm();
     await loadRanking();
     await loadMatches();
-  } else if (resp.status === 409) {
-    // Duplicate match detected - ask for force confirmation
-    const dupMsg = 'A match with the same result on the same day already exists. Do you want to save it anyway?';
-    const forceConfirmed = await showConfirmDialog(dupMsg, 'Save Anyway');
-    if (forceConfirmed) {
-      await submitMatchForm(true);
-    }
-  } else {
+    } else if (resp.status === 409) {
+      // Duplicate match detected - show confirmation modal
+      showDuplicateMatchModal();
+    } else {
     const data = await resp.json();
     let errMsg = data.detail || 'Failed';
     if (data.detail && Array.isArray(data.detail)) {
@@ -982,6 +995,25 @@ function renderAthChart() {
     }
   });
 }
+
+// --- Duplicate Match Modal ---
+let duplicateMatchModal = null;
+
+function showDuplicateMatchModal() {
+  // Remove any existing inline warning
+  const dupWarn = document.getElementById('duplicate-warning');
+  if (dupWarn) dupWarn.remove();
+
+  if (!duplicateMatchModal) {
+    duplicateMatchModal = new bootstrap.Modal(document.getElementById('duplicate-match-modal'));
+  }
+  duplicateMatchModal.show();
+}
+
+document.getElementById('duplicate-confirm-btn').addEventListener('click', async function() {
+  if (duplicateMatchModal) duplicateMatchModal.hide();
+  await submitMatchForm(true);
+});
 
 loadPlayers().then(() => { loadRanking(); loadMatches(); loadAllTimeEloChart(); });
 

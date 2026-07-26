@@ -67,31 +67,34 @@ class MatchRepository:
         self,
         player_a_id: int,
         player_b_id: int,
-        winner_id: int,
+        player1_score: int,
+        player2_score: int,
         match_date: date,
         exclude_match_id: Optional[int] = None,
     ) -> Optional[Match]:
-        """Find a duplicate match with same players, result, and date.
+        """Find a duplicate match with same players, exact score, and date.
 
         Args:
             player_a_id: ID of player A
             player_b_id: ID of player B
-            winner_id: ID of the winner
+            player1_score: Score of player A
+            player2_score: Score of player B
             match_date: Date of the match
             exclude_match_id: Optional match ID to exclude from search (for updates)
 
         Returns:
             Duplicate match if found, None otherwise.
         """
-        # Check for same players (either order) and same winner on same date
+        # Check for same players with exact same score on same date
         query = self.db.query(Match).filter(
             Match.date == match_date,
-            Match.winner_id == winner_id,
             and_(
-                # Same order
-                (Match.player_a_id == player_a_id) & (Match.player_b_id == player_b_id) |
-                # Reversed order
-                (Match.player_a_id == player_b_id) & (Match.player_b_id == player_a_id)
+                # Same order + same scores
+                ((Match.player_a_id == player_a_id) & (Match.player_b_id == player_b_id) &
+                 (Match.player1_score == player1_score) & (Match.player2_score == player2_score)) |
+                # Reversed order + reversed scores
+                ((Match.player_a_id == player_b_id) & (Match.player_b_id == player_a_id) &
+                 (Match.player1_score == player2_score) & (Match.player2_score == player1_score))
             )
         )
         if exclude_match_id is not None:

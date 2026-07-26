@@ -516,6 +516,24 @@ class TestConfirmationDialogs:
         resp = client.get("/ui/admin")
         assert "Enable" in resp.text and "Disable" in resp.text
 
+    def test_dashboard_has_duplicate_match_modal(self, client, db_session):
+        """Dashboard should have a duplicate match confirmation modal."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "duplicate-match-modal" in resp.text
+        assert "duplicate-confirm-btn" in resp.text
+        assert "showDuplicateMatchModal" in resp.text
+
+    def test_duplicate_match_modal_replaces_inline_warning(self, client, db_session):
+        """Duplicate match detection should use modal, not inline warning."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Should NOT have old inline warning button
+        assert "submitDuplicateMatch" not in resp.text
+        # Should have modal-based approach
+        assert "duplicate-match-modal" in resp.text
+        assert "Save Anyway" in resp.text
+
 
 class TestAutoRefresh:
     """Tests for auto-refresh after modifying actions."""
@@ -954,6 +972,15 @@ class TestMatchCreateLayout:
         resp = client.get("/ui/dashboard")
         assert "Best of" in resp.text
         assert 'id="best-of-select"' in resp.text
+
+    def test_best_of_legs_read_from_dom_not_formdata(self, client, db_session):
+        """best_of_legs must be read from DOM element since it is outside the form tag."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # The JS must use getElementById to read best_of_legs, not fd.get()
+        assert "document.getElementById('best-of-select').value" in resp.text
+        # Verify it's NOT using FormData to read it (would break if select is outside form)
+        assert "fd.get('best_of_legs')" not in resp.text
 
     def test_add_match_form_still_has_date_field(self, client, db_session):
         """Add Match form should still have date input with Today button."""

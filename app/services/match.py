@@ -38,16 +38,18 @@ class MatchService:
         self,
         player_a_id: int,
         player_b_id: int,
-        winner_id: int,
+        player1_score: int,
+        player2_score: int,
         match_date,
         exclude_match_id: int | None = None,
     ) -> Match | None:
-        """Check for duplicate match with same players, result, and date.
+        """Check for duplicate match with same players, exact score, and date.
 
         Args:
             player_a_id: ID of player A
             player_b_id: ID of player B
-            winner_id: ID of the winner
+            player1_score: Score of player A
+            player2_score: Score of player B
             match_date: Date of the match
             exclude_match_id: Optional match ID to exclude (for updates)
 
@@ -57,7 +59,8 @@ class MatchService:
         return self.match_repo.get_duplicate_match(
             player_a_id=player_a_id,
             player_b_id=player_b_id,
-            winner_id=winner_id,
+            player1_score=player1_score,
+            player2_score=player2_score,
             match_date=match_date,
             exclude_match_id=exclude_match_id,
         )
@@ -87,12 +90,13 @@ class MatchService:
         winner_id = data.player_a_id if winner_label == 1 else data.player_b_id
         loser_id = data.player_b_id if winner_label == 1 else data.player_a_id
 
-        # Check for duplicate match (same players, result, date)
+        # Check for duplicate match (same players, exact score, date)
         if not force:
             duplicate = self.check_duplicate(
                 player_a_id=data.player_a_id,
                 player_b_id=data.player_b_id,
-                winner_id=winner_id,
+                player1_score=data.player1_score,
+                player2_score=data.player2_score,
                 match_date=data.date,
             )
             if duplicate is not None:

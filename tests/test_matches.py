@@ -695,8 +695,8 @@ class TestDuplicateMatchDetection:
         })
         assert resp2.status_code == 201
 
-    def test_duplicate_detection_with_different_score_same_winner(self, client, db_session):
-        """Same players, same winner, same date but different score -> still duplicate."""
+    def test_different_score_same_winner_not_duplicate(self, client, db_session):
+        """Same players, same winner, same date but different score -> NOT duplicate."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
@@ -705,7 +705,7 @@ class TestDuplicateMatchDetection:
         resp1 = _create_match_via_api(client, pa.id, pb.id, pa.id, match_date="2025-06-01")
         assert resp1.status_code == 201
 
-        # Second match: Alice wins 3:2 (different score, same winner) -> still duplicate
+        # Second match: Alice wins 3:2 (different score) -> NOT duplicate
         resp2 = client.post("/matches/", json={
             "date": "2025-06-01",
             "player_a_id": pa.id,
@@ -713,7 +713,7 @@ class TestDuplicateMatchDetection:
             "player1_score": 3,
             "player2_score": 2,
         })
-        assert resp2.status_code == 409
+        assert resp2.status_code == 201
 
     def test_no_duplicate_when_different_winner_same_score(self, client, db_session):
         """Different winner means not a duplicate, even if scores look same in reverse."""
@@ -743,8 +743,8 @@ class TestDuplicateMatchDetection:
         expected = "A match with the same result on the same day already exists. Do you want to save it anyway?"
         assert resp2.json()["detail"] == expected
 
-    def test_duplicate_only_checks_winner_not_score(self, client, db_session):
-        """Duplicate check is based on winner_id, not exact score values."""
+    def test_duplicate_checks_exact_score_not_just_winner(self, client, db_session):
+        """Duplicate check requires exact same score, not just same winner."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
@@ -759,7 +759,7 @@ class TestDuplicateMatchDetection:
         })
         assert resp1.status_code == 201
 
-        # Second match: Alice wins 3:0 -> duplicate because same winner
+        # Second match: Alice wins 3:0 -> NOT duplicate (different score)
         resp2 = client.post("/matches/", json={
             "date": "2025-06-01",
             "player_a_id": pa.id,
@@ -767,4 +767,4 @@ class TestDuplicateMatchDetection:
             "player1_score": 3,
             "player2_score": 0,
         })
-        assert resp2.status_code == 409
+        assert resp2.status_code == 201
