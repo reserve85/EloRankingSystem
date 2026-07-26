@@ -709,7 +709,7 @@ async function saveAdminMatchStats() {
   if (resp.ok) {
     statusEl.textContent = 'Statistics saved!';
     statusEl.className = 'alert alert-success mt-2 mb-0';
-    loadMatches();
+    await Promise.all([loadMatches(), loadPlayers()]);
   } else {
     const data = await resp.json();
     let msg = data.detail || 'Failed';
@@ -723,7 +723,7 @@ async function deleteMatch(id) {
   const confirmed = await showConfirmDialog('Delete this match? This will trigger Elo recalculation for all affected matches.', 'Delete Match');
   if (!confirmed) return;
   await fetch('/matches/'+id, {method:'DELETE'});
-  loadMatches();
+  await Promise.all([loadMatches(), loadPlayers()]);
 }
 async function deleteMatchFromModal() {
   if (!adminEditingMatchId) return;
@@ -731,7 +731,7 @@ async function deleteMatchFromModal() {
   if (!confirmed) return;
   await fetch('/matches/' + adminEditingMatchId, {method: 'DELETE'});
   bootstrap.Modal.getInstance(document.getElementById('admin-match-detail-modal')).hide();
-  loadMatches();
+  await Promise.all([loadMatches(), loadPlayers()]);
 }
 
 // --- Club Settings ---

@@ -596,8 +596,7 @@ async function submitMatchForm(force) {
     document.getElementById('score-a').value = '';
     document.getElementById('score-b').value = '';
     resetStatsForm();
-    await loadRanking();
-    await loadMatches();
+    await Promise.all([loadRanking(), loadMatches(), loadPlayers(), loadAllTimeEloChart()]);
     } else if (resp.status === 409) {
       // Duplicate match detected - show confirmation modal
       showDuplicateMatchModal();

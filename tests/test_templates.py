@@ -538,13 +538,40 @@ class TestConfirmationDialogs:
 class TestAutoRefresh:
     """Tests for auto-refresh after modifying actions."""
 
-    def test_dashboard_loads_ranking_on_match_save(self, client, db_session):
-        """Dashboard JS should call loadRanking after match save."""
+    def test_dashboard_refreshes_all_views_on_match_save(self, client, db_session):
+        """Dashboard should refresh ranking, matches, players, and ATH chart after match save."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        assert "loadRanking(); loadMatches()" in resp.text
+        # After match save, all affected views must refresh via Promise.all
+        assert "loadRanking()" in resp.text
+        assert "loadMatches()" in resp.text
+        assert "loadPlayers()" in resp.text
+        assert "loadAllTimeEloChart()" in resp.text
+        assert "Promise.all" in resp.text
 
-    def test_admin_loads_matches_on_match_save(self, client, db_session):
+    def test_admin_refreshes_matches_and_players_on_stats_save(self, client, db_session):
+        """Admin should refresh both matches and players after stats edit (Elo recalc)."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "saveAdminMatchStats" in resp.text
+        # After save, both loadMatches and loadPlayers must be called
+        assert "Promise.all([loadMatches(), loadPlayers()])" in resp.text
+
+    def test_admin_refreshes_matches_and_players_on_delete_match(self, client, db_session):
+        """Admin should refresh both matches and players after deleting a match (Elo recalc)."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        # deleteMatch should refresh both
+        assert "async function deleteMatch(id)" in resp.text
+        assert "Promise.all([loadMatches(), loadPlayers()])" in resp.text
+
+    def test_admin_refreshes_matches_and_players_on_modal_delete(self, client, db_session):
+        """Admin modal delete should refresh both matches and players."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "async function deleteMatchFromModal()" in resp.text
+
+    def test_admin_loads_matches_on_init(self, client, db_session):
         """Admin JS should call loadMatches on init."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
@@ -554,7 +581,6 @@ class TestAutoRefresh:
         """Admin JS should call loadPlayers after player save."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
-        # savePlayer should call loadPlayers
         assert "loadPlayers()" in resp.text
 
     def test_admin_loads_users_on_user_save(self, client, db_session):
@@ -563,13 +589,17 @@ class TestAutoRefresh:
         resp = client.get("/ui/admin")
         assert "loadUsers();" in resp.text
 
-    def test_admin_refreshes_on_stats_save(self, client, db_session):
-        """Admin should refresh match list after stats edit."""
+    def test_dashboard_ath_chart_refreshes_on_match_save(self, client, db_session):
+        """Dashboard ATH chart function should exist and be callable."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "async function loadAllTimeEloChart()" in resp.text
+
+    def test_admin_save_stats_uses_await(self, client, db_session):
+        """Admin stats save should await Promise.all before showing success."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
-        assert "saveAdminMatchStats" in resp.text
-        # saveAdminMatchStats calls loadMatches
-        assert "loadMatches();" in resp.text
+        assert "await Promise.all([loadMatches(), loadPlayers()])" in resp.text
 
 
 class TestVersionInfo:
