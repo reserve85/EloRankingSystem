@@ -65,10 +65,15 @@
       .nav-tabs {
         flex-wrap: nowrap;
         overflow-x: auto;
+        overflow-y: hidden;
         -webkit-overflow-scrolling: touch;
       }
       .nav-tabs .nav-item {
         white-space: nowrap;
+      }
+      /* Admin tabs wrapper - suppress vertical scrollbar */
+      .admin-tabs-wrapper {
+        max-height: 42px;
       }
     }
     /* Dark mode - comprehensive overrides for Tabler beta17 (Bootstrap 5.2) */
