@@ -2,8 +2,9 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
-from fastapi.responses import RedirectResponse
+from fastapi import FastAPI, Request
+from fastapi.exceptions import HTTPException as FastAPIHTTPException
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
@@ -47,6 +48,17 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+
+
+@app.exception_handler(FastAPIHTTPException)
+async def ui_http_exception_handler(request: Request, exc: FastAPIHTTPException):
+    """Redirect unauthenticated UI requests to login instead of returning JSON."""
+    if exc.status_code == 401 and request.url.path.startswith("/ui/"):
+        return RedirectResponse(url="/ui/login", status_code=302)
+    if exc.status_code == 403 and request.url.path.startswith("/ui/"):
+        return RedirectResponse(url="/ui/dashboard", status_code=302)
+    return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+
 
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")

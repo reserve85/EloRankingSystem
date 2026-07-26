@@ -9,7 +9,7 @@ from app.core.config import settings
 from app.core.database import get_db
 from app.core.version import get_version_info
 from app.core.templates import templates
-from app.auth.dependencies import get_current_user_or_redirect, get_optional_user
+from app.auth.dependencies import get_current_user, get_optional_user, require_admin
 from app.models.user import User
 
 router = APIRouter(prefix="/ui", tags=["ui"])
@@ -37,10 +37,8 @@ def _get_club_name(db: Session) -> str:
 
 
 @router.get("/dashboard")
-def dashboard_page(request: Request, current_user: User = Depends(get_current_user_or_redirect), db: Session = Depends(get_db)):
+def dashboard_page(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Render the user dashboard. All authenticated users."""
-    if isinstance(current_user, RedirectResponse):
-        return current_user
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -62,12 +60,8 @@ def dashboard_page(request: Request, current_user: User = Depends(get_current_us
 
 
 @router.get("/admin")
-def admin_page(request: Request, current_user: User = Depends(get_current_user_or_redirect), db: Session = Depends(get_db)):
+def admin_page(request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     """Render the admin dashboard. Requires ADMIN or SYSTEM role."""
-    if isinstance(current_user, RedirectResponse):
-        return current_user
-    if current_user.role not in ("ADMIN", "SYSTEM"):
-        return RedirectResponse(url="/ui/dashboard", status_code=302)
     return templates.TemplateResponse(
         request,
         "admin.html",
@@ -89,10 +83,8 @@ def admin_page(request: Request, current_user: User = Depends(get_current_user_o
 
 
 @router.get("/change-password")
-def change_password_page(request: Request, current_user: User = Depends(get_current_user_or_redirect), db: Session = Depends(get_db)):
+def change_password_page(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Render the change password page. All authenticated users."""
-    if isinstance(current_user, RedirectResponse):
-        return current_user
     return templates.TemplateResponse(
         request,
         "change_password.html",
