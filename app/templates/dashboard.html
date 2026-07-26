@@ -8,7 +8,14 @@
 <div class="row mb-4">
   <div class="col-12">
     <div class="card mb-4">
-      <div class="card-header"><h3 class="card-title">Add Match</h3></div>
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h3 class="card-title mb-0">Add Match</h3>
+        <select name="best_of_legs" class="form-select form-select-sm" id="best-of-select" style="width:auto">
+          {% for n in [1,3,5,7,9,11,13,15,17,19,21] %}
+          <option value="{{ n }}" {% if n == best_of_legs %}selected{% endif %}>Best of {{ n }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div class="card-body">
         <div id="match-success" class="alert alert-success d-none"></div>
         <div id="match-error" class="alert alert-danger d-none"></div>
@@ -29,25 +36,17 @@
             </div>
           </div>
 
-          <!-- Row 2: Score -->
+          <!-- Row 2: Scores with dynamic player name labels -->
           <div class="mb-3">
             <div class="row g-2">
-              <div class="col-4">
-                <label class="form-label">Format</label>
-                <select name="best_of_legs" class="form-select" id="best-of-select">
-                  {% for n in [1,3,5,7,9,11,13,15,17,19,21] %}
-                  <option value="{{ n }}" {% if n == best_of_legs %}selected{% endif %}>Best of {{ n }}</option>
-                  {% endfor %}
-                </select>
-              </div>
-              <div class="col-4">
-                <label class="form-label">P1 Score</label>
+              <div class="col-6">
+                <label class="form-label" id="score-a-label">Player 1 Score</label>
                 <select name="player1_score" class="form-select" id="score-a" required>
                   <option value="">-</option>
                 </select>
               </div>
-              <div class="col-4">
-                <label class="form-label">P2 Score</label>
+              <div class="col-6">
+                <label class="form-label" id="score-b-label">Player 2 Score</label>
                 <select name="player2_score" class="form-select" id="score-b" required>
                   <option value="">-</option>
                 </select>
@@ -55,7 +54,7 @@
             </div>
           </div>
 
-  <!-- Row 3: Date -->
+          <!-- Row 3: Date -->
           <div class="mb-3">
             <label class="form-label">Date</label>
             <div class="input-group">
@@ -431,6 +430,12 @@ function updatePlayerLabels() {
   const nameB = document.getElementById('player-b-select').selectedOptions[0]?.text || 'Player 2';
   const labelA = nameA !== 'Select player...' ? nameA : 'Player 1';
   const labelB = nameB !== 'Select player...' ? nameB : 'Player 2';
+  // Update score labels with player names
+  const scoreALabel = document.getElementById('score-a-label');
+  const scoreBLabel = document.getElementById('score-b-label');
+  if (scoreALabel) scoreALabel.textContent = labelA + ' Score';
+  if (scoreBLabel) scoreBLabel.textContent = labelB + ' Score';
+  // Update statistics section labels
   ['p1-name-180','p1-name-hf','p1-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = labelA; });
   ['p2-name-180','p2-name-hf','p2-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = labelB; });
 }

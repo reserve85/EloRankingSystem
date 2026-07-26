@@ -893,6 +893,83 @@ class TestMatchHistory:
         assert 'onclick="loadMatches()">Filter</button>' not in resp.text
 
 
+class TestMatchCreateLayout:
+    """Tests for Task 26: Match Create Layout and Auto-Labeling."""
+
+    def test_format_dropdown_in_header(self, client, db_session):
+        """Format dropdown should be in the card header, not in the form body."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert 'card-header d-flex justify-content-between' in resp.text
+        assert 'id="best-of-select"' in resp.text
+
+    def test_format_dropdown_is_select_sm(self, client, db_session):
+        """Format dropdown in header should use form-select-sm for compact display."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert 'form-select form-select-sm' in resp.text
+        assert 'id="best-of-select"' in resp.text
+
+    def test_score_labels_have_dynamic_ids(self, client, db_session):
+        """Score labels should have IDs for dynamic player name updates."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert 'id="score-a-label"' in resp.text
+        assert 'id="score-b-label"' in resp.text
+
+    def test_score_labels_default_text(self, client, db_session):
+        """Score labels should have default text Player 1 Score / Player 2 Score."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert 'Player 1 Score' in resp.text
+        assert 'Player 2 Score' in resp.text
+
+    def test_auto_labeling_updates_score_labels(self, client, db_session):
+        """updatePlayerLabels should update score labels with player names."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "score-a-label" in resp.text
+        assert "score-b-label" in resp.text
+        assert "Score'" in resp.text
+
+    def test_auto_labeling_updates_statistics_labels(self, client, db_session):
+        """updatePlayerLabels should still update statistics section labels."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "p1-name-180" in resp.text
+        assert "p2-name-180" in resp.text
+        assert "p1-name-hf" in resp.text
+        assert "p2-name-hf" in resp.text
+
+    def test_player_and_score_fields_vertically_aligned(self, client, db_session):
+        """Player selects and score selects should use same col-6 layout."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert 'id="player-a-select"' in resp.text
+        assert 'id="score-a"' in resp.text
+
+    def test_format_dropdown_contains_options(self, client, db_session):
+        """Format dropdown should contain Best of N options."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "Best of" in resp.text
+        assert 'id="best-of-select"' in resp.text
+
+    def test_add_match_form_still_has_date_field(self, client, db_session):
+        """Add Match form should still have date input with Today button."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert 'name="date"' in resp.text
+        assert 'jumpToToday' in resp.text
+
+    def test_statistics_section_preserved(self, client, db_session):
+        """Dart Statistics section should still be present and collapsible."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "Dart Statistics" in resp.text
+        assert "<details" in resp.text
+
+
 class TestMatchHistoryAutoShift:
     """Tests for Task 24: Match History Minimum Start Date Logic."""
 
