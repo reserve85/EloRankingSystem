@@ -786,7 +786,7 @@ class TestDarkMode:
         """Base template should have data-theme attribute on html element."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        assert 'data-theme="light"' in resp.text
+        assert 'data-bs-theme="light"' in resp.text
 
     def test_theme_toggle_button_exists(self, client, db_session):
         """Dashboard should have theme toggle button with moon/sun icons."""
