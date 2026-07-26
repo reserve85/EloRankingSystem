@@ -505,9 +505,8 @@ function resetStatsForm() {
   document.getElementById('p2-ld-list').innerHTML = '';
 }
 
-document.getElementById('add-match-form').addEventListener('submit', async function(e) {
-  e.preventDefault();
-  const fd = new FormData(this);
+async function submitMatchForm(force) {
+  const fd = new FormData(document.getElementById('add-match-form'));
   const errEl = document.getElementById('match-error');
   const sucEl = document.getElementById('match-success');
   errEl.classList.add('d-none'); sucEl.classList.add('d-none');
@@ -548,10 +547,14 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
   const p2Name = document.getElementById('player-b-select').selectedOptions[0]?.text || 'Player 2';
   const score1 = fd.get('player1_score');
   const score2 = fd.get('player2_score');
-  const msg = `Submit match: ${p1Name} ${score1} - ${score2} ${p2Name}? This will update Elo ratings and rankings.`;
-  const confirmed = await showConfirmDialog(msg, 'Submit Match');
-  if (!confirmed) return;
 
+  if (!force) {
+    const msg = `Submit match: ${p1Name} ${score1} - ${score2} ${p2Name}? This will update Elo ratings and rankings.`;
+    const confirmed = await showConfirmDialog(msg, 'Submit Match');
+    if (!confirmed) return;
+  }
+
+  const url = '/matches/' + (force ? '?force=true' : '');
   const body = {
     date: fd.get('date'),
     player_a_id: parseInt(fd.get('player_a_id')),
@@ -561,23 +564,35 @@ document.getElementById('add-match-form').addEventListener('submit', async funct
     player2_score: parseInt(fd.get('player2_score')),
     ...getStatsFromForm()
   };
-  const resp = await fetch('/matches/', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+  const resp = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
   if (resp.ok) {
     sucEl.textContent = 'Match saved!'; sucEl.classList.remove('d-none');
-    this.reset(); document.querySelector('input[name="date"]').value = todayISO();
+    document.getElementById('add-match-form').reset(); document.querySelector('input[name="date"]').value = todayISO();
     document.getElementById('score-a').value = '';
     document.getElementById('score-b').value = '';
     resetStatsForm();
     await loadRanking();
     await loadMatches();
+  } else if (resp.status === 409) {
+    // Duplicate match detected - ask for force confirmation
+    const dupMsg = 'A match with the same result on the same day already exists. Do you want to save it anyway?';
+    const forceConfirmed = await showConfirmDialog(dupMsg, 'Save Anyway');
+    if (forceConfirmed) {
+      await submitMatchForm(true);
+    }
   } else {
     const data = await resp.json();
-    let msg = data.detail || 'Failed';
+    let errMsg = data.detail || 'Failed';
     if (data.detail && Array.isArray(data.detail)) {
-      msg = data.detail.map(e => e.msg || JSON.stringify(e)).join(', ');
+      errMsg = data.detail.map(e => e.msg || JSON.stringify(e)).join(', ');
     }
-    errEl.textContent = msg; errEl.classList.remove('d-none');
+    errEl.textContent = errMsg; errEl.classList.remove('d-none');
   }
+}
+
+document.getElementById('add-match-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  await submitMatchForm(false);
 });
 
 async function loadRanking() {

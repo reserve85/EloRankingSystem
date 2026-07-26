@@ -34,8 +34,42 @@ class MatchService:
         self.match_repo = MatchRepository(db)
         self.player_repo = PlayerRepository(db)
 
-    def create_match(self, data: MatchCreate, created_by: int | None = None) -> Match:
-        """Create a new match using Best-of-5 scores, then recalculate."""
+    def check_duplicate(
+        self,
+        player_a_id: int,
+        player_b_id: int,
+        winner_id: int,
+        match_date,
+        exclude_match_id: int | None = None,
+    ) -> Match | None:
+        """Check for duplicate match with same players, result, and date.
+
+        Args:
+            player_a_id: ID of player A
+            player_b_id: ID of player B
+            winner_id: ID of the winner
+            match_date: Date of the match
+            exclude_match_id: Optional match ID to exclude (for updates)
+
+        Returns:
+            Duplicate match if found, None otherwise.
+        """
+        return self.match_repo.get_duplicate_match(
+            player_a_id=player_a_id,
+            player_b_id=player_b_id,
+            winner_id=winner_id,
+            match_date=match_date,
+            exclude_match_id=exclude_match_id,
+        )
+
+    def create_match(self, data: MatchCreate, created_by: int | None = None, force: bool = False) -> Match:
+        """Create a new match using Best-of-5 scores, then recalculate.
+
+        Args:
+            data: Match creation data
+            created_by: ID of user creating the match
+            force: If True, skip duplicate check and save anyway.
+        """
         player_a = self.player_repo.get_by_id(data.player_a_id)
         if player_a is None:
             raise HTTPException(status_code=404, detail=f"Player A (id={data.player_a_id}) not found")
@@ -52,6 +86,20 @@ class MatchService:
         winner_label = determine_winner(data.player1_score, data.player2_score, bol)
         winner_id = data.player_a_id if winner_label == 1 else data.player_b_id
         loser_id = data.player_b_id if winner_label == 1 else data.player_a_id
+
+        # Check for duplicate match (same players, result, date)
+        if not force:
+            duplicate = self.check_duplicate(
+                player_a_id=data.player_a_id,
+                player_b_id=data.player_b_id,
+                winner_id=winner_id,
+                match_date=data.date,
+            )
+            if duplicate is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="A match with the same result on the same day already exists. Do you want to save it anyway?"
+                )
 
         # Create match with placeholder Elo and statistics
         match = Match(

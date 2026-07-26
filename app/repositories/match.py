@@ -4,6 +4,7 @@ from datetime import date
 from typing import Optional
 
 from sqlalchemy.orm import Session
+from sqlalchemy import and_
 
 from app.models.match import Match
 
@@ -61,3 +62,38 @@ class MatchRepository:
         """Delete a match."""
         self.db.delete(match)
         self.db.commit()
+
+    def get_duplicate_match(
+        self,
+        player_a_id: int,
+        player_b_id: int,
+        winner_id: int,
+        match_date: date,
+        exclude_match_id: Optional[int] = None,
+    ) -> Optional[Match]:
+        """Find a duplicate match with same players, result, and date.
+
+        Args:
+            player_a_id: ID of player A
+            player_b_id: ID of player B
+            winner_id: ID of the winner
+            match_date: Date of the match
+            exclude_match_id: Optional match ID to exclude from search (for updates)
+
+        Returns:
+            Duplicate match if found, None otherwise.
+        """
+        # Check for same players (either order) and same winner on same date
+        query = self.db.query(Match).filter(
+            Match.date == match_date,
+            Match.winner_id == winner_id,
+            and_(
+                # Same order
+                (Match.player_a_id == player_a_id) & (Match.player_b_id == player_b_id) |
+                # Reversed order
+                (Match.player_a_id == player_b_id) & (Match.player_b_id == player_a_id)
+            )
+        )
+        if exclude_match_id is not None:
+            query = query.filter(Match.id != exclude_match_id)
+        return query.first()

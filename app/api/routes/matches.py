@@ -18,12 +18,17 @@ router = APIRouter(prefix="/matches", tags=["matches"])
 @router.post("/", response_model=MatchResponse, status_code=status.HTTP_201_CREATED)
 def create_match(
     data: MatchCreate,
+    force: bool = False,
     current_user: User = Depends(require_user),
     db: Session = Depends(get_db),
 ):
-    """Create a new match. All authenticated users (USER/ADMIN/SYSTEM)."""
+    """Create a new match. All authenticated users (USER/ADMIN/SYSTEM).
+
+    If force=false (default), returns 409 if a duplicate match exists.
+    If force=true, skips the duplicate check and saves anyway.
+    """
     service = MatchService(db)
-    return service.create_match(data, created_by=current_user.id)
+    return service.create_match(data, created_by=current_user.id, force=force)
 
 
 @router.get("/", response_model=list[MatchResponse])
