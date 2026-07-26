@@ -91,9 +91,10 @@ class TestDashboardPage:
         assert "Add Match" in resp.text
 
     def test_dashboard_requires_auth(self, client, db_session):
-        """Dashboard should redirect/401 when not authenticated."""
-        resp = client.get("/ui/dashboard")
-        assert resp.status_code == 401
+        """Dashboard should redirect to login when not authenticated."""
+        resp = client.get("/ui/dashboard", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/ui/login" in resp.headers.get("location", "")
 
     def test_dashboard_contains_navigation(self, client, db_session):
         """Dashboard should contain navigation links."""
@@ -129,15 +130,17 @@ class TestAdminPage:
         assert resp.status_code == 200
 
     def test_admin_page_blocked_for_user(self, client, db_session):
-        """Admin page should be blocked for USER role (403)."""
+        """Admin page should redirect USER role to dashboard."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
-        resp = client.get("/ui/admin")
-        assert resp.status_code == 403
+        resp = client.get("/ui/admin", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/ui/dashboard" in resp.headers.get("location", "")
 
     def test_admin_page_requires_auth(self, client, db_session):
-        """Admin page should require authentication."""
-        resp = client.get("/ui/admin")
-        assert resp.status_code == 401
+        """Admin page should redirect to login when not authenticated."""
+        resp = client.get("/ui/admin", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/ui/login" in resp.headers.get("location", "")
 
     def test_admin_contains_player_modal(self, client, db_session):
         """Admin page should contain player management modal."""
@@ -767,10 +770,11 @@ class TestAuthRedirect:
         assert resp.status_code == 302
         assert "/ui/dashboard" in resp.headers.get("location", "")
 
-    def test_unauthenticated_dashboard_returns_401(self, client, db_session):
-        """Dashboard should return 401 for unauthenticated requests."""
-        resp = client.get("/ui/dashboard")
-        assert resp.status_code == 401
+    def test_unauthenticated_dashboard_redirects_to_login(self, client, db_session):
+        """Dashboard should redirect to login for unauthenticated requests."""
+        resp = client.get("/ui/dashboard", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/ui/login" in resp.headers.get("location", "")
 
     def test_401_handler_excludes_login_page(self, client, db_session):
         """401 handler should not redirect when already on login page."""
@@ -801,7 +805,7 @@ class TestDarkMode:
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
         assert "applyTheme" in resp.text
-        assert "data-theme" in resp.text
+        assert "data-bs-theme" in resp.text
 
     def test_theme_stored_in_cookie(self, client, db_session):
         """Theme preference should be stored via cookie for server-side reading."""
@@ -813,7 +817,7 @@ class TestDarkMode:
     def test_login_page_has_theme_support(self, client, db_session):
         """Login page should also have theme support."""
         resp = client.get("/ui/login")
-        assert "data-theme" in resp.text
+        assert "data-bs-theme" in resp.text
         assert "theme-toggle-btn" in resp.text
 
     def test_admin_page_has_theme_support(self, client, db_session):

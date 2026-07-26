@@ -1,6 +1,7 @@
 """FastAPI dependencies for authentication and authorization."""
 
 from fastapi import Depends, HTTPException, Request, status
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -139,6 +140,34 @@ def require_role(*roles: UserRole):
         return current_user
 
     return role_checker
+
+
+def get_current_user_or_redirect(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> User:
+    """Dependency for UI pages: redirect to login if not authenticated.
+
+    Unlike get_current_user, this returns a RedirectResponse to /ui/login
+    instead of raising HTTPException 401. Used for browser-facing pages.
+    """
+    token = get_token_from_cookie(request)
+    if token is None:
+        return RedirectResponse(url="/ui/login", status_code=302)
+
+    payload = decode_access_token(token)
+    if payload is None:
+        return RedirectResponse(url="/ui/login", status_code=302)
+
+    user_id = payload.get("sub")
+    if user_id is None:
+        return RedirectResponse(url="/ui/login", status_code=302)
+
+    user = db.query(User).filter(User.id == int(user_id)).first()
+    if user is None or not user.active:
+        return RedirectResponse(url="/ui/login", status_code=302)
+
+    return user
 
 
 # Pre-built role dependencies for convenience
