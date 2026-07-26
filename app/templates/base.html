@@ -721,8 +721,8 @@
       }
     }
 
-    // Read initial theme from cookie
-    var savedTheme = 'light';
+    // Read initial theme from cookie, fallback to system preference
+    var savedTheme = null;
     var cookies = document.cookie.split(';');
     for (var i = 0; i < cookies.length; i++) {
       var c = cookies[i].trim();
@@ -730,6 +730,9 @@
         savedTheme = c.substring(6);
         break;
       }
+    }
+    if (!savedTheme) {
+      savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
     applyTheme(savedTheme);
 
