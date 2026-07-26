@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -109,8 +109,15 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="icon" width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><line x1="4" y1="6" x2="20" y2="6" /><line x1="4" y1="12" x2="20" y2="12" /><line x1="4" y1="18" x2="20" y2="18" /></svg>
           </button>
         </div>
+        <!-- Theme toggle -->
+        <div class="ms-auto me-2">
+          <button id="theme-toggle-btn" class="btn btn-ghost-secondary btn-icon" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">
+            <svg id="theme-icon-moon" xmlns="http://www.w3.org/2000/svg" class="icon" width="20" height="20" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454z" /></svg>
+            <svg id="theme-icon-sun" xmlns="http://www.w3.org/2000/svg" class="icon d-none" width="20" height="20" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-4 0a4 4 0 1 0 8 0a4 4 0 1 0 -8 0" /><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7" /></svg>
+          </button>
+        </div>
         <!-- Profile: desktop dropdown (hidden on mobile) -->
-        <div class="ms-auto d-none d-md-block">
+        <div class="d-none d-md-block">
           <div class="nav-item dropdown">
             <a href="#" class="nav-link d-flex align-items-center text-reset text-decoration-none" data-bs-toggle="dropdown" style="cursor:pointer">
               <span class="nav-link-icon"><svg xmlns="http://www.w3.org/2000/svg" class="icon" width="20" height="20" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round"><path stroke="none" d="M0 0h24v24H0z" fill="none"/><path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" /><path d="M12 10m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" /><path d="M6.168 18.849a4 4 0 0 1 3.832 -2.849h4a4 4 0 0 1 3.834 2.855" /></svg></span>
@@ -281,7 +288,7 @@
   }
   </script>
   <!-- Cookie Consent Banner -->
-  <div id="cookie-consent-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;background:#fff;border-top:1px solid #dee2e6;box-shadow:0 -2px 10px rgba(0,0,0,.1);padding:1rem 0;">
+  <div id="cookie-consent-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:9999;border-top:1px solid var(--tblr-border-color);box-shadow:0 -2px 10px rgba(0,0,0,.1);padding:1rem 0;">
     <div class="container-xl">
       <div class="row align-items-center">
         <div class="col-md-8">
@@ -369,6 +376,48 @@
       profileMenu.addEventListener('show.bs.collapse', function() {
         var bsCollapse = bootstrap.Collapse.getInstance(navbarMenu);
         if (bsCollapse) bsCollapse.hide();
+      });
+    }
+  })();
+  </script>
+  <!-- Theme Toggle Script -->
+  <script>
+  (function() {
+    var html = document.documentElement;
+    var moonIcon = document.getElementById('theme-icon-moon');
+    var sunIcon = document.getElementById('theme-icon-sun');
+
+    function applyTheme(theme) {
+      html.setAttribute('data-theme', theme);
+      if (theme === 'dark') {
+        if (moonIcon) moonIcon.classList.add('d-none');
+        if (sunIcon) sunIcon.classList.remove('d-none');
+        document.cookie = 'theme=dark;path=/;max-age=31536000;SameSite=Lax';
+      } else {
+        if (moonIcon) moonIcon.classList.remove('d-none');
+        if (sunIcon) sunIcon.classList.add('d-none');
+        document.cookie = 'theme=light;path=/;max-age=31536000;SameSite=Lax';
+      }
+    }
+
+    // Read initial theme from cookie
+    var savedTheme = 'light';
+    var cookies = document.cookie.split(';');
+    for (var i = 0; i < cookies.length; i++) {
+      var c = cookies[i].trim();
+      if (c.startsWith('theme=')) {
+        savedTheme = c.substring(6);
+        break;
+      }
+    }
+    applyTheme(savedTheme);
+
+    // Toggle on click
+    var toggleBtn = document.getElementById('theme-toggle-btn');
+    if (toggleBtn) {
+      toggleBtn.addEventListener('click', function() {
+        var current = html.getAttribute('data-theme');
+        applyTheme(current === 'dark' ? 'light' : 'dark');
       });
     }
   })();

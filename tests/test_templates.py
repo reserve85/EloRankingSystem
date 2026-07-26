@@ -745,6 +745,50 @@ class TestLegalPages:
         assert "loadAdminMatchPlayers" not in resp.text
 
 
+class TestDarkMode:
+    """Tests for Task 29: Global Dark Mode / Full GUI Theme."""
+
+    def test_base_template_has_data_theme_attribute(self, client, db_session):
+        """Base template should have data-theme attribute on html element."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert 'data-theme="light"' in resp.text
+
+    def test_theme_toggle_button_exists(self, client, db_session):
+        """Dashboard should have theme toggle button with moon/sun icons."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "theme-toggle-btn" in resp.text
+        assert "theme-icon-moon" in resp.text
+        assert "theme-icon-sun" in resp.text
+
+    def test_theme_toggle_script_exists(self, client, db_session):
+        """Base template should include theme toggle JavaScript."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "applyTheme" in resp.text
+        assert "data-theme" in resp.text
+
+    def test_theme_stored_in_cookie(self, client, db_session):
+        """Theme preference should be stored via cookie for server-side reading."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "document.cookie" in resp.text
+        assert "theme=" in resp.text
+
+    def test_login_page_has_theme_support(self, client, db_session):
+        """Login page should also have theme support."""
+        resp = client.get("/ui/login")
+        assert "data-theme" in resp.text
+        assert "theme-toggle-btn" in resp.text
+
+    def test_admin_page_has_theme_support(self, client, db_session):
+        """Admin page should also have theme support."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "theme-toggle-btn" in resp.text
+
+
 class TestInactivePlayerCheckbox:
     """Tests for Task 30: Include Inactive Players Checkbox."""
 
