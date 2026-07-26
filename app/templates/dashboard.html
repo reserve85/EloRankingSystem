@@ -374,11 +374,14 @@ preventFutureDate(document.getElementById('ranking-to'));
 preventFutureDate(document.getElementById('match-from'));
 preventFutureDate(document.getElementById('match-to'));
 
+// Track whether user has manually changed the match history "from" date
+let matchFromUserSelected = false;
+
 // Auto-sync + auto-refresh date ranges
 document.getElementById('ranking-from').addEventListener('change', function() { syncDateRange(this, document.getElementById('ranking-to')); loadRanking(); });
 document.getElementById('ranking-to').addEventListener('change', function() { syncDateRange(document.getElementById('ranking-from'), this); loadRanking(); });
 document.getElementById('ranking-include-inactive').addEventListener('change', function() { loadRanking(); });
-document.getElementById('match-from').addEventListener('change', function() { syncDateRange(this, document.getElementById('match-to')); loadMatches(); });
+document.getElementById('match-from').addEventListener('change', function() { matchFromUserSelected = true; syncDateRange(this, document.getElementById('match-to')); loadMatches(); });
 document.getElementById('match-to').addEventListener('change', function() { syncDateRange(document.getElementById('match-from'), this); loadMatches(); });
 
 let playerMap = {};
@@ -623,37 +626,90 @@ async function loadRanking() {
 function countArray(val) { return Array.isArray(val) ? val.length : 0; }
 
 async function loadMatches() {
-  const from = document.getElementById('match-from').value;
   const to = document.getElementById('match-to').value;
+  let from = document.getElementById('match-from').value;
+  const maxShiftMonths = 12;
+
+  if (!matchFromUserSelected) {
+    // Default mode: auto-expand date range until >= 50 matches
+    let shiftMonths = 0;
+    while (shiftMonths <= maxShiftMonths) {
+      const effectiveFrom = shiftFirstOfMonth(from, -shiftMonths);
+      const data = await fetchMatchRange(effectiveFrom, to);
+      if (data !== null && data.length >= 50) {
+        document.getElementById('match-from').value = effectiveFrom;
+        renderMatchTable(data);
+        return;
+      }
+      // Early exit: if no matches at all, no point expanding further
+      if (data !== null && data.length === 0) {
+        document.getElementById('match-from').value = effectiveFrom;
+        renderMatchTable(data);
+        return;
+      }
+      if (data !== null && shiftMonths === maxShiftMonths) {
+        document.getElementById('match-from').value = effectiveFrom;
+        renderMatchTable(data);
+        return;
+      }
+      shiftMonths++;
+    }
+  } else {
+    // User-selected mode: no auto-shifting
+    const data = await fetchMatchRange(from, to);
+    if (data !== null) renderMatchTable(data);
+  }
+}
+
+function shiftFirstOfMonth(dateStr, monthsBack) {
+  /** Shift a date string (YYYY-MM-DD) back by monthsBack months, to the 1st of that month. */
+  const parts = dateStr.split('-');
+  let year = parseInt(parts[0]);
+  let month = parseInt(parts[1]) - 1;
+  month += monthsBack;
+  while (month < 0) { month += 12; year--; }
+  const shifted = new Date(year, month, 1);
+  return shifted.toISOString().substring(0, 10);
+}
+
+async function fetchMatchRange(from, to) {
+  /** Fetch matches from API. Returns array or null on error. */
   let url = '/matches/?';
   if (from) url += 'from_date=' + from + '&';
   if (to) url += 'to_date=' + to;
   try {
     const resp = await fetch(url);
-    if (!resp.ok) return;
-    const data = await resp.json();
-    if (Object.keys(playerMap).length === 0) await loadPlayers();
-    matchData = data;
-    if ($.fn.DataTable.isDataTable('#match-table')) { $('#match-table').DataTable().destroy(); }
-    const tbody = document.querySelector('#match-table tbody');
-    tbody.innerHTML = '';
-    data.forEach((m, idx) => {
-      const winnerName = playerMap[m.winner_id] || 'Player ' + m.winner_id;
-      const loserName = playerMap[m.loser_id] || 'Player ' + m.loser_id;
-      const score = (m.player1_score != null && m.player2_score != null) ? m.player1_score + ':' + m.player2_score : '-';
-      const cls = m.elo_change_a > 0 ? 'text-green' : 'text-red';
-      const eloStr = (m.elo_change_a >= 0 ? '+' : '') + m.elo_change_a.toFixed(1);
-      const total180s = (m.player_a_180s || 0) + (m.player_b_180s || 0);
-      const totalHF = countArray(m.player_a_high_finishes) + countArray(m.player_b_high_finishes);
-      const totalLD = countArray(m.player_a_low_darts) + countArray(m.player_b_low_darts);
-      const eloWinner = m.winner_id === m.player_a_id ? m.elo_change_a : m.elo_change_b;
-      const eloLoser = m.winner_id === m.player_a_id ? m.elo_change_b : m.elo_change_a;
-      const winnerScore = m.winner_id === m.player_a_id ? m.player1_score : m.player2_score;
-      const loserScore = m.winner_id === m.player_a_id ? m.player2_score : m.player1_score;
-      tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span> <span class="text-green small">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span></td><td><strong>'+(winnerScore != null ? winnerScore+':'+loserScore : '-')+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span> <span class="text-red small">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
-    });
-    $('#match-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true, lengthChange: false, info: false });
-  } catch (e) { console.error('loadMatches failed:', e); }
+    if (!resp.ok) return null;
+    return await resp.json();
+  } catch (e) {
+    console.error('fetchMatchRange failed:', e);
+    return null;
+  }
+}
+
+function renderMatchTable(data) {
+  /** Render match data into the DataTable. */
+  if (Object.keys(playerMap).length === 0) { loadPlayers().then(() => renderMatchTable(data)); return; }
+  matchData = data;
+  if ($.fn.DataTable.isDataTable('#match-table')) { $('#match-table').DataTable().destroy(); }
+  const tbody = document.querySelector('#match-table tbody');
+  tbody.innerHTML = '';
+  data.forEach((m, idx) => {
+    const winnerName = playerMap[m.winner_id] || 'Player ' + m.winner_id;
+    const loserName = playerMap[m.loser_id] || 'Player ' + m.loser_id;
+    const score = (m.player1_score != null && m.player2_score != null) ? m.player1_score + ':' + m.player2_score : '-';
+    const cls = m.elo_change_a > 0 ? 'text-green' : 'text-red';
+    const eloStr = (m.elo_change_a >= 0 ? '+' : '') + m.elo_change_a.toFixed(1);
+    const total180s = (m.player_a_180s || 0) + (m.player_b_180s || 0);
+    const totalHF = countArray(m.player_a_high_finishes) + countArray(m.player_b_high_finishes);
+    const totalLD = countArray(m.player_a_low_darts) + countArray(m.player_b_low_darts);
+    const eloWinner = m.winner_id === m.player_a_id ? m.elo_change_a : m.elo_change_b;
+    const eloLoser = m.winner_id === m.player_a_id ? m.elo_change_b : m.elo_change_a;
+    const winnerScore = m.winner_id === m.player_a_id ? m.player1_score : m.player2_score;
+    const loserScore = m.winner_id === m.player_a_id ? m.player2_score : m.player1_score;
+    tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span> <span class="text-green small">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span></td><td><strong>'+(winnerScore != null ? winnerScore+':'+loserScore : '-')+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span> <span class="text-red small">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
+  });
+  $('#match-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true, lengthChange: false, info: false });
 }
 
 let matchData = [];

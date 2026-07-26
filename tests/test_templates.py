@@ -893,6 +893,89 @@ class TestMatchHistory:
         assert 'onclick="loadMatches()">Filter</button>' not in resp.text
 
 
+class TestMatchHistoryAutoShift:
+    """Tests for Task 24: Match History Minimum Start Date Logic."""
+
+    def test_match_from_user_selected_tracking_variable(self, client, db_session):
+        """Dashboard should track whether user manually changed the match from date."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "matchFromUserSelected" in resp.text
+
+    def test_match_from_change_event_sets_user_selected(self, client, db_session):
+        """Changing match-from date should set matchFromUserSelected to true."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "matchFromUserSelected = true" in resp.text
+
+    def test_shift_first_of_month_function_exists(self, client, db_session):
+        """Dashboard JS should contain shiftFirstOfMonth helper function."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "function shiftFirstOfMonth" in resp.text
+
+    def test_fetch_match_range_function_exists(self, client, db_session):
+        """Dashboard JS should contain fetchMatchRange helper function."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "function fetchMatchRange" in resp.text
+
+    def test_render_match_table_function_exists(self, client, db_session):
+        """Dashboard JS should contain renderMatchTable helper function."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "function renderMatchTable" in resp.text
+
+    def test_auto_shift_checks_50_match_threshold(self, client, db_session):
+        """Auto-shift logic should check for >= 50 matches."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "data.length >= 50" in resp.text
+
+    def test_auto_shift_only_in_default_mode(self, client, db_session):
+        """Auto-shift should only run when matchFromUserSelected is false."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "!matchFromUserSelected" in resp.text
+
+    def test_user_selected_mode_skips_auto_shift(self, client, db_session):
+        """When user has manually selected a date, no auto-shifting occurs."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "no auto-shifting" in resp.text
+
+    def test_max_shift_months_safety_limit(self, client, db_session):
+        """Auto-shift should have a safety limit to prevent infinite loop."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "maxShiftMonths" in resp.text
+
+    def test_future_dates_prevented_on_match_from(self, client, db_session):
+        """Match history from date should prevent future dates."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "preventFutureDate(document.getElementById('match-from'))" in resp.text
+
+    def test_future_dates_prevented_on_match_to(self, client, db_session):
+        """Match history to date should prevent future dates."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "preventFutureDate(document.getElementById('match-to'))" in resp.text
+
+    def test_match_from_default_is_first_of_month(self, client, db_session):
+        """Match history from date should default to first day of current month."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "match-from').value = firstOfMonth" in resp.text
+
+    def test_load_matches_calls_auto_shift_logic(self, client, db_session):
+        """loadMatches function should contain auto-shift logic."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "effectiveFrom" in resp.text
+        assert "fetchMatchRange" in resp.text
+
+
 class TestPeriodStatistics:
     """Tests for Task 8: Period Statistics."""
 
