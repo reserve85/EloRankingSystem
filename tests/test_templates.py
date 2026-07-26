@@ -745,6 +745,48 @@ class TestLegalPages:
         assert "loadAdminMatchPlayers" not in resp.text
 
 
+class TestInactivePlayerCheckbox:
+    """Tests for Task 30: Include Inactive Players Checkbox."""
+
+    def test_ranking_checkbox_checked_by_default(self, client, db_session):
+        """Ranking include inactive checkbox should be checked by default."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert 'id="ranking-include-inactive"' in resp.text
+        assert 'checked' in resp.text
+
+    def test_ranking_checkbox_label_exists(self, client, db_session):
+        """Ranking include inactive checkbox should have correct label."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "Include inactive players in this interval" in resp.text
+
+    def test_ranking_checkbox_triggers_load_ranking(self, client, db_session):
+        """Ranking checkbox change should trigger loadRanking via AJAX."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "ranking-include-inactive').addEventListener('change'" in resp.text
+        assert "loadRanking()" in resp.text
+
+    def test_ath_checkbox_checked_by_default(self, client, db_session):
+        """ATH chart include inactive checkbox should be checked by default."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert 'id="ath-include-inactive"' in resp.text
+
+    def test_ath_checkbox_triggers_load_chart(self, client, db_session):
+        """ATH checkbox change should trigger loadAllTimeEloChart via AJAX."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "ath-include-inactive').addEventListener('change'" in resp.text
+
+    def test_ranking_sends_include_inactive_param(self, client, db_session):
+        """loadRanking should send include_inactive param to API."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "include_inactive=true" in resp.text
+
+
 class TestAdminMobileLayout:
     """Tests for Task 28: Admin Panel / Mobile View Improvements."""
 
