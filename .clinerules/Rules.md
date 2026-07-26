@@ -17,6 +17,7 @@
 - The local LINT result must show the same errors as the GitHub Action.
 - For every modification, Task, bugfix, or new feature, add or update unit tests.
 - commit every feature after implemented.
+- write for every Bugfix various test cases.
 
 ## Architecture Rules
 - Do not put business logic directly into route handlers.
