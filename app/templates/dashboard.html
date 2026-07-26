@@ -567,7 +567,7 @@ async function submitMatchForm(force) {
     date: fd.get('date'),
     player_a_id: parseInt(fd.get('player_a_id')),
     player_b_id: parseInt(fd.get('player_b_id')),
-    best_of_legs: parseInt(fd.get('best_of_legs')) || 0,
+    best_of_legs: parseInt(document.getElementById('best-of-select').value) || 0,
     player1_score: parseInt(fd.get('player1_score')),
     player2_score: parseInt(fd.get('player2_score')),
     ...getStatsFromForm()
