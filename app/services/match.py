@@ -65,12 +65,13 @@ class MatchService:
             exclude_match_id=exclude_match_id,
         )
 
-    def create_match(self, data: MatchCreate, created_by: int | None = None, force: bool = False) -> Match:
+    def create_match(self, data: MatchCreate, created_by: int | None = None, username: str | None = None, force: bool = False) -> Match:
         """Create a new match using Best-of-5 scores, then recalculate.
 
         Args:
             data: Match creation data
             created_by: ID of user creating the match
+            username: Username of user creating the match
             force: If True, skip duplicate check and save anyway.
         """
         player_a = self.player_repo.get_by_id(data.player_a_id)
@@ -128,11 +129,11 @@ class MatchService:
         )
         match = self.match_repo.create(match)
 
-        self._recalculate_elo_timeline({data.player_a_id, data.player_b_id})
+        self._recalculate_elo_timeline({data.player_a_id, data.player_b_id}, created_by, username)
         self.db.refresh(match)
 
         audit = AuditLog(
-            user_id=created_by, action="MATCH_CREATED", entity_type="match",
+            user_id=created_by, username=username, action="MATCH_CREATED", entity_type="match",
             entity_id=match.id, old_value=None,
             new_value=f'{{"player_a": {data.player_a_id}, "player_b": {data.player_b_id}, "score": "{data.player1_score}:{data.player2_score}", "winner": {winner_id}, "date": "{data.date}", "statistics": {{"180s_a": {data.player_a_180s}, "180s_b": {data.player_b_180s}, "high_finishes_a": {data.player_a_high_finishes}, "high_finishes_b": {data.player_b_high_finishes}, "low_darts_a": {data.player_a_low_darts}, "low_darts_b": {data.player_b_low_darts}}}}}',
         )
@@ -140,7 +141,7 @@ class MatchService:
         self.db.commit()
         return match
 
-    def update_match(self, match_id: int, data: MatchUpdate, updated_by: int | None = None) -> Match:
+    def update_match(self, match_id: int, data: MatchUpdate, updated_by: int | None = None, username: str | None = None) -> Match:
         """Update a match and recalculate the affected Elo timeline."""
         match = self.get_match(match_id)
         old_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}}}}}'
@@ -174,11 +175,11 @@ class MatchService:
             match.player_b_low_darts = data.player_b_low_darts
 
         self.db.commit()
-        self._recalculate_elo_timeline(affected_players)
+        self._recalculate_elo_timeline(affected_players, updated_by, username)
         self.db.refresh(match)
 
         new_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}}}}}'
-        audit = AuditLog(user_id=updated_by, action="MATCH_UPDATED", entity_type="match", entity_id=match.id, old_value=old_value, new_value=new_value)
+        audit = AuditLog(user_id=updated_by, username=username, action="MATCH_UPDATED", entity_type="match", entity_id=match.id, old_value=old_value, new_value=new_value)
         self.db.add(audit)
         self.db.commit()
         return match
@@ -198,13 +199,13 @@ class MatchService:
         """Get all matches for a specific player."""
         return self.match_repo.get_by_player(player_id)
 
-    def delete_match(self, match_id: int, deleted_by: int | None = None) -> None:
+    def delete_match(self, match_id: int, deleted_by: int | None = None, username: str | None = None) -> None:
         """Delete a match and recalculate the affected Elo timeline."""
         match = self.get_match(match_id)
         affected_players = {match.player_a_id, match.player_b_id}
 
         audit = AuditLog(
-            user_id=deleted_by, action="MATCH_DELETED", entity_type="match",
+            user_id=deleted_by, username=username, action="MATCH_DELETED", entity_type="match",
             entity_id=match.id,
             old_value=f'{{"player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "score": "{match.player1_score}:{match.player2_score}", "winner": {match.winner_id}, "date": "{match.date}"}}',
             new_value=None,
@@ -212,9 +213,9 @@ class MatchService:
         self.db.add(audit)
         self.db.commit()
         self.match_repo.delete(match)
-        self._recalculate_elo_timeline(affected_players)
+        self._recalculate_elo_timeline(affected_players, deleted_by, username)
 
-    def _recalculate_elo_timeline(self, affected_player_ids: set[int]) -> None:
+    def _recalculate_elo_timeline(self, affected_player_ids: set[int], user_id: int | None = None, username: str | None = None) -> None:
         """Recalculate the Elo timeline for all affected players."""
         if not affected_player_ids:
             return
@@ -289,6 +290,7 @@ class MatchService:
         self.db.commit()
 
         audit = AuditLog(
+            user_id=user_id, username=username,
             action="RANKING_RECALCULATED", entity_type="ranking", entity_id=None,
             old_value=None,
             new_value=f'{{"affected_players": {list(affected_player_ids)}, "matches_recalculated": {len(matches_to_recalc)}}}',

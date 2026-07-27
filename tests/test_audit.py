@@ -177,6 +177,26 @@ class TestMatchAudit:
         logs = _get_audit_logs(db_session, "MATCH_CREATED")
         assert len(logs) >= 1
 
+    def test_match_create_logged_with_username(self, client, db_session):
+        """Match creation audit entry should include user_id and username."""
+        user = _login_as(client, db_session, "matchcreator", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice")
+        pb = _create_player(db_session, "Bob")
+
+        client.post("/matches/", json={
+            "date": "2025-06-01",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+        })
+
+        logs = _get_audit_logs(db_session, "MATCH_CREATED")
+        assert len(logs) >= 1
+        log = logs[-1]
+        assert log.user_id == user.id
+        assert log.username == "matchcreator"
+
     def test_match_delete_logged(self, client, db_session):
         """Match deletion should be logged."""
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
@@ -233,6 +253,71 @@ class TestMatchAudit:
 
         logs = _get_audit_logs(db_session, "RANKING_RECALCULATED")
         assert len(logs) >= 1
+
+    def test_ranking_recalculated_logged_with_username(self, client, db_session):
+        """Ranking recalculation audit entry should include user_id and username."""
+        user = _login_as(client, db_session, "recalcuser", "pass", UserRole.USER)
+        pa = _create_player(db_session, "Alice")
+        pb = _create_player(db_session, "Bob")
+
+        client.post("/matches/", json={
+            "date": "2025-06-01",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+        })
+
+        logs = _get_audit_logs(db_session, "RANKING_RECALCULATED")
+        assert len(logs) >= 1
+        log = logs[-1]
+        assert log.user_id == user.id
+        assert log.username == "recalcuser"
+
+    def test_match_delete_logged_with_username(self, client, db_session):
+        """Match deletion audit entry should include user_id and username."""
+        user = _login_as(client, db_session, "deleter", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice")
+        pb = _create_player(db_session, "Bob")
+
+        resp = client.post("/matches/", json={
+            "date": "2025-06-01",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+        })
+        match_id = resp.json()["id"]
+        client.delete(f"/matches/{match_id}")
+
+        logs = _get_audit_logs(db_session, "MATCH_DELETED")
+        assert len(logs) >= 1
+        log = logs[-1]
+        assert log.user_id == user.id
+        assert log.username == "deleter"
+
+    def test_match_update_logged_with_username(self, client, db_session):
+        """Match update audit entry should include user_id and username."""
+        user = _login_as(client, db_session, "updater", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice")
+        pb = _create_player(db_session, "Bob")
+
+        resp = client.post("/matches/", json={
+            "date": "2025-06-01",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+        })
+        match_id = resp.json()["id"]
+
+        client.put(f"/matches/{match_id}", json={"player1_score": 0, "player2_score": 3})
+
+        logs = _get_audit_logs(db_session, "MATCH_UPDATED")
+        assert len(logs) >= 1
+        log = logs[-1]
+        assert log.user_id == user.id
+        assert log.username == "updater"
 
 
 def _create_user_db(db_session, username="user", password="pass", role=UserRole.USER, active=True):
