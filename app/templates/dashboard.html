@@ -40,13 +40,13 @@
           <div class="mb-3">
             <div class="row g-2">
               <div class="col-6">
-                <label class="form-label" id="score-a-label">Player 1 Score</label>
+                <label class="form-label d-block text-truncate" id="score-a-label">Player 1 Score</label>
                 <select name="player1_score" class="form-select" id="score-a" required>
                   <option value="">-</option>
                 </select>
               </div>
               <div class="col-6">
-                <label class="form-label" id="score-b-label">Player 2 Score</label>
+                <label class="form-label d-block text-truncate" id="score-b-label">Player 2 Score</label>
                 <select name="player2_score" class="form-select" id="score-b" required>
                   <option value="">-</option>
                 </select>
@@ -75,7 +75,7 @@
               <label class="form-label fw-bold small mb-2">180s</label>
               <div class="row g-2">
                 <div class="col-6">
-                  <div class="text-muted small mb-1" id="p1-name-180">Player 1</div>
+                  <div class="text-muted small mb-1 text-truncate" id="p1-name-180" title="Player 1">Player 1</div>
                   <div class="input-group input-group-sm">
                     <button type="button" class="btn btn-outline-secondary" onclick="adjustCounter('p1-180s',-1)">−</button>
                     <input type="number" class="form-control text-center" id="p1-180s" value="0" min="0" style="max-width:60px">
@@ -83,7 +83,7 @@
                   </div>
                 </div>
                 <div class="col-6">
-                  <div class="text-muted small mb-1" id="p2-name-180">Player 2</div>
+                  <div class="text-muted small mb-1 text-truncate" id="p2-name-180" title="Player 2">Player 2</div>
                   <div class="input-group input-group-sm">
                     <button type="button" class="btn btn-outline-secondary" onclick="adjustCounter('p2-180s',-1)">−</button>
                     <input type="number" class="form-control text-center" id="p2-180s" value="0" min="0" style="max-width:60px">
@@ -98,12 +98,12 @@
               <label class="form-label fw-bold small mb-2">High Finishes <span class="text-muted fw-normal">({{ hf_min }}–{{ hf_max }})</span></label>
               <div class="row g-2">
                 <div class="col-6">
-                  <div class="text-muted small mb-1" id="p1-name-hf">Player 1</div>
+                  <div class="text-muted small mb-1 text-truncate" id="p1-name-hf" title="Player 1">Player 1</div>
                   <div id="p1-hf-list"></div>
                   <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addHfEntry('p1')">+ Add</button>
                 </div>
                 <div class="col-6">
-                  <div class="text-muted small mb-1" id="p2-name-hf">Player 2</div>
+                  <div class="text-muted small mb-1 text-truncate" id="p2-name-hf" title="Player 2">Player 2</div>
                   <div id="p2-hf-list"></div>
                   <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addHfEntry('p2')">+ Add</button>
                 </div>
@@ -115,12 +115,12 @@
               <label class="form-label fw-bold small mb-2">Low Darts <span class="text-muted fw-normal">({{ ld_min }}–{{ ld_max }})</span></label>
               <div class="row g-2">
                 <div class="col-6">
-                  <div class="text-muted small mb-1" id="p1-name-ld">Player 1</div>
+                  <div class="text-muted small mb-1 text-truncate" id="p1-name-ld" title="Player 1">Player 1</div>
                   <div id="p1-ld-list"></div>
                   <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addLdEntry('p1')">+ Add</button>
                 </div>
                 <div class="col-6">
-                  <div class="text-muted small mb-1" id="p2-name-ld">Player 2</div>
+                  <div class="text-muted small mb-1 text-truncate" id="p2-name-ld" title="Player 2">Player 2</div>
                   <div id="p2-ld-list"></div>
                   <button type="button" class="btn btn-outline-primary btn-sm mt-1" onclick="addLdEntry('p2')">+ Add</button>
                 </div>
@@ -450,11 +450,11 @@ function updatePlayerLabels() {
   // Update score labels with player names
   const scoreALabel = document.getElementById('score-a-label');
   const scoreBLabel = document.getElementById('score-b-label');
-  if (scoreALabel) scoreALabel.textContent = labelA + ' Score';
-  if (scoreBLabel) scoreBLabel.textContent = labelB + ' Score';
-  // Update statistics section labels
-  ['p1-name-180','p1-name-hf','p1-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = labelA; });
-  ['p2-name-180','p2-name-hf','p2-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) el.textContent = labelB; });
+  if (scoreALabel) { scoreALabel.textContent = labelA + ' Score'; scoreALabel.title = labelA + ' Score'; }
+  if (scoreBLabel) { scoreBLabel.textContent = labelB + ' Score'; scoreBLabel.title = labelB + ' Score'; }
+  // Update statistics section labels (text + title for truncation tooltip)
+  ['p1-name-180','p1-name-hf','p1-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) { el.textContent = labelA; el.title = labelA; } });
+  ['p2-name-180','p2-name-hf','p2-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) { el.textContent = labelB; el.title = labelB; } });
 }
 
 document.getElementById('player-a-select').addEventListener('change', updatePlayerLabels);
