@@ -92,36 +92,55 @@ def generate_ranking_pdf(
     if logo_path:
         import os
         if os.path.exists(logo_path):
-            try:
-                from reportlab.platypus import Image as RLImage
-                from PIL import Image as PILImage
+            ext = os.path.splitext(logo_path)[1].lower()
+            if ext == ".svg":
+                # SVG: convert to ReportLab drawing via svglib
+                try:
+                    from svglib.svglib import svg2rlg
 
-                # Get original dimensions
-                with PILImage.open(logo_path) as pil_img:
-                    orig_w, orig_h = pil_img.size
-
-                max_size = 50 * mm  # ~500px at 254 DPI, good max for PDF
-                if orig_w > 0 and orig_h > 0:
-                    ratio = min(max_size / orig_w, max_size / orig_h)
-                    img_w = orig_w * ratio
-                    img_h = orig_h * ratio
-                else:
-                    img_w = img_h = 30 * mm
-
-                img = RLImage(logo_path, width=img_w, height=img_h)
-                elements.append(img)
-                elements.append(Spacer(1, 4 * mm))
-            except ImportError:
-                # Fallback if Pillow not available
+                    drawing = svg2rlg(logo_path)
+                    if drawing:
+                        max_size = 50 * mm
+                        orig_w = drawing.width or 100
+                        orig_h = drawing.height or 100
+                        ratio = min(max_size / orig_w, max_size / orig_h)
+                        drawing.width = orig_w * ratio
+                        drawing.height = orig_h * ratio
+                        drawing.scale(ratio, ratio)
+                        elements.append(drawing)
+                        elements.append(Spacer(1, 4 * mm))
+                except Exception:
+                    pass  # Skip if SVG conversion fails
+            else:
+                # Raster image (PNG, JPG, JPEG)
                 try:
                     from reportlab.platypus import Image as RLImage
-                    img = RLImage(logo_path, width=30 * mm, height=30 * mm)
+                    from PIL import Image as PILImage
+
+                    with PILImage.open(logo_path) as pil_img:
+                        orig_w, orig_h = pil_img.size
+
+                    max_size = 50 * mm
+                    if orig_w > 0 and orig_h > 0:
+                        ratio = min(max_size / orig_w, max_size / orig_h)
+                        img_w = orig_w * ratio
+                        img_h = orig_h * ratio
+                    else:
+                        img_w = img_h = 30 * mm
+
+                    img = RLImage(logo_path, width=img_w, height=img_h)
                     elements.append(img)
                     elements.append(Spacer(1, 4 * mm))
+                except ImportError:
+                    try:
+                        from reportlab.platypus import Image as RLImage
+                        img = RLImage(logo_path, width=30 * mm, height=30 * mm)
+                        elements.append(img)
+                        elements.append(Spacer(1, 4 * mm))
+                    except Exception:
+                        pass
                 except Exception:
                     pass
-            except Exception:
-                pass  # Skip logo if file is invalid
 
     # Title
     elements.append(Paragraph(club_name, title_style))
