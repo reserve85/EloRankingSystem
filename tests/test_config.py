@@ -159,14 +159,12 @@ class TestYamlToEnvDefaults:
                 "data_dir": "/custom/data",
                 "upload_dir": "/custom/uploads",
                 "log_dir": "/custom/logs",
-                "backup_dir": "/custom/backups",
             }
         }
         result = _yaml_to_env_defaults(yaml_config)
         assert result["DATA_DIR"] == "/custom/data"
         assert result["UPLOAD_DIR"] == "/custom/uploads"
         assert result["LOG_DIR"] == "/custom/logs"
-        assert result["BACKUP_DIR"] == "/custom/backups"
 
     def test_env_vars_not_overwritten(self, monkeypatch):
         """Test that existing env vars are NOT overwritten by YAML."""
@@ -231,7 +229,6 @@ class TestSettings:
         assert "data" in settings.data_dir
         assert "uploads" in settings.upload_dir
         assert "logs" in settings.log_dir
-        assert "backups" in settings.backup_dir
 
     def test_default_database_url(self):
         """Test default database URL contains sqlite."""
@@ -366,7 +363,6 @@ class TestGetSettings:
             assert "/srv/data" in s.data_dir
             assert "/srv/uploads" in s.upload_dir
             assert "/srv/logs" in s.log_dir
-            assert "/srv/backups" in s.backup_dir
         finally:
             for var, val in saved.items():
                 if val is None:
