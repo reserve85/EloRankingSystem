@@ -26,7 +26,7 @@ COPY alembic.ini .
 COPY app/migrations/ app/migrations/
 
 # Create data directories
-RUN mkdir -p /data /uploads /logs /backups
+RUN mkdir -p /data /uploads /logs
 
 # Expose port
 EXPOSE 8000
