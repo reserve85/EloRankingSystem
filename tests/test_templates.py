@@ -1691,9 +1691,9 @@ class TestLoginLogo:
         assert "max-width:500px" in resp.text
 
     def test_login_logo_responsive_width(self, client, db_session):
-        """Login logo should scale responsively on mobile (50vw)."""
+        """Login logo should scale responsively on mobile (100% of column)."""
         resp = client.get("/ui/login")
-        assert "width:50vw" in resp.text
+        assert "width:100%" in resp.text
 
     def test_login_logo_preserves_aspect_ratio(self, client, db_session):
         """Login logo should preserve aspect ratio (height:auto)."""
