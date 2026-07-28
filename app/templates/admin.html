@@ -454,7 +454,9 @@ async function loadUsers() {
     tbody.innerHTML += '<tr><td>'+u.id+'</td><td>'+u.username+'</td><td><span class="badge bg-blue">'+u.role+'</span></td><td>'+status+'</td><td>'
       +(u.role !== 'SYSTEM' ? '<button class="btn btn-sm btn-ghost-blue" onclick="editUser('+u.id+')">Edit</button> '
       +(u.active ? '<button class="btn btn-sm btn-ghost-red" onclick="toggleUser('+u.id+',false)">Disable</button>'
-        : '<button class="btn btn-sm btn-ghost-green" onclick="toggleUser('+u.id+',true)">Enable</button>') : 'Protected')
+        : '<button class="btn btn-sm btn-ghost-green" onclick="toggleUser('+u.id+',true)">Enable</button>')
+        + '<button class="btn btn-sm btn-ghost-red ms-1" onclick="deleteUser('+u.id+',\''+u.username+'\')">Delete</button>'
+        : 'Protected')
       +'</td></tr>';
   });
   $('#users-table').DataTable({ paging: true, pageLength: 25, order: [[0,'asc']], searching: true });
@@ -517,6 +519,19 @@ async function toggleUser(id, active) {
   if (!confirmed) return;
   const resp = await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({active}) });
   if (resp.ok) { loadUsers(); loadResetUsers(); loadQRUsers(); }
+}
+async function deleteUser(id, username) {
+  const confirmed = await showConfirmDialog(`Delete user "${username}"? This action cannot be undone.`, 'Delete User');
+  if (!confirmed) return;
+  const resp = await fetch('/users/' + id, { method: 'DELETE' });
+  if (resp.ok) {
+    loadUsers();
+    loadResetUsers();
+    loadQRUsers();
+  } else {
+    const data = await resp.json();
+    alert(data.detail || 'Failed to delete user');
+  }
 }
 
 // --- Matches ---

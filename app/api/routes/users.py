@@ -54,6 +54,48 @@ def get_user(user_id: int, current_user: User = Depends(require_admin), db: Sess
     return user
 
 
+@router.delete("/{user_id}")
+def delete_user(user_id: int, request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+    """Delete a user account. Requires ADMIN or SYSTEM role.
+
+    - SYSTEM users cannot be deleted.
+    - Users cannot delete themselves.
+    - ADMIN can only delete USER accounts.
+    - SYSTEM can delete both ADMIN and USER accounts.
+    """
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+
+    # Cannot delete SYSTEM users
+    if user.role == UserRole.SYSTEM:
+        raise HTTPException(status_code=400, detail="Cannot delete SYSTEM user")
+
+    # Cannot delete yourself
+    if user.id == current_user.id:
+        raise HTTPException(status_code=400, detail="Cannot delete your own account")
+
+    # ADMIN can only delete USER accounts, SYSTEM can delete both ADMIN and USER
+    if current_user.role == UserRole.ADMIN and user.role == UserRole.ADMIN:
+        raise HTTPException(status_code=403, detail="ADMIN cannot delete other ADMIN accounts. Only SYSTEM can delete ADMIN accounts.")
+
+    old_value = {"username": user.username, "role": user.role.value, "active": user.active}
+
+    # Delete the user
+    db.delete(user)
+    db.commit()
+
+    ip, ua = get_client_info(request)
+    log_event(
+        db, action="USER_DELETED", entity_type="user",
+        entity_id=user_id, user_id=current_user.id, username=current_user.username,
+        old_value=old_value,
+        ip_address=ip, user_agent=ua,
+    )
+
+    return {"message": f"User '{old_value['username']}' deleted successfully"}
+
+
 @router.put("/{user_id}", response_model=UserResponse)
 def update_user(user_id: int, request: Request, data: UserUpdate, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     """Update a user. Requires ADMIN or SYSTEM role."""
