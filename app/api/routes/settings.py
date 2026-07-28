@@ -193,6 +193,18 @@ def generate_qrcode(
     return StreamingResponse(buf, media_type="image/png")
 
 
+def _get_media_type(file_path: str) -> str:
+    """Determine the correct media type from file extension."""
+    ext = os.path.splitext(file_path)[1].lower()
+    mime_map = {
+        ".png": "image/png",
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".svg": "image/svg+xml",
+    }
+    return mime_map.get(ext, "image/png")
+
+
 @router.get("/logo")
 def get_logo(
     mode: str = Query(default="light", pattern="^(light|dark)$"),
@@ -205,10 +217,10 @@ def get_logo(
         raise HTTPException(status_code=404, detail="No logo uploaded")
 
     if mode == "dark" and cs.club_logo_dark_path and os.path.exists(cs.club_logo_dark_path):
-        return FileResponse(cs.club_logo_dark_path, media_type="image/*")
+        return FileResponse(cs.club_logo_dark_path, media_type=_get_media_type(cs.club_logo_dark_path))
 
     if cs.club_logo_path and os.path.exists(cs.club_logo_path):
-        return FileResponse(cs.club_logo_path, media_type="image/*")
+        return FileResponse(cs.club_logo_path, media_type=_get_media_type(cs.club_logo_path))
 
     raise HTTPException(status_code=404, detail="No logo uploaded")
 
