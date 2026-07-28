@@ -49,4 +49,3 @@ storage:
   data_dir: /data
   upload_dir: /uploads
   log_dir: /logs
-  backup_dir: /backups

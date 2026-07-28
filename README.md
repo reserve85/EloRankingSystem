@@ -27,7 +27,6 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 - **Interval-based "Include inactive" checkbox** — checks if players were active in the selected date range
 - **PDF ranking report export** with configurable date range
 - **Audit logging** for all important actions
-- **Backup and restore** with download/restore from file
 - **Responsive web interface** (Bootstrap 5 / Tabler UI) with mobile-friendly layout
 - **Cookie consent banner** (EU compliance)
 - **Impressum and Privacy Policy pages** (GDPR compliant)
@@ -144,7 +143,6 @@ All data is persisted in Docker named volumes:
 | `elo_data` | `/data` | SQLite database |
 | `elo_uploads` | `/uploads` | Club logo uploads |
 | `elo_logs` | `/logs` | Application logs |
-| `elo_backups` | `/backups` | Backup files |
 
 #### Version Display
 
@@ -182,7 +180,7 @@ This application can be deployed via [Portainer](https://www.portainer.io/) Stac
 
 1. **Prepare your host directories** (recommended):
    ```bash
-   mkdir -p /volume1/docker/elo/{data,uploads,logs,backups}
+   mkdir -p /volume1/docker/elo/{data,uploads,logs}
    ```
    Adjust the base path (`/volume1/docker/elo/`) to match your system.
 
@@ -215,7 +213,6 @@ The `portainer_compose.yaml` uses bind mounts with example paths:
 | `/volume1/docker/elo/data` | `/data` | SQLite database |
 | `/volume1/docker/elo/uploads` | `/uploads` | Club logo uploads |
 | `/volume1/docker/elo/logs` | `/logs` | Application logs |
-| `/volume1/docker/elo/backups` | `/backups` | Backup files |
 
 Adjust the host paths to match your NAS or Docker host directory structure.
 
@@ -277,7 +274,6 @@ Copy `.env.example` to `.env` and adjust as needed:
 | `DATA_DIR` | Data storage path | `./data` |
 | `UPLOAD_DIR` | Upload storage path | `./uploads` |
 | `LOG_DIR` | Log storage path | `./logs` |
-| `BACKUP_DIR` | Backup storage path | `./backups` |
 
 ### YAML Configuration (config.yaml)
 
@@ -292,7 +288,7 @@ Copy `config.yaml.example` to `config.yaml` and adjust club-specific settings. T
 | `legal` | `contact_company`, `contact_name`, `contact_street`, `contact_city`, `contact_email` | Impressum & Privacy page data |
 | `system_user` | `username`, `password` | Host administrator credentials |
 | `security` | `jwt_secret`, `jwt_algorithm`, `access_token_lifetime_minutes`, `cookie_secure`, `cookie_httponly`, `cookie_samesite` | Authentication & security |
-| `storage` | `data_dir`, `upload_dir`, `log_dir`, `backup_dir` | File storage paths |
+| `storage` | `data_dir`, `upload_dir`, `log_dir` | File storage paths |
 
 Values in `.env` or environment variables always override values in `config.yaml`.
 
@@ -322,21 +318,8 @@ SYSTEM_USER_PASSWORD=your_strong_password
 | Role | Permissions |
 |------|-------------|
 | **SYSTEM** | Full access. Cannot be deleted or downgraded. |
-| **ADMIN** | Manage players, users, matches, settings, exports, backups. |
+| **ADMIN** | Manage players, users, matches, settings, exports. |
 | **USER** | Create matches, view rankings. No admin access. |
-
-## Backup and Restore
-
-### Create Backup
-
-Navigate to **Admin > Backup** to create a downloadable ZIP containing:
-- SQLite database
-- Uploaded club logo
-- Application data
-
-### Restore Backup
-
-Upload a previously downloaded backup ZIP to restore. A pre-restore backup is automatically created before restoring.
 
 ## Development Setup
 
@@ -396,7 +379,6 @@ tests/
 ├── test_matches.py   # Match management tests
 ├── test_statistics.py # Dart statistics tests
 ├── test_reports.py   # PDF report tests
-├── test_backup.py    # Backup/restore tests
 ├── test_templates.py # UI template tests
 └── ...
 

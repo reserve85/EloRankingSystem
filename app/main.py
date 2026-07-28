@@ -19,7 +19,6 @@ from app.api.routes.users import router as users_router
 from app.api.routes.settings import router as settings_router
 from app.api.routes.reports import router as reports_router
 from app.api.routes.audit import router as audit_router
-from app.api.routes.backup import router as backup_router
 from app.api.routes.password import router as password_router
 from app.api.routes.ui import router as ui_router
 from app.auth.service import provision_system_user
@@ -73,7 +72,6 @@ app.include_router(users_router)
 app.include_router(settings_router)
 app.include_router(reports_router)
 app.include_router(audit_router)
-app.include_router(backup_router)
 app.include_router(password_router)
 
 # Include UI router

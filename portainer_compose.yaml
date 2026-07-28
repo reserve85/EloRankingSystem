@@ -40,7 +40,6 @@ services:
       - /volume1/docker/elo/data:/data
       - /volume1/docker/elo/uploads:/uploads
       - /volume1/docker/elo/logs:/logs
-      - /volume1/docker/elo/backups:/backups
     environment:
       # ── Application Settings ──────────────────────────────────────────
       - APP_NAME=Elo Ranking System                     # Display name of the application | Any string | Default: Elo Ranking System
@@ -82,7 +81,6 @@ services:
       - DATA_DIR=/data                                   # Path to database storage | Any valid path | Default: /data
       - UPLOAD_DIR=/uploads                              # Path to file uploads (club logo) | Any valid path | Default: /uploads
       - LOG_DIR=/logs                                    # Path to application logs | Any valid path | Default: /logs
-      - BACKUP_DIR=/backups                              # Path to backup files | Any valid path | Default: /backups
 
       # ── Statistics Validation ─────────────────────────────────────────
       # Configure valid ranges for dart statistics inputs.
