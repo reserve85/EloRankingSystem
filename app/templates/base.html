@@ -556,11 +556,9 @@
         xhr.send();
       } catch(e) {}
     }
-    // Load initial logo based on current theme
-    var currentTheme = document.documentElement.getAttribute('data-bs-theme') || 'light';
-    loadHeaderLogo(currentTheme);
     // Expose for theme toggle to reload logo
     window._loadHeaderLogo = loadHeaderLogo;
+    // Don't load logo here - wait for theme script to call it after cookie is read
   })();
   </script>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -746,6 +744,11 @@
       savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
     }
     applyTheme(savedTheme);
+
+    // Load header logo now that theme is resolved
+    if (typeof window._loadHeaderLogo === 'function') {
+      window._loadHeaderLogo(savedTheme);
+    }
 
     // Toggle on click
     var toggleBtn = document.getElementById('theme-toggle-btn');

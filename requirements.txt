@@ -8,7 +8,6 @@ pyyaml==6.0.2
 python-dotenv==1.0.1
 python-multipart==0.0.12
 reportlab>=4.4.3
-svglib>=0.20.0
 argon2-cffi==23.1.0
 qrcode[pil]==8.2
 pyjwt==2.9.0

@@ -38,12 +38,12 @@ class SettingsResponse(BaseModel):
 
 def _validate_logo_upload(file: UploadFile, content: bytes) -> None:
     """Validate logo file extension, MIME type, and size."""
-    allowed_extensions = {".png", ".svg", ".jpg", ".jpeg"}
+    allowed_extensions = {".png", ".jpg", ".jpeg"}
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in allowed_extensions:
         raise HTTPException(status_code=400, detail=f"Invalid file type '{ext}'. Allowed: {', '.join(allowed_extensions)}")
 
-    allowed_mimes = {"image/png", "image/svg+xml", "image/jpeg", "image/jpg"}
+    allowed_mimes = {"image/png", "image/jpeg", "image/jpg"}
     if file.content_type not in allowed_mimes:
         raise HTTPException(status_code=400, detail=f"Invalid content type '{file.content_type}'")
 
@@ -200,7 +200,6 @@ def _get_media_type(file_path: str) -> str:
         ".png": "image/png",
         ".jpg": "image/jpeg",
         ".jpeg": "image/jpeg",
-        ".svg": "image/svg+xml",
     }
     return mime_map.get(ext, "image/png")
 
