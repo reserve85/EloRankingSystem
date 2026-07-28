@@ -304,6 +304,13 @@
   <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Close</button></div>
 </div></div></div>
 
+<!-- Dashboard Large Logo -->
+<div class="row mt-4 mb-3">
+  <div class="col-12 d-flex justify-content-center">
+    <img id="dashboard-logo" src="" alt="" style="display:none;object-fit:contain;width:75%;max-width:500px;max-height:500px;" class="rounded">
+  </div>
+</div>
+
 <!-- Duplicate Match Confirmation Modal -->
 <div class="modal fade" id="duplicate-match-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
   <div class="modal-header bg-warning">
@@ -1013,6 +1020,36 @@ document.getElementById('duplicate-confirm-btn').addEventListener('click', async
   if (duplicateMatchModal) duplicateMatchModal.hide();
   await submitMatchForm(true);
 });
+
+// Load dashboard logo (theme-aware)
+(function() {
+  function loadDashboardLogo() {
+    try {
+      var img = document.getElementById('dashboard-logo');
+      if (!img) return;
+      var theme = document.documentElement.getAttribute('data-bs-theme') || 'light';
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/settings/logo?mode=' + theme, true);
+      xhr.responseType = 'blob';
+      xhr.onload = function() {
+        if (xhr.status === 200) {
+          img.src = URL.createObjectURL(xhr.response);
+          img.style.display = 'block';
+        }
+      };
+      xhr.send();
+    } catch(e) {}
+  }
+  loadDashboardLogo();
+  // Re-load on theme change
+  window.addEventListener('themeChanged', loadDashboardLogo);
+  // Also listen for theme toggle directly
+  var origToggle = window._loadHeaderLogo;
+  window._loadHeaderLogo = function(mode) {
+    if (origToggle) origToggle(mode);
+    loadDashboardLogo();
+  };
+})();
 
 loadPlayers().then(() => { loadRanking(); loadMatches(); loadAllTimeEloChart(); });
 
