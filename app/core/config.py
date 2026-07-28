@@ -90,7 +90,6 @@ def _yaml_to_env_defaults(yaml_config: dict) -> dict[str, str]:
         ("storage", "data_dir", "DATA_DIR"),
         ("storage", "upload_dir", "UPLOAD_DIR"),
         ("storage", "log_dir", "LOG_DIR"),
-        ("storage", "backup_dir", "BACKUP_DIR"),
     ]
 
     for section, key, env_var in mappings:
@@ -172,9 +171,6 @@ class Settings(BaseSettings):
         default=str(BASE_DIR / "uploads"), alias="UPLOAD_DIR"
     )
     log_dir: str = Field(default=str(BASE_DIR / "logs"), alias="LOG_DIR")
-    backup_dir: str = Field(
-        default=str(BASE_DIR / "backups"), alias="BACKUP_DIR"
-    )
 
     model_config = ConfigDict(
         env_file=".env",
