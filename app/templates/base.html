@@ -540,11 +540,12 @@
   <script src="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/js/tabler.min.js"></script>
   <script>
   (function(){
-    try {
-      var img = document.getElementById('header-logo');
-      if (img) {
+    function loadHeaderLogo(mode) {
+      try {
+        var img = document.getElementById('header-logo');
+        if (!img) return;
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', '/settings/logo', true);
+        xhr.open('GET', '/settings/logo?mode=' + (mode || 'light'), true);
         xhr.responseType = 'blob';
         xhr.onload = function() {
           if (xhr.status === 200) {
@@ -553,8 +554,13 @@
           }
         };
         xhr.send();
-      }
-    } catch(e) {}
+      } catch(e) {}
+    }
+    // Load initial logo based on current theme
+    var currentTheme = document.documentElement.getAttribute('data-bs-theme') || 'light';
+    loadHeaderLogo(currentTheme);
+    // Expose for theme toggle to reload logo
+    window._loadHeaderLogo = loadHeaderLogo;
   })();
   </script>
   <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -746,7 +752,12 @@
     if (toggleBtn) {
       toggleBtn.addEventListener('click', function() {
         var current = html.getAttribute('data-bs-theme');
-        applyTheme(current === 'dark' ? 'light' : 'dark');
+        var newTheme = current === 'dark' ? 'light' : 'dark';
+        applyTheme(newTheme);
+        // Reload header logo for new theme
+        if (typeof window._loadHeaderLogo === 'function') {
+          window._loadHeaderLogo(newTheme);
+        }
       });
     }
   })();

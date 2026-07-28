@@ -159,19 +159,47 @@
 
   <!-- Club Settings Tab -->
   <div class="tab-pane" id="tab-club">
-    <div class="card">
-      <div class="card-header"><h3 class="card-title">Club Logo</h3></div>
-      <div class="card-body">
-        <p class="text-muted mb-3">Club name, Elo settings, and other configuration are managed via environment variables or config.yaml.</p>
-        <div class="mb-3">
-          <div id="logo-preview" class="mb-2"><img id="logo-img" src="" alt="No logo" style="max-height:80px;display:none;" class="rounded"></div>
-          <form id="logo-form" enctype="multipart/form-data">
-            <input type="file" name="file" accept=".png,.svg,.jpg,.jpeg" class="form-control mb-2" required>
-            <button type="submit" class="btn btn-outline-primary btn-sm">Upload Logo</button>
-          </form>
-          <div id="logo-success" class="alert alert-success mt-2 d-none"></div>
-          <div id="logo-error" class="alert alert-danger mt-2 d-none"></div>
-          <div class="form-hint text-muted">PNG, SVG, JPG. Max 2MB.</div>
+    <div class="row">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Logo — Normal Mode</h3></div>
+          <div class="card-body">
+            <p class="text-muted mb-3">Logo displayed on light backgrounds (header, login page, etc.).</p>
+            <div class="mb-3">
+              <div id="logo-preview-light" class="mb-2" style="background:#fff;padding:12px;border-radius:8px;border:1px solid #dee2e6;display:inline-block;">
+                <img id="logo-img-light" src="" alt="No logo" style="max-height:80px;display:none;" class="rounded">
+                <span id="logo-placeholder-light" class="text-muted small">No logo uploaded</span>
+              </div>
+              <form id="logo-form-light" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".png,.svg,.jpg,.jpeg" class="form-control mb-2" required>
+                <button type="submit" class="btn btn-outline-primary btn-sm">Upload Normal Mode Logo</button>
+              </form>
+              <div id="logo-success-light" class="alert alert-success mt-2 d-none"></div>
+              <div id="logo-error-light" class="alert alert-danger mt-2 d-none"></div>
+              <div class="form-hint text-muted">PNG, SVG, JPG. Max 2MB.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header"><h3 class="card-title">Logo — Dark Mode</h3></div>
+          <div class="card-body">
+            <p class="text-muted mb-3">Logo displayed on dark backgrounds. If not set, the normal mode logo is used as fallback.</p>
+            <div class="mb-3">
+              <div id="logo-preview-dark" class="mb-2" style="background:#1e2233;padding:12px;border-radius:8px;border:1px solid #2c3048;display:inline-block;">
+                <img id="logo-img-dark" src="" alt="No logo" style="max-height:80px;display:none;" class="rounded">
+                <span id="logo-placeholder-dark" class="text-muted small">No dark logo uploaded</span>
+              </div>
+              <form id="logo-form-dark" enctype="multipart/form-data">
+                <input type="file" name="file" accept=".png,.svg,.jpg,.jpeg" class="form-control mb-2" required>
+                <button type="submit" class="btn btn-outline-primary btn-sm">Upload Dark Mode Logo</button>
+              </form>
+              <div id="logo-success-dark" class="alert alert-success mt-2 d-none"></div>
+              <div id="logo-error-dark" class="alert alert-danger mt-2 d-none"></div>
+              <div class="form-hint text-muted">PNG, SVG, JPG. Max 2MB.</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -809,30 +837,61 @@ document.getElementById('reset-password-form').addEventListener('submit', async 
   }
 });
 
-// --- Logo Upload ---
-document.getElementById('logo-form').addEventListener('submit', async function(e) {
+// --- Logo Upload (Light Mode) ---
+document.getElementById('logo-form-light').addEventListener('submit', async function(e) {
   e.preventDefault();
   const fd = new FormData(this);
-  const sucEl = document.getElementById('logo-success');
-  const errEl = document.getElementById('logo-error');
+  const sucEl = document.getElementById('logo-success-light');
+  const errEl = document.getElementById('logo-error-light');
   sucEl.classList.add('d-none'); errEl.classList.add('d-none');
-  const resp = await fetch('/settings/logo', { method: 'POST', body: fd });
+  const resp = await fetch('/settings/logo?mode=light', { method: 'POST', body: fd });
   const data = await resp.json();
   if (resp.ok) {
-    sucEl.textContent = 'Logo uploaded!'; sucEl.classList.remove('d-none');
-    loadLogo();
+    sucEl.textContent = 'Normal mode logo uploaded!'; sucEl.classList.remove('d-none');
+    loadLogos();
   } else {
     errEl.textContent = data.detail || 'Upload failed'; errEl.classList.remove('d-none');
   }
 });
-async function loadLogo() {
+
+// --- Logo Upload (Dark Mode) ---
+document.getElementById('logo-form-dark').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  const fd = new FormData(this);
+  const sucEl = document.getElementById('logo-success-dark');
+  const errEl = document.getElementById('logo-error-dark');
+  sucEl.classList.add('d-none'); errEl.classList.add('d-none');
+  const resp = await fetch('/settings/logo?mode=dark', { method: 'POST', body: fd });
+  const data = await resp.json();
+  if (resp.ok) {
+    sucEl.textContent = 'Dark mode logo uploaded!'; sucEl.classList.remove('d-none');
+    loadLogos();
+  } else {
+    errEl.textContent = data.detail || 'Upload failed'; errEl.classList.remove('d-none');
+  }
+});
+
+async function loadLogos() {
+  // Load light mode logo
   try {
-    const resp = await fetch('/settings/logo');
+    const resp = await fetch('/settings/logo?mode=light');
     if (resp.ok) {
       const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
-      const img = document.getElementById('logo-img');
+      const img = document.getElementById('logo-img-light');
       img.src = url; img.style.display = 'block';
+      document.getElementById('logo-placeholder-light').style.display = 'none';
+    }
+  } catch(e) {}
+  // Load dark mode logo
+  try {
+    const resp = await fetch('/settings/logo?mode=dark');
+    if (resp.ok) {
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const img = document.getElementById('logo-img-dark');
+      img.src = url; img.style.display = 'block';
+      document.getElementById('logo-placeholder-dark').style.display = 'none';
     }
   } catch(e) {}
 }
@@ -972,6 +1031,6 @@ function checkPasswordStrength(pw) { _renderPwChecks(pw, 'pw-strength'); }
 function checkResetPasswordStrength(pw) { _renderPwChecks(pw, 'reset-pw-strength'); }
 
 // Init
-loadPlayers(); loadUsers(); loadMatches(); loadAuditLogs(); loadResetUsers(); loadLogo(); loadQRUsers();
+loadPlayers(); loadUsers(); loadMatches(); loadAuditLogs(); loadResetUsers(); loadLogos(); loadQRUsers();
 </script>
 {% endblock %}

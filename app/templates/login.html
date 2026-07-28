@@ -33,13 +33,15 @@
 {% endblock %}
 {% block extra_js %}
 <script>
-// Load club logo
+// Load club logo (theme-aware)
 (function() {
-  try {
-    var img = document.getElementById('login-logo');
-    if (img) {
+  function loadLoginLogo() {
+    try {
+      var img = document.getElementById('login-logo');
+      if (!img) return;
+      var theme = document.documentElement.getAttribute('data-bs-theme') || 'light';
       var xhr = new XMLHttpRequest();
-      xhr.open('GET', '/settings/logo', true);
+      xhr.open('GET', '/settings/logo?mode=' + theme, true);
       xhr.responseType = 'blob';
       xhr.onload = function() {
         if (xhr.status === 200) {
@@ -48,8 +50,16 @@
         }
       };
       xhr.send();
-    }
-  } catch(e) {}
+    } catch(e) {}
+  }
+  loadLoginLogo();
+  // Re-load on theme change
+  var toggleBtn = document.getElementById('theme-toggle-btn');
+  if (toggleBtn) {
+    toggleBtn.addEventListener('click', function() {
+      setTimeout(loadLoginLogo, 50);
+    });
+  }
 })();
 
 document.getElementById('login-form').addEventListener('submit', async function(e) {

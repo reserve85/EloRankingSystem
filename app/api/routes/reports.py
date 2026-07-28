@@ -50,6 +50,7 @@ def export_ranking_pdf(
     from app.api.routes.ui import _get_club_name
     club_settings = db.query(ClubSettings).first()
     club_name = _get_club_name(db)
+    # Always use light mode logo for PDF export
     logo_path = club_settings.club_logo_path if club_settings else None
 
     pdf_bytes = generate_ranking_pdf(

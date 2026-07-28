@@ -88,16 +88,38 @@ def generate_ranking_pdf(
 
     elements = []
 
-    # Logo (if provided)
+    # Logo (if provided) - always use light mode logo, max 500x500 preserving aspect ratio
     if logo_path:
         import os
         if os.path.exists(logo_path):
             try:
-                from reportlab.platypus import Image
+                from reportlab.platypus import Image as RLImage
+                from PIL import Image as PILImage
 
-                img = Image(logo_path, width=30 * mm, height=30 * mm)
+                # Get original dimensions
+                with PILImage.open(logo_path) as pil_img:
+                    orig_w, orig_h = pil_img.size
+
+                max_size = 50 * mm  # ~500px at 254 DPI, good max for PDF
+                if orig_w > 0 and orig_h > 0:
+                    ratio = min(max_size / orig_w, max_size / orig_h)
+                    img_w = orig_w * ratio
+                    img_h = orig_h * ratio
+                else:
+                    img_w = img_h = 30 * mm
+
+                img = RLImage(logo_path, width=img_w, height=img_h)
                 elements.append(img)
                 elements.append(Spacer(1, 4 * mm))
+            except ImportError:
+                # Fallback if Pillow not available
+                try:
+                    from reportlab.platypus import Image as RLImage
+                    img = RLImage(logo_path, width=30 * mm, height=30 * mm)
+                    elements.append(img)
+                    elements.append(Spacer(1, 4 * mm))
+                except Exception:
+                    pass
             except Exception:
                 pass  # Skip logo if file is invalid
 

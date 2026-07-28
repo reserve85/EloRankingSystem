@@ -21,6 +21,9 @@ class ClubSettings(Base):
     club_logo_path: Mapped[Optional[str]] = mapped_column(
         String(500), nullable=True, default=None
     )
+    club_logo_dark_path: Mapped[Optional[str]] = mapped_column(
+        String(500), nullable=True, default=None
+    )
     default_elo: Mapped[int] = mapped_column(Integer, nullable=False, default=1200)
     k_factor: Mapped[float] = mapped_column(Float, nullable=False, default=32.0)
     inactivity_months: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
