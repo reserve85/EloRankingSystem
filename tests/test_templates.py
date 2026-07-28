@@ -1546,3 +1546,273 @@ class TestHighFinishLowDartRangeValidation:
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
         assert "inp.focus()" in resp.text
+
+
+class TestDualLogoManagement:
+    """Tests for Task 33: Logo Management / Normal Mode & Dark Mode."""
+
+    def test_admin_has_normal_mode_logo_section(self, client, db_session):
+        """Admin page should have Normal Mode logo upload section."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "Logo — Normal Mode" in resp.text
+        assert "logo-form-light" in resp.text
+        assert "logo-img-light" in resp.text
+
+    def test_admin_has_dark_mode_logo_section(self, client, db_session):
+        """Admin page should have Dark Mode logo upload section."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "Logo — Dark Mode" in resp.text
+        assert "logo-form-dark" in resp.text
+        assert "logo-img-dark" in resp.text
+
+    def test_light_logo_preview_on_white_background(self, client, db_session):
+        """Light mode logo preview should be on white background."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "background:#fff" in resp.text
+
+    def test_dark_logo_preview_on_dark_background(self, client, db_session):
+        """Dark mode logo preview should be on dark background."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "background:#1e2233" in resp.text
+
+    def test_admin_logo_uploads_use_mode_param(self, client, db_session):
+        """Admin logo upload JS should use mode=light and mode=dark query params."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "/settings/logo?mode=light" in resp.text
+        assert "/settings/logo?mode=dark" in resp.text
+
+    def test_header_logo_loads_based_on_theme(self, client, db_session):
+        """Header logo JS should load logo based on current theme."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "loadHeaderLogo" in resp.text
+        assert "/settings/logo?mode=" in resp.text
+
+    def test_header_logo_reloads_on_theme_toggle(self, client, db_session):
+        """Header logo should reload when theme is toggled."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "_loadHeaderLogo" in resp.text
+        assert "newTheme" in resp.text
+
+    def test_logo_endpoint_supports_mode_parameter(self, client, db_session):
+        """Logo endpoint should accept mode=light and mode=dark query params."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/settings/logo?mode=light")
+        assert resp.status_code in (200, 404)  # 404 if no logo uploaded
+        resp = client.get("/settings/logo?mode=dark")
+        assert resp.status_code in (200, 404)
+
+    def test_settings_response_includes_dark_logo_path(self, client, db_session):
+        """Settings response should include club_logo_dark_path field."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/settings/")
+        assert resp.status_code == 200
+        assert "club_logo_dark_path" in resp.text
+
+
+class TestBackupRemoval:
+    """Tests for Task 34: Remove Database Backup Function."""
+
+    def test_backup_create_endpoint_removed(self, client, db_session):
+        """Backup create endpoint should no longer exist."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.post("/backup/create")
+        assert resp.status_code == 404
+
+    def test_backup_list_endpoint_removed(self, client, db_session):
+        """Backup list endpoint should no longer exist."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/backup/list")
+        assert resp.status_code == 404
+
+    def test_backup_restore_endpoint_removed(self, client, db_session):
+        """Backup restore endpoint should no longer exist."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.post("/backup/restore")
+        assert resp.status_code == 404
+
+    def test_backup_download_endpoint_removed(self, client, db_session):
+        """Backup download endpoint should no longer exist."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/backup/download/test.zip")
+        assert resp.status_code == 404
+
+    def test_admin_page_no_backup_references(self, client, db_session):
+        """Admin page should not reference backup functionality."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "backup" not in resp.text.lower()
+
+
+class TestDashboardLogo:
+    """Tests for Task 35: Dashboard / Large Logo at Bottom."""
+
+    def test_dashboard_has_logo_element(self, client, db_session):
+        """Dashboard should have a large logo element at the bottom."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "dashboard-logo" in resp.text
+
+    def test_dashboard_logo_centered(self, client, db_session):
+        """Dashboard logo should be centered."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "justify-content-center" in resp.text
+
+    def test_dashboard_logo_responsive_sizing(self, client, db_session):
+        """Dashboard logo should have responsive sizing (75% width, max 500px)."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "width:75%" in resp.text
+        assert "max-width:500px" in resp.text
+        assert "max-height:500px" in resp.text
+
+    def test_dashboard_logo_theme_aware(self, client, db_session):
+        """Dashboard logo JS should load logo based on theme."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "loadDashboardLogo" in resp.text
+        assert "/settings/logo?mode=" in resp.text
+
+
+class TestLoginLogo:
+    """Tests for Task 36: Login Page / Large Logo."""
+
+    def test_login_logo_large_sizing(self, client, db_session):
+        """Login page logo should be large (max 500x500)."""
+        resp = client.get("/ui/login")
+        assert "max-height:500px" in resp.text
+        assert "max-width:500px" in resp.text
+
+    def test_login_logo_responsive_width(self, client, db_session):
+        """Login logo should scale responsively on mobile (50vw)."""
+        resp = client.get("/ui/login")
+        assert "width:50vw" in resp.text
+
+    def test_login_logo_preserves_aspect_ratio(self, client, db_session):
+        """Login logo should preserve aspect ratio (height:auto)."""
+        resp = client.get("/ui/login")
+        assert "height:auto" in resp.text
+
+    def test_login_logo_theme_aware(self, client, db_session):
+        """Login page logo should load based on current theme."""
+        resp = client.get("/ui/login")
+        assert "data-bs-theme" in resp.text
+        assert "mode=" in resp.text
+
+    def test_login_logo_reloads_on_theme_toggle(self, client, db_session):
+        """Login logo should reload when theme is toggled."""
+        resp = client.get("/ui/login")
+        assert "theme-toggle-btn" in resp.text
+        assert "loadLoginLogo" in resp.text
+
+
+class TestUserDeletion:
+    """Tests for Task 37: User Management / Delete Accounts."""
+
+    def test_admin_users_table_has_delete_button(self, client, db_session):
+        """Admin users table should have delete buttons for non-SYSTEM users."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "deleteUser" in resp.text
+
+    def test_delete_user_function_exists(self, client, db_session):
+        """Admin page should have deleteUser JavaScript function."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "async function deleteUser" in resp.text
+
+    def test_delete_user_uses_confirmation_dialog(self, client, db_session):
+        """Delete user should use confirmation dialog."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "showConfirmDialog" in resp.text
+        assert "Delete user" in resp.text
+
+    def test_system_user_cannot_be_deleted_via_api(self, client, db_session):
+        """SYSTEM user should not be deletable via API."""
+        sys_user = _login_as(client, db_session, "sys1", "pass", UserRole.SYSTEM)
+        resp = client.delete(f"/users/{sys_user.id}")
+        assert resp.status_code == 400
+        assert "Cannot delete SYSTEM user" in resp.text
+
+    def test_admin_can_delete_user_account(self, client, db_session):
+        """ADMIN should be able to delete a USER account."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        # Create a user to delete
+        create_resp = client.post("/users/", json={
+            "username": "deleteme", "password": "Pass123!", "role": "USER"
+        })
+        assert create_resp.status_code == 201
+        user_id = create_resp.json()["id"]
+        resp = client.delete(f"/users/{user_id}")
+        assert resp.status_code == 200
+        assert "deleted successfully" in resp.json()["message"]
+
+    def test_system_can_delete_admin_account(self, client, db_session):
+        """SYSTEM should be able to delete an ADMIN account."""
+        _login_as(client, db_session, "sys1", "pass", UserRole.SYSTEM)
+        # Create an admin to delete
+        admin = User(
+            username="del_admin", password_hash=hash_password("Pass123!"),
+            role=UserRole.ADMIN, active=True
+        )
+        db_session.add(admin)
+        db_session.commit()
+        db_session.refresh(admin)
+        resp = client.delete(f"/users/{admin.id}")
+        assert resp.status_code == 200
+
+    def test_admin_cannot_delete_admin_account(self, client, db_session):
+        """ADMIN should not be able to delete another ADMIN account."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        # Create another admin
+        admin2 = User(
+            username="admin2_del", password_hash=hash_password("Pass123!"),
+            role=UserRole.ADMIN, active=True
+        )
+        db_session.add(admin2)
+        db_session.commit()
+        db_session.refresh(admin2)
+        resp = client.delete(f"/users/{admin2.id}")
+        assert resp.status_code == 403
+
+    def test_user_cannot_delete_accounts(self, client, db_session):
+        """USER role should not be able to delete any accounts."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.delete("/users/1")
+        assert resp.status_code == 403
+
+    def test_cannot_delete_self(self, client, db_session):
+        """User should not be able to delete their own account."""
+        user = _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.delete(f"/users/{user.id}")
+        assert resp.status_code == 400
+        assert "Cannot delete your own account" in resp.text
+
+    def test_delete_nonexistent_user_returns_404(self, client, db_session):
+        """Deleting a non-existent user should return 404."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.delete("/users/9999")
+        assert resp.status_code == 404
+
+    def test_user_deletion_creates_audit_log(self, client, db_session):
+        """Deleting a user should create a USER_DELETED audit entry."""
+        from app.models.audit_log import AuditLog
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        create_resp = client.post("/users/", json={
+            "username": "audit_del", "password": "Pass123!", "role": "USER"
+        })
+        user_id = create_resp.json()["id"]
+        client.delete(f"/users/{user_id}")
+        logs = db_session.query(AuditLog).filter(
+            AuditLog.action == "USER_DELETED"
+        ).all()
+        assert len(logs) >= 1
+        assert logs[-1].entity_id == user_id
