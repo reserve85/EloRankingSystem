@@ -3,15 +3,30 @@
 {% block extra_css %}
 <style>
   /* Responsive logo scaling: adapt to viewport height so form is visible without scrolling */
+  #login-logo {
+    max-height: 500px;
+    max-width: 500px;
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+    min-height: 0;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  #login-logo.loaded {
+    opacity: 1;
+  }
+  @media (max-height: 800px) {
+    #login-logo { max-height: 35vh; }
+  }
   @media (max-height: 700px) {
-    #login-logo {
-      max-height: 25vh !important;
-    }
+    #login-logo { max-height: 25vh; }
   }
   @media (max-height: 580px) {
-    #login-logo {
-      max-height: 18vh !important;
-    }
+    #login-logo { max-height: 18vh; }
+  }
+  @media (max-height: 480px) {
+    #login-logo { max-height: 100px; min-height: 100px; }
   }
 </style>
 {% endblock %}
@@ -20,7 +35,7 @@
   <div class="col-md-8 col-lg-6">
     <div class="text-center mb-4">
       <div class="d-flex justify-content-center login-logo-container">
-        <img id="login-logo" src="" alt="" style="max-height:500px;max-width:500px;width:100%;height:auto;object-fit:contain;display:none;min-height:100px;" class="rounded mb-3">
+        <img id="login-logo" src="" alt="" class="rounded mb-3">
       </div>
       {% if club_name %}
         <h1 class="h3 mb-1">{{ club_name }}</h1>
@@ -62,8 +77,10 @@
       xhr.responseType = 'blob';
       xhr.onload = function() {
         if (xhr.status === 200) {
+          img.onload = function() {
+            img.classList.add('loaded');
+          };
           img.src = URL.createObjectURL(xhr.response);
-          img.style.display = 'inline-block';
         }
       };
       xhr.send();
