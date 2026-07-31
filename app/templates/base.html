@@ -1,7 +1,29 @@
 <!DOCTYPE html>
-<html lang="en" data-bs-theme="light">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
+  <!-- Synchronous theme initialization: must run before any render to prevent white flash -->
+  <script>
+  (function() {
+    try {
+      var savedTheme = null;
+      var cookies = document.cookie.split(';');
+      for (var i = 0; i < cookies.length; i++) {
+        var c = cookies[i].trim();
+        if (c.startsWith('theme=')) {
+          savedTheme = c.substring(6);
+          break;
+        }
+      }
+      if (!savedTheme) {
+        savedTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      }
+      document.documentElement.setAttribute('data-bs-theme', savedTheme);
+    } catch(e) {
+      document.documentElement.setAttribute('data-bs-theme', 'light');
+    }
+  })();
+  </script>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Elo Ranking System{% endblock %}</title>
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/core@1.0.0-beta17/dist/css/tabler.min.css">

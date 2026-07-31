@@ -1,11 +1,26 @@
 {% extends "base.html" %}
 {% block title %}Login - {{ app_name }}{% endblock %}
+{% block extra_css %}
+<style>
+  /* Responsive logo scaling: adapt to viewport height so form is visible without scrolling */
+  @media (max-height: 700px) {
+    #login-logo {
+      max-height: 25vh !important;
+    }
+  }
+  @media (max-height: 580px) {
+    #login-logo {
+      max-height: 18vh !important;
+    }
+  }
+</style>
+{% endblock %}
 {% block content %}
 <div class="row d-flex flex-column align-items-center justify-content-center" style="min-height: 80vh;">
   <div class="col-md-8 col-lg-6">
     <div class="text-center mb-4">
-      <div class="d-flex justify-content-center">
-        <img id="login-logo" src="" alt="" style="max-height:500px;max-width:500px;width:100%;height:auto;object-fit:contain;display:none;" class="rounded mb-3">
+      <div class="d-flex justify-content-center login-logo-container">
+        <img id="login-logo" src="" alt="" style="max-height:500px;max-width:500px;width:100%;height:auto;object-fit:contain;display:none;min-height:100px;" class="rounded mb-3">
       </div>
       {% if club_name %}
         <h1 class="h3 mb-1">{{ club_name }}</h1>

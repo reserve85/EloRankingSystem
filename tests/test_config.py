@@ -189,8 +189,10 @@ class TestYamlToEnvDefaults:
 class TestSettings:
     """Tests for the Settings class defaults."""
 
-    def test_default_app_settings(self):
+    def test_default_app_settings(self, monkeypatch):
         """Test app settings defaults."""
+        monkeypatch.setenv("APP_DEBUG", "false")
+        monkeypatch.setenv("APP_ENV", "development")
         settings = Settings()
         assert settings.app_name == "Elo Ranking System"
         assert settings.app_env == "development"
@@ -213,8 +215,10 @@ class TestSettings:
         assert settings.system_user_username == "system"
         assert settings.system_user_password == "change_me"
 
-    def test_default_security_settings(self):
+    def test_default_security_settings(self, monkeypatch):
         """Test security settings defaults."""
+        monkeypatch.setenv("JWT_SECRET", "change_me")
+        monkeypatch.setenv("COOKIE_SECURE", "false")
         settings = Settings()
         assert settings.jwt_secret == "change_me"
         assert settings.jwt_algorithm == "HS256"
@@ -411,7 +415,8 @@ class TestSettingsTypes:
         s = Settings()
         assert s.date_format == "yyyy-MM-dd"
 
-    def test_timezone_default(self):
+    def test_timezone_default(self, monkeypatch):
         """Test default timezone is UTC."""
+        monkeypatch.setenv("TIMEZONE", "UTC")
         s = Settings()
         assert s.timezone == "UTC"

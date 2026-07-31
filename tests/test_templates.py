@@ -787,10 +787,10 @@ class TestDarkMode:
     """Tests for Task 29: Global Dark Mode / Full GUI Theme."""
 
     def test_base_template_has_data_theme_attribute(self, client, db_session):
-        """Base template should have data-theme attribute on html element."""
+        """Base template should have data-bs-theme set via synchronous script."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        assert 'data-bs-theme="light"' in resp.text
+        assert "data-bs-theme" in resp.text
 
     def test_theme_toggle_button_exists(self, client, db_session):
         """Dashboard should have theme toggle button with moon/sun icons."""
@@ -1816,3 +1816,132 @@ class TestUserDeletion:
         ).all()
         assert len(logs) >= 1
         assert logs[-1].entity_id == user_id
+
+
+class TestDarkModeFlashPrevention:
+    """Tests for Task 39: Dark Mode / Remove White Flash During Navigation."""
+
+    def test_base_template_no_hardcoded_light_theme(self, client, db_session):
+        """Base template html tag should not have hardcoded data-bs-theme="light"."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # The old <html lang="en" data-bs-theme="light"> should no longer exist
+        assert '<html lang="en" data-bs-theme="light">' not in resp.text
+
+    def test_base_template_has_synchronous_theme_script(self, client, db_session):
+        """Base template should have a synchronous inline script that reads theme before paint."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Must have inline script that reads cookie and sets data-bs-theme synchronously
+        assert "document.documentElement.setAttribute('data-bs-theme'" in resp.text
+        assert "document.cookie" in resp.text
+
+    def test_theme_init_script_reads_cookie(self, client, db_session):
+        """Synchronous theme init script should read the theme cookie."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Script must read theme= cookie
+        assert "theme=" in resp.text
+        # Script must be in <head> for synchronous execution
+        head_end = resp.text.find("</head>")
+        head_section = resp.text[:head_end]
+        assert "document.documentElement.setAttribute('data-bs-theme'" in head_section
+
+    def test_theme_init_script_handles_preferences(self, client, db_session):
+        """Synchronous theme init should fall back to prefers-color-scheme if no cookie."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "prefers-color-scheme: dark" in resp.text
+
+    def test_theme_init_script_in_head_section(self, client, db_session):
+        """Theme init script must be inside <head> to execute before body renders."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        head_start = resp.text.find("<head>")
+        head_end = resp.text.find("</head>")
+        head_content = resp.text[head_start:head_end]
+        assert "data-bs-theme" in head_content
+
+    def test_login_page_also_has_theme_init(self, client, db_session):
+        """Login page should also have synchronous theme init in head."""
+        resp = client.get("/ui/login")
+        head_end = resp.text.find("</head>")
+        head_section = resp.text[:head_end]
+        assert "document.documentElement.setAttribute('data-bs-theme'" in head_section
+
+    def test_admin_page_also_has_theme_init(self, client, db_session):
+        """Admin page should also have synchronous theme init in head."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        head_end = resp.text.find("</head>")
+        head_section = resp.text[:head_end]
+        assert "document.documentElement.setAttribute('data-bs-theme'" in head_section
+
+    def test_theme_init_has_error_fallback(self, client, db_session):
+        """Theme init script should have error fallback to light mode."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        head_end = resp.text.find("</head>")
+        head_section = resp.text[:head_end]
+        # Should have try/catch with fallback
+        assert "catch" in head_section
+        assert "light" in head_section
+
+
+class TestLoginLogoResponsiveScaling:
+    """Tests for Task 40: Login Page / Responsive Logo Scaling Without Scrolling."""
+
+    def test_login_logo_has_min_height(self, client, db_session):
+        """Login logo should have minimum height of 100px."""
+        resp = client.get("/ui/login")
+        assert "min-height:100px" in resp.text
+
+    def test_login_logo_has_max_height(self, client, db_session):
+        """Login logo should have max height of 500px."""
+        resp = client.get("/ui/login")
+        assert "max-height:500px" in resp.text
+
+    def test_login_logo_preserves_aspect_ratio(self, client, db_session):
+        """Login logo should preserve aspect ratio with height:auto and object-fit:contain."""
+        resp = client.get("/ui/login")
+        assert "height:auto" in resp.text
+        assert "object-fit:contain" in resp.text
+
+    def test_login_logo_responsive_max_width(self, client, db_session):
+        """Login logo should have max-width for responsive scaling."""
+        resp = client.get("/ui/login")
+        assert "max-width:500px" in resp.text
+
+    def test_login_page_has_viewport_height_media_queries(self, client, db_session):
+        """Login page should have CSS media queries for small viewport heights."""
+        resp = client.get("/ui/login")
+        assert "max-height: 700px" in resp.text or "max-height:700px" in resp.text
+
+    def test_login_page_has_extra_css_block(self, client, db_session):
+        """Login page should use extra_css block for responsive logo styles."""
+        resp = client.get("/ui/login")
+        # Should have login-logo CSS overrides for small screens
+        assert "#login-logo" in resp.text
+        assert "25vh" in resp.text or "18vh" in resp.text
+
+    def test_login_logo_adapts_to_small_screens(self, client, db_session):
+        """Login logo should scale down to 25vh on screens <= 700px height."""
+        resp = client.get("/ui/login")
+        assert "25vh" in resp.text
+
+    def test_login_logo_adapts_to_very_small_screens(self, client, db_session):
+        """Login logo should scale down to 18vh on screens <= 580px height."""
+        resp = client.get("/ui/login")
+        assert "18vh" in resp.text
+
+    def test_login_logo_theme_aware(self, client, db_session):
+        """Login logo should adapt to light/dark mode automatically."""
+        resp = client.get("/ui/login")
+        assert "loadLoginLogo" in resp.text
+        assert "data-bs-theme" in resp.text
+
+    def test_login_logo_reloads_on_theme_change(self, client, db_session):
+        """Login logo should reload when theme is toggled."""
+        resp = client.get("/ui/login")
+        assert "theme-toggle-btn" in resp.text
+        assert "loadLoginLogo" in resp.text
