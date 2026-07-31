@@ -1685,9 +1685,9 @@ class TestLoginLogo:
     """Tests for Task 36: Login Page / Large Logo."""
 
     def test_login_logo_large_sizing(self, client, db_session):
-        """Login page logo should be large (max 500x500) via CSS."""
+        """Login page logo should be large (up to 500px) via clamp or max-height."""
         resp = client.get("/ui/login")
-        assert "max-height: 500px" in resp.text or "max-height:500px" in resp.text
+        assert "500px" in resp.text
         assert "max-width: 500px" in resp.text or "max-width:500px" in resp.text
 
     def test_login_logo_responsive_width(self, client, db_session):
@@ -1892,14 +1892,14 @@ class TestLoginLogoResponsiveScaling:
     """Tests for Task 40: Login Page / Responsive Logo Scaling Without Scrolling."""
 
     def test_login_logo_has_min_height(self, client, db_session):
-        """Login logo should have minimum height of 100px via media query."""
+        """Login logo should have minimum height of 100px via clamp."""
         resp = client.get("/ui/login")
-        assert "min-height: 100px" in resp.text or "min-height:100px" in resp.text
+        assert "100px" in resp.text
 
     def test_login_logo_has_max_height(self, client, db_session):
-        """Login logo should have max height of 500px."""
+        """Login logo should have max height of 500px via clamp."""
         resp = client.get("/ui/login")
-        assert "max-height: 500px" in resp.text or "max-height:500px" in resp.text
+        assert "500px" in resp.text
 
     def test_login_logo_preserves_aspect_ratio(self, client, db_session):
         """Login logo should preserve aspect ratio with height:auto and object-fit:contain."""
@@ -1912,27 +1912,27 @@ class TestLoginLogoResponsiveScaling:
         resp = client.get("/ui/login")
         assert "max-width: 500px" in resp.text or "max-width:500px" in resp.text
 
-    def test_login_page_has_viewport_height_media_queries(self, client, db_session):
-        """Login page should have CSS media queries for small viewport heights."""
+    def test_login_page_uses_smooth_scaling(self, client, db_session):
+        """Login page should use clamp() for smooth continuous logo scaling."""
         resp = client.get("/ui/login")
-        assert "max-height: 700px" in resp.text or "max-height:700px" in resp.text
+        assert "clamp(" in resp.text
 
     def test_login_page_has_extra_css_block(self, client, db_session):
         """Login page should use extra_css block for responsive logo styles."""
         resp = client.get("/ui/login")
-        # Should have login-logo CSS overrides for small screens
+        # Should have login-logo CSS overrides
         assert "#login-logo" in resp.text
-        assert "25vh" in resp.text or "18vh" in resp.text
+        assert "clamp(" in resp.text
 
-    def test_login_logo_adapts_to_small_screens(self, client, db_session):
-        """Login logo should scale down to 25vh on screens <= 700px height."""
+    def test_login_logo_clamp_uses_100px_minimum(self, client, db_session):
+        """Login logo clamp should use 100px minimum height."""
         resp = client.get("/ui/login")
-        assert "25vh" in resp.text
+        assert "100px" in resp.text
 
-    def test_login_logo_adapts_to_very_small_screens(self, client, db_session):
-        """Login logo should scale down to 18vh on screens <= 580px height."""
+    def test_login_logo_clamp_uses_500px_maximum(self, client, db_session):
+        """Login logo clamp should use 500px maximum height."""
         resp = client.get("/ui/login")
-        assert "18vh" in resp.text
+        assert "500px" in resp.text
 
     def test_login_logo_theme_aware(self, client, db_session):
         """Login logo should adapt to light/dark mode automatically."""

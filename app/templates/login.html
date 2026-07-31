@@ -2,31 +2,18 @@
 {% block title %}Login - {{ app_name }}{% endblock %}
 {% block extra_css %}
 <style>
-  /* Responsive logo scaling: adapt to viewport height so form is visible without scrolling */
+  /* Responsive logo scaling: clamp() for smooth continuous scaling, no jumps */
   #login-logo {
-    max-height: 500px;
+    max-height: clamp(100px, 30vh, 500px);
     max-width: 500px;
     width: 100%;
     height: auto;
     object-fit: contain;
-    min-height: 0;
     opacity: 0;
     transition: opacity 0.2s ease;
   }
   #login-logo.loaded {
     opacity: 1;
-  }
-  @media (max-height: 800px) {
-    #login-logo { max-height: 35vh; }
-  }
-  @media (max-height: 700px) {
-    #login-logo { max-height: 25vh; }
-  }
-  @media (max-height: 580px) {
-    #login-logo { max-height: 18vh; }
-  }
-  @media (max-height: 480px) {
-    #login-logo { max-height: 100px; min-height: 100px; }
   }
 </style>
 {% endblock %}
