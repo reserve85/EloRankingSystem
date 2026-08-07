@@ -385,6 +385,24 @@
   </div>
   <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary" onclick="saveUser()">Save</button></div>
 </div></div></div>
+
+<!-- Audit Detail Modal -->
+<div class="modal fade" id="audit-detail-modal" tabindex="-1"><div class="modal-dialog modal-lg"><div class="modal-content">
+  <div class="modal-header"><h5 class="modal-title">Audit Log Detail</h5><button type="button" class="btn-close" data-bs-dismiss="modal"></button></div>
+  <div class="modal-body">
+    <table class="table table-sm mb-0">
+      <tr><td class="text-muted" style="width:120px">ID</td><td id="audit-dtl-id"></td></tr>
+      <tr><td class="text-muted">Timestamp</td><td id="audit-dtl-ts"></td></tr>
+      <tr><td class="text-muted">User</td><td id="audit-dtl-user"></td></tr>
+      <tr><td class="text-muted">Action</td><td id="audit-dtl-action"></td></tr>
+      <tr><td class="text-muted">Entity</td><td id="audit-dtl-entity"></td></tr>
+      <tr><td class="text-muted">Entity ID</td><td id="audit-dtl-eid"></td></tr>
+      <tr><td class="text-muted">IP Address</td><td id="audit-dtl-ip"></td></tr>
+      <tr><td class="text-muted">Old Value</td><td><div id="audit-dtl-old" style="white-space:pre-wrap;word-break:break-all;max-height:300px;overflow:auto"></div></td></tr>
+      <tr><td class="text-muted">New Value</td><td><div id="audit-dtl-new" style="white-space:pre-wrap;word-break:break-all;max-height:300px;overflow:auto"></div></td></tr>
+    </table>
+  </div>
+</div></div></div>
 {% endblock %}
 {% block extra_js %}
 <script>
@@ -865,18 +883,39 @@ async function saveClubSettings() {
 }
 
 // --- Audit Log ---
+let auditLogData = [];
+function tryFormatJson(val) {
+  if (!val) return '';
+  try { return JSON.stringify(JSON.parse(val), null, 2); } catch(e) { return val; }
+}
+function showAuditDetail(idx) {
+  const l = auditLogData[idx];
+  if (!l) return;
+  document.getElementById('audit-dtl-id').textContent = l.id;
+  document.getElementById('audit-dtl-ts').textContent = l.timestamp || '';
+  document.getElementById('audit-dtl-user').textContent = l.username || '';
+  document.getElementById('audit-dtl-action').innerHTML = '<span class="badge bg-blue-lt">' + (l.action||'') + '</span>';
+  document.getElementById('audit-dtl-entity').textContent = (l.entity_type||'') + (l.entity_id ? ' #' + l.entity_id : '');
+  document.getElementById('audit-dtl-eid').textContent = l.entity_id || '';
+  document.getElementById('audit-dtl-ip').textContent = l.ip_address || '';
+  document.getElementById('audit-dtl-old').textContent = tryFormatJson(l.old_value);
+  document.getElementById('audit-dtl-new').textContent = tryFormatJson(l.new_value);
+  new bootstrap.Modal(document.getElementById('audit-detail-modal')).show();
+}
 async function loadAuditLogs() {
   const resp = await fetch('/audit/?limit=200');
   if (!resp.ok) return;
   const logs = await resp.json();
+  auditLogData = logs;
   const tbody = document.querySelector('#audit-table tbody'); tbody.innerHTML = '';
-  logs.forEach(l => {
+  logs.forEach((l, idx) => {
     const ts = l.timestamp || '';
     const actionBadge = '<span class="badge bg-blue-lt">' + l.action + '</span>';
     const entity = l.entity_type || '';
     const entityId = l.entity_id || '';
     const details = l.new_value ? l.new_value.slice(0, 80) : (l.old_value ? l.old_value.slice(0, 80) : '');
-    tbody.innerHTML += '<tr><td>'+l.id+'</td><td>'+ts+'</td><td>'+(l.username||'')+'</td><td>'+actionBadge+'</td><td>'+entity+'</td><td>'+entityId+'</td><td class="text-muted small">'+details+'</td></tr>';
+    const clickStyle = details ? 'cursor:pointer;text-decoration:underline dotted' : '';
+    tbody.innerHTML += '<tr onclick="showAuditDetail('+idx+')" style="cursor:pointer"><td>'+l.id+'</td><td>'+ts+'</td><td>'+(l.username||'')+'</td><td>'+actionBadge+'</td><td>'+entity+'</td><td>'+entityId+'</td><td class="text-muted small" style="'+clickStyle+'">'+details+'</td></tr>';
   });
   if ($.fn.DataTable.isDataTable('#audit-table')) { $('#audit-table').DataTable().destroy(); }
   $('#audit-table').DataTable({ paging: true, pageLength: 50, order: [[0,'desc']], searching: true });
