@@ -514,6 +514,7 @@ Each match stores per-player dart statistics:
 * **180s Count**: Integer, default 0. Number of 180 throws per player.
 * **High Finishes**: List of integer scores (JSON column). Validated against configurable range.
 * **Low Darts**: List of integer dart counts (JSON column). Validated against configurable range.
+* **3-Dart Average**: Optional float per player (nullable, 2 decimal places, e.g. 65.50). Validated range: 0–200. Only visible in match detail and player statistics views. Matches without an average are excluded from aggregation calculations.
 
 Statistics validation is enforced on match creation and update via Pydantic schemas.
 
@@ -773,6 +774,7 @@ All logged-in users can view player statistics.
 Total 180s in period
 All high finishes in period (list of scores)
 All low darts in period (list of dart counts)
+Average (period): xx.xx (out of x matches)
 ```
 
 ## All-Time Statistics (since player's first recorded match)
@@ -781,6 +783,8 @@ All low darts in period (list of dart counts)
 Total 180s all time
 All high finishes all time
 All low darts all time
+Average (last 100): xx.xx
+Average (all-time): xx.xx (out of x matches)
 ```
 
 ***
@@ -793,6 +797,7 @@ Each player column shows:
 
 ```text
 Score (e.g. 3-1) and derived result (Win / Loss)
+3-Dart Average (if recorded)
 Number of 180s
 High finishes (list of individual scores)
 Low darts (list of individual dart counts)
@@ -1570,6 +1575,8 @@ player_a_high_finishes
 player_b_high_finishes
 player_a_low_darts
 player_b_low_darts
+player_a_average
+player_b_average
 created_by
 created_at
 updated_at
