@@ -310,7 +310,7 @@
               <tr><td class="text-muted">Result</td><td><span id="admin-modal-p1-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="admin-modal-p1-elo"></span></td></tr>
               <tr><td class="text-muted">Average</td><td>
-                <input type="text" inputmode="decimal" class="form-control form-control-sm avg-input" id="admin-edit-p1-avg" placeholder="000.00" style="max-width:100px" autocomplete="off">
+                <input type="text" inputmode="decimal" class="form-control form-control-sm" id="admin-edit-p1-avg" placeholder="000.00" style="max-width:100px" autocomplete="off">
               </td></tr>
               <tr><td class="text-muted">180</td><td>
                 <div class="input-group input-group-sm" style="max-width:100px">
@@ -339,7 +339,7 @@
               <tr><td class="text-muted">Result</td><td><span id="admin-modal-p2-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="admin-modal-p2-elo"></span></td></tr>
               <tr><td class="text-muted">Average</td><td>
-                <input type="text" inputmode="decimal" class="form-control form-control-sm avg-input" id="admin-edit-p2-avg" placeholder="000.00" style="max-width:100px" autocomplete="off">
+                <input type="text" inputmode="decimal" class="form-control form-control-sm" id="admin-edit-p2-avg" placeholder="000.00" style="max-width:100px" autocomplete="off">
               </td></tr>
               <tr><td class="text-muted">180</td><td>
                 <div class="input-group input-group-sm" style="max-width:100px">
@@ -644,7 +644,14 @@ function populateModalHfLd(containerId, values, inputClass) {
   });
 }
 
-// Real-time average formatting for admin edit inputs
+// Real-time average formatting + block non-numeric input for admin edit inputs
+function allowOnlyDigits(e) {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (['Backspace','Delete','Tab','Escape','Enter','ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return;
+  if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+}
+document.getElementById('admin-edit-p1-avg').addEventListener('keydown', allowOnlyDigits);
+document.getElementById('admin-edit-p2-avg').addEventListener('keydown', allowOnlyDigits);
 document.getElementById('admin-edit-p1-avg').addEventListener('input', function() { formatAverageInput(this); });
 document.getElementById('admin-edit-p2-avg').addEventListener('input', function() { formatAverageInput(this); });
 document.getElementById('admin-edit-p1-avg').addEventListener('blur', function() { padAverageInput(this); });

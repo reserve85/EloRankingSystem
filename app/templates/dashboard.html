@@ -99,11 +99,11 @@
               <div class="row g-2">
                 <div class="col-6">
                   <div class="text-muted small mb-1 text-truncate" id="p1-name-avg" title="Player 1">Player 1</div>
-                  <input type="text" inputmode="decimal" class="form-control form-control-sm avg-input" id="p1-avg" placeholder="000.00" autocomplete="off">
+                  <input type="text" inputmode="decimal" class="form-control form-control-sm" id="p1-avg" placeholder="000.00" autocomplete="off">
                 </div>
                 <div class="col-6">
                   <div class="text-muted small mb-1 text-truncate" id="p2-name-avg" title="Player 2">Player 2</div>
-                  <input type="text" inputmode="decimal" class="form-control form-control-sm avg-input" id="p2-avg" placeholder="000.00" autocomplete="off">
+                  <input type="text" inputmode="decimal" class="form-control form-control-sm" id="p2-avg" placeholder="000.00" autocomplete="off">
                 </div>
               </div>
             </div>
@@ -620,7 +620,14 @@ function resetStatsForm() {
   document.getElementById('p2-ld-list').innerHTML = '';
 }
 
-// Attach real-time average formatting
+// Attach real-time average formatting + block non-numeric input
+function allowOnlyDigits(e) {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (['Backspace','Delete','Tab','Escape','Enter','ArrowLeft','ArrowRight','Home','End'].includes(e.key)) return;
+  if (!/^[0-9]$/.test(e.key)) e.preventDefault();
+}
+document.getElementById('p1-avg').addEventListener('keydown', allowOnlyDigits);
+document.getElementById('p2-avg').addEventListener('keydown', allowOnlyDigits);
 document.getElementById('p1-avg').addEventListener('input', function() { formatAverageInput(this); });
 document.getElementById('p2-avg').addEventListener('input', function() { formatAverageInput(this); });
 document.getElementById('p1-avg').addEventListener('blur', function() { padAverageInput(this); });

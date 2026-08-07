@@ -1867,7 +1867,6 @@ class TestAverageUIRendering:
         assert 'id="p2-avg"' in resp.text
         assert 'placeholder="000.00"' in resp.text
         assert 'inputmode="decimal"' in resp.text
-        assert 'avg-input' in resp.text
         assert 'formatAverageInput' in resp.text
         assert 'padAverageInput' in resp.text
         # maxlength must NOT be set - it blocks typing when formatted value fills the field

@@ -406,9 +406,10 @@
       background-color: #1e2233 !important;
     }
 
-    /* Average input formatting (shared across templates) */
-    .avg-input { text-align: center; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
-    .avg-input::placeholder { letter-spacing: 0.15em; }
+    /* Hide number input spinners globally */
+    input[type="number"]::-webkit-inner-spin-button,
+    input[type="number"]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type="number"] { -moz-appearance: textfield; }
   </style>
   {% block extra_css %}{% endblock %}
 </head>
