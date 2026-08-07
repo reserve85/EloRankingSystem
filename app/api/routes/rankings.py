@@ -69,6 +69,26 @@ def get_player_statistics(
     return stats
 
 
+@router.get("/player-stats/{player_id}/average-history")
+def get_average_history(
+    player_id: int,
+    current_user: User = Depends(require_user),
+    db: Session = Depends(get_db),
+):
+    """Get average history for a player (matches with a recorded average).
+
+    Returns a list of {date, average, match_id} entries for charting.
+    """
+    player_repo = PlayerRepository(db)
+    player = player_repo.get_by_id(player_id)
+    if player is None:
+        raise HTTPException(status_code=404, detail=f"Player {player_id} not found")
+
+    service = RankingService(db)
+    history = service.get_average_history(player_id)
+    return {"player_id": player_id, "player_name": player.name, "history": history}
+
+
 @router.get("/player-stats/{player_id}/elo-history")
 def get_elo_history(
     player_id: int,

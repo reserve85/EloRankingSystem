@@ -1299,3 +1299,562 @@ class TestAdminStatsEditingUI:
         assert "admin-modal-status" in resp.text
 
 
+# ── Average Validation ──────────────────────────────────────────────
+
+class TestAverageValidation:
+    """Test average values are validated."""
+
+    def test_valid_average_accepted(self, client, db_session):
+        """Average within valid range [0, 200] is accepted."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+            "player_a_average": 65.50,
+            "player_b_average": 58.25,
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["player_a_average"] == 65.50
+        assert data["player_b_average"] == 58.25
+
+    def test_average_defaults_to_none(self, client, db_session):
+        """Average defaults to None when not provided."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["player_a_average"] is None
+        assert data["player_b_average"] is None
+
+    def test_negative_average_rejected(self, client, db_session):
+        """Negative average is rejected."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+            "player_a_average": -1.0,
+        })
+        assert resp.status_code == 422
+
+    def test_average_over_200_rejected(self, client, db_session):
+        """Average over 200 is rejected."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+            "player_a_average": 201.0,
+        })
+        assert resp.status_code == 422
+
+    def test_average_boundary_200_accepted(self, client, db_session):
+        """Average of exactly 200 is accepted."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+            "player_a_average": 200.0,
+        })
+        assert resp.status_code == 201
+
+    def test_average_zero_is_ignored(self, client, db_session):
+        """Average of 0 is accepted but stored as 0 (not None)."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+            "player_a_average": 0,
+        })
+        assert resp.status_code == 201
+
+
+# ── Average Storage and Retrieval ───────────────────────────────────
+
+class TestAverageStorage:
+    """Test average stored and retrieved correctly."""
+
+    def test_average_stored_on_create(self, client, db_session):
+        """Average is stored when creating a match."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 1,
+            "player_a_average": 72.35,
+            "player_b_average": 61.80,
+        })
+        assert resp.status_code == 201
+        data = resp.json()
+        assert data["player_a_average"] == 72.35
+        assert data["player_b_average"] == 61.80
+
+    def test_average_retrieved_by_id(self, client, db_session):
+        """Average is returned when fetching match by ID."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 75.00,
+        })
+        match_id = resp.json()["id"]
+
+        resp = client.get(f"/matches/{match_id}")
+        assert resp.status_code == 200
+        assert resp.json()["player_a_average"] == 75.00
+
+    def test_average_in_list_response(self, client, db_session):
+        """Average is included in match list response."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 68.50,
+        })
+
+        resp = client.get("/matches/")
+        assert resp.status_code == 200
+        assert resp.json()[0]["player_a_average"] == 68.50
+
+    def test_average_update(self, client, db_session):
+        """Average can be updated via match update."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 55.00,
+        })
+        match_id = resp.json()["id"]
+
+        resp = client.put(f"/matches/{match_id}", json={
+            "player_a_average": 70.25,
+        })
+        assert resp.status_code == 200
+        assert resp.json()["player_a_average"] == 70.25
+
+    def test_average_preserved_during_recalculation(self, client, db_session):
+        """Average is preserved when Elo recalculation is triggered."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 72.00,
+            "player_b_average": 60.00,
+        })
+        match1_id = resp.json()["id"]
+
+        # New match triggers recalculation
+        client.post("/matches/", json={
+            "date": "2026-07-15",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 0, "player2_score": 3,
+        })
+
+        # Verify average preserved
+        resp = client.get(f"/matches/{match1_id}")
+        assert resp.json()["player_a_average"] == 72.00
+        assert resp.json()["player_b_average"] == 60.00
+
+
+# ── Average in Player Statistics Endpoint ───────────────────────────
+
+class TestAveragePlayerStatistics:
+    """Test average calculations in player statistics."""
+
+    def test_endpoint_returns_average_fields(self, client, db_session):
+        """Player stats endpoint returns average fields."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "average" in data["period"]
+        assert "average_count" in data["period"]
+        assert "average" in data["all_time"]
+        assert "average_count" in data["all_time"]
+        assert "average_last100" in data["all_time"]
+
+    def test_alltime_average_calculation(self, client, db_session):
+        """All-time average is calculated correctly from matches with averages."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        # Match 1 with average
+        client.post("/matches/", json={
+            "date": "2026-07-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 60.00,
+        })
+        # Match 2 with average
+        client.post("/matches/", json={
+            "date": "2026-07-15",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 1,
+            "player_a_average": 80.00,
+        })
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}")
+        at = resp.json()["all_time"]
+        assert at["average"] == 70.00  # (60+80)/2
+        assert at["average_count"] == 2
+
+    def test_matches_without_average_ignored(self, client, db_session):
+        """Matches without average are excluded from average calculation."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        # Match with average
+        client.post("/matches/", json={
+            "date": "2026-07-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 72.00,
+        })
+        # Match without average
+        client.post("/matches/", json={
+            "date": "2026-07-15",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+        })
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}")
+        at = resp.json()["all_time"]
+        assert at["average"] == 72.00
+        assert at["average_count"] == 1
+
+    def test_no_averages_returns_none(self, client, db_session):
+        """Player with no averages returns None for average fields."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        # Match without average
+        client.post("/matches/", json={
+            "date": "2026-07-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+        })
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}")
+        at = resp.json()["all_time"]
+        assert at["average"] is None
+        assert at["average_count"] == 0
+        assert at["average_last100"] is None
+
+    def test_last100_average(self, client, db_session):
+        """Last 100 average is computed from most recent matches."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        # Create 3 matches with averages
+        client.post("/matches/", json={
+            "date": "2026-07-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 50.00,
+        })
+        client.post("/matches/", json={
+            "date": "2026-07-15",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 1,
+            "player_a_average": 70.00,
+        })
+        client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 2,
+            "player_a_average": 90.00,
+        })
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}")
+        at = resp.json()["all_time"]
+        # All-time: (50+70+90)/3 = 70.0
+        assert at["average"] == 70.00
+        assert at["average_count"] == 3
+        # Last 100 is same as all-time when < 100 matches
+        assert at["average_last100"] == 70.00
+
+    def test_period_average_calculation(self, client, db_session):
+        """Period average only includes matches within date range."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        # In period
+        client.post("/matches/", json={
+            "date": "2026-07-10",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 80.00,
+        })
+        # Outside period
+        client.post("/matches/", json={
+            "date": "2026-06-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 50.00,
+        })
+
+        resp = client.get(
+            f"/rankings/player-stats/{pa.id}?from_date=2026-07-01&to_date=2026-07-31"
+        )
+        period = resp.json()["period"]
+        assert period["average"] == 80.00
+        assert period["average_count"] == 1
+
+        # All-time includes both
+        at = resp.json()["all_time"]
+        assert at["average"] == 65.00  # (80+50)/2
+        assert at["average_count"] == 2
+
+
+# ── Average History Endpoint ────────────────────────────────────────
+
+class TestAverageHistoryEndpoint:
+    """Test the average history API endpoint."""
+
+    def test_endpoint_requires_auth(self, client, db_session):
+        """Average history endpoint requires authentication."""
+        resp = client.get("/rankings/player-stats/1/average-history")
+        assert resp.status_code == 401
+
+    def test_endpoint_returns_404_for_unknown_player(self, client, db_session):
+        """Endpoint returns 404 for non-existent player."""
+        _create_user(db_session)
+        _login(client)
+        resp = client.get("/rankings/player-stats/999/average-history")
+        assert resp.status_code == 404
+
+    def test_endpoint_returns_correct_structure(self, client, db_session):
+        """Endpoint returns correct structure."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        client.post("/matches/", json={
+            "date": "2026-07-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 72.00,
+        })
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}/average-history")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["player_id"] == pa.id
+        assert "player_name" in data
+        assert "history" in data
+        assert len(data["history"]) == 1
+        assert data["history"][0]["average"] == 72.00
+        assert "date" in data["history"][0]
+        assert "match_id" in data["history"][0]
+
+    def test_endpoint_excludes_matches_without_average(self, client, db_session):
+        """Endpoint only returns matches with recorded averages."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        # Match with average
+        client.post("/matches/", json={
+            "date": "2026-07-01",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 72.00,
+        })
+        # Match without average
+        client.post("/matches/", json={
+            "date": "2026-07-15",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+        })
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}/average-history")
+        data = resp.json()
+        assert len(data["history"]) == 1
+
+    def test_empty_history_for_player_with_no_averages(self, client, db_session):
+        """Player with no averages returns empty history."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}/average-history")
+        data = resp.json()
+        assert data["history"] == []
+
+
+# ── Average Audit Logging ───────────────────────────────────────────
+
+class TestAverageAuditLog:
+    """Test that average changes appear in audit logs."""
+
+    def test_average_included_in_create_audit(self, client, db_session):
+        """Match creation audit log includes average data."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 72.50,
+        })
+
+        audit = db_session.query(AuditLog).filter(
+            AuditLog.action == "MATCH_CREATED"
+        ).first()
+        assert audit is not None
+        assert "average_a" in audit.new_value
+        assert "72.5" in audit.new_value
+
+    def test_average_included_in_update_audit(self, client, db_session):
+        """Match update audit log includes average data."""
+        _create_user(db_session)
+        _login(client)
+        pa, pb = _create_players(db_session)
+
+        resp = client.post("/matches/", json={
+            "date": "2026-07-22",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 3, "player2_score": 0,
+            "player_a_average": 60.00,
+        })
+        match_id = resp.json()["id"]
+
+        client.put(f"/matches/{match_id}", json={
+            "player_a_average": 75.00,
+        })
+
+        audit = db_session.query(AuditLog).filter(
+            AuditLog.action == "MATCH_UPDATED"
+        ).first()
+        assert audit is not None
+        assert "average_a" in audit.old_value
+        assert "average_a" in audit.new_value
+
+
+# ── Average Migration Test ──────────────────────────────────────────
+
+class TestAverageMigration:
+    """Test that the average columns exist in the schema."""
+
+    def test_average_columns_exist(self, db_session):
+        """Verify the average columns exist in the matches table."""
+        from sqlalchemy import inspect
+
+        inspector = inspect(db_session.bind)
+        columns = {col["name"] for col in inspector.get_columns("matches")}
+
+        assert "player_a_average" in columns
+        assert "player_b_average" in columns
+
+
+# ── Average UI Rendering ────────────────────────────────────────────
+
+class TestAverageUIRendering:
+    """Tests for average-related UI elements."""
+
+    def test_dashboard_has_average_inputs(self, client, db_session):
+        """Dashboard should have average input fields."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "p1-avg" in resp.text
+        assert "p2-avg" in resp.text
+        assert "3-Dart Average" in resp.text
+
+    def test_dashboard_match_detail_has_average(self, client, db_session):
+        """Dashboard match detail modal should show average."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "modal-p1-avg" in resp.text
+        assert "modal-p2-avg" in resp.text
+
+    def test_dashboard_stats_modal_has_average_fields(self, client, db_session):
+        """Player stats modal should have average fields."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "ps-period-avg" in resp.text
+        assert "ps-avg-last100" in resp.text
+        assert "ps-avg-alltime" in resp.text
+
+    def test_dashboard_has_average_chart(self, client, db_session):
+        """Player stats modal should have average history chart."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "avg-chart" in resp.text
+        assert "Average History" in resp.text
+        assert "filterAvgChart" in resp.text
+
+    def test_admin_has_average_edit_inputs(self, client, db_session):
+        """Admin match detail modal should have average edit inputs."""
+        _login_as(client, db_session, "admin_edit", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "admin-edit-p1-avg" in resp.text
+        assert "admin-edit-p2-avg" in resp.text
+
+

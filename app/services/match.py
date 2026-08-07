@@ -125,6 +125,8 @@ class MatchService:
             player_b_high_finishes=data.player_b_high_finishes,
             player_a_low_darts=data.player_a_low_darts,
             player_b_low_darts=data.player_b_low_darts,
+            player_a_average=data.player_a_average,
+            player_b_average=data.player_b_average,
             created_by=created_by,
         )
         match = self.match_repo.create(match)
@@ -135,7 +137,7 @@ class MatchService:
         audit = AuditLog(
             user_id=created_by, username=username, action="MATCH_CREATED", entity_type="match",
             entity_id=match.id, old_value=None,
-            new_value=f'{{"player_a": {data.player_a_id}, "player_b": {data.player_b_id}, "score": "{data.player1_score}:{data.player2_score}", "winner": {winner_id}, "date": "{data.date}", "statistics": {{"180s_a": {data.player_a_180s}, "180s_b": {data.player_b_180s}, "high_finishes_a": {data.player_a_high_finishes}, "high_finishes_b": {data.player_b_high_finishes}, "low_darts_a": {data.player_a_low_darts}, "low_darts_b": {data.player_b_low_darts}}}}}',
+            new_value=f'{{"player_a": {data.player_a_id}, "player_b": {data.player_b_id}, "score": "{data.player1_score}:{data.player2_score}", "winner": {winner_id}, "date": "{data.date}", "statistics": {{"180s_a": {data.player_a_180s}, "180s_b": {data.player_b_180s}, "high_finishes_a": {data.player_a_high_finishes}, "high_finishes_b": {data.player_b_high_finishes}, "low_darts_a": {data.player_a_low_darts}, "low_darts_b": {data.player_b_low_darts}, "average_a": {data.player_a_average}, "average_b": {data.player_b_average}}}}}',
         )
         self.db.add(audit)
         self.db.commit()
@@ -144,7 +146,7 @@ class MatchService:
     def update_match(self, match_id: int, data: MatchUpdate, updated_by: int | None = None, username: str | None = None) -> Match:
         """Update a match and recalculate the affected Elo timeline."""
         match = self.get_match(match_id)
-        old_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}}}}}'
+        old_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}, "average_a": {match.player_a_average}, "average_b": {match.player_b_average}}}}}'
         affected_players = {match.player_a_id, match.player_b_id}
 
         if data.date is not None:
@@ -173,12 +175,16 @@ class MatchService:
             match.player_a_low_darts = data.player_a_low_darts
         if data.player_b_low_darts is not None:
             match.player_b_low_darts = data.player_b_low_darts
+        if data.player_a_average is not None:
+            match.player_a_average = data.player_a_average
+        if data.player_b_average is not None:
+            match.player_b_average = data.player_b_average
 
         self.db.commit()
         self._recalculate_elo_timeline(affected_players, updated_by, username)
         self.db.refresh(match)
 
-        new_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}}}}}'
+        new_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}, "average_a": {match.player_a_average}, "average_b": {match.player_b_average}}}}}'
         audit = AuditLog(user_id=updated_by, username=username, action="MATCH_UPDATED", entity_type="match", entity_id=match.id, old_value=old_value, new_value=new_value)
         self.db.add(audit)
         self.db.commit()

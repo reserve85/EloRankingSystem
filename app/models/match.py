@@ -71,6 +71,10 @@ class Match(Base):
     player_a_low_darts: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
     player_b_low_darts: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
 
+    # 3-dart average per player (optional)
+    player_a_average: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    player_b_average: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+
     # Audit fields
     created_by: Mapped[Optional[int]] = mapped_column(
         Integer, ForeignKey("users.id"), nullable=True

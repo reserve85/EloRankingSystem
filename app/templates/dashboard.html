@@ -93,6 +93,29 @@
               </div>
             </div>
 
+            <!-- Row 3b: Average -->
+            <div class="border rounded p-2 mb-2">
+              <label class="form-label fw-bold small mb-2">3-Dart Average <span class="text-muted fw-normal">(optional, e.g. 65.50)</span></label>
+              <div class="row g-2">
+                <div class="col-6">
+                  <div class="text-muted small mb-1 text-truncate" id="p1-name-avg" title="Player 1">Player 1</div>
+                  <div class="input-group input-group-sm">
+                    <button type="button" class="btn btn-outline-secondary" onclick="adjustAvgCounter('p1-avg',-0.5)">−</button>
+                    <input type="number" step="0.01" class="form-control text-center" id="p1-avg" min="0" max="200" placeholder="xx.xx" style="max-width:90px">
+                    <button type="button" class="btn btn-outline-secondary" onclick="adjustAvgCounter('p1-avg',0.5)">+</button>
+                  </div>
+                </div>
+                <div class="col-6">
+                  <div class="text-muted small mb-1 text-truncate" id="p2-name-avg" title="Player 2">Player 2</div>
+                  <div class="input-group input-group-sm">
+                    <button type="button" class="btn btn-outline-secondary" onclick="adjustAvgCounter('p2-avg',-0.5)">−</button>
+                    <input type="number" step="0.01" class="form-control text-center" id="p2-avg" min="0" max="200" placeholder="xx.xx" style="max-width:90px">
+                    <button type="button" class="btn btn-outline-secondary" onclick="adjustAvgCounter('p2-avg',0.5)">+</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
             <!-- Row 4: High Finishes -->
             <div class="border rounded p-2 mb-2">
               <label class="form-label fw-bold small mb-2">High Finishes <span class="text-muted fw-normal">({{ hf_min }}–{{ hf_max }})</span></label>
@@ -265,6 +288,21 @@
         <canvas id="elo-chart"></canvas>
       </div>
     </div>
+    <!-- Average Graph -->
+    <div class="card card-sm mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <h4 class="card-title mb-0">Average History</h4>
+        <div class="btn-group btn-group-sm" id="avg-chart-filters">
+          <button class="btn btn-outline-secondary active" onclick="filterAvgChart('1y')">1Y</button>
+          <button class="btn btn-outline-secondary" onclick="filterAvgChart('5y')">5Y</button>
+          <button class="btn btn-outline-secondary" onclick="filterAvgChart('10y')">10Y</button>
+          <button class="btn btn-outline-secondary" onclick="filterAvgChart('all')">ALL</button>
+        </div>
+      </div>
+      <div class="card-body" style="height:250px">
+        <canvas id="avg-chart"></canvas>
+      </div>
+    </div>
     <!-- Period & All-time Stats -->
     <div class="row g-3">
       <!-- Period Stats -->
@@ -278,6 +316,7 @@
               <tr><td class="text-muted">Legs W/L</td><td id="ps-period-legs">0/0</td></tr>
               <tr><td class="text-muted">180s</td><td id="ps-period-180s">0</td></tr>
               <tr><td class="text-muted">High Finishes</td><td id="ps-period-hf">-</td></tr>
+              <tr><td class="text-muted">Average</td><td id="ps-period-avg">-</td></tr>
               <tr><td class="text-muted">Low Darts</td><td id="ps-period-ld">-</td></tr>
             </table>
           </div>
@@ -295,6 +334,8 @@
               <tr><td class="text-muted">Total 180s</td><td id="ps-alltime-180s">0</td></tr>
               <tr><td class="text-muted">High Finishes</td><td id="ps-alltime-hf">0</td></tr>
               <tr><td class="text-muted">Low Darts</td><td id="ps-alltime-ld">0</td></tr>
+              <tr><td class="text-muted">Average (last 100)</td><td id="ps-avg-last100">-</td></tr>
+              <tr><td class="text-muted">Average (all-time)</td><td id="ps-avg-alltime">-</td></tr>
             </table>
           </div>
         </div>
@@ -351,6 +392,7 @@
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Result</td><td><span id="modal-p1-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="modal-p1-elo"></span></td></tr>
+              <tr><td class="text-muted">Average</td><td id="modal-p1-avg"></td></tr>
               <tr><td class="text-muted">180</td><td id="modal-p1-180s"></td></tr>
               <tr><td class="text-muted">High Finishes</td><td id="modal-p1-hf"></td></tr>
               <tr><td class="text-muted">Low Darts</td><td id="modal-p1-ld"></td></tr>
@@ -366,6 +408,7 @@
             <table class="table table-sm mb-0">
               <tr><td class="text-muted">Result</td><td><span id="modal-p2-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="modal-p2-elo"></span></td></tr>
+              <tr><td class="text-muted">Average</td><td id="modal-p2-avg"></td></tr>
               <tr><td class="text-muted">180</td><td id="modal-p2-180s"></td></tr>
               <tr><td class="text-muted">High Finishes</td><td id="modal-p2-hf"></td></tr>
               <tr><td class="text-muted">Low Darts</td><td id="modal-p2-ld"></td></tr>
@@ -431,6 +474,12 @@ function adjustCounter(id, delta) {
   el.value = val;
 }
 
+function adjustAvgCounter(id, delta) {
+  const el = document.getElementById(id);
+  const val = Math.max(0, parseFloat(el.value || 0) + delta);
+  el.value = val > 0 ? val.toFixed(2) : '';
+}
+
 function addHfEntry(player) {
   const container = document.getElementById(player + '-hf-list');
   const div = document.createElement('div');
@@ -460,8 +509,8 @@ function updatePlayerLabels() {
   if (scoreALabel) { scoreALabel.textContent = labelA + ' Score'; scoreALabel.title = labelA + ' Score'; }
   if (scoreBLabel) { scoreBLabel.textContent = labelB + ' Score'; scoreBLabel.title = labelB + ' Score'; }
   // Update statistics section labels (text + title for truncation tooltip)
-  ['p1-name-180','p1-name-hf','p1-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) { el.textContent = labelA; el.title = labelA; } });
-  ['p2-name-180','p2-name-hf','p2-name-ld'].forEach(id => { const el = document.getElementById(id); if(el) { el.textContent = labelB; el.title = labelB; } });
+  ['p1-name-180','p1-name-hf','p1-name-ld','p1-name-avg'].forEach(id => { const el = document.getElementById(id); if(el) { el.textContent = labelA; el.title = labelA; } });
+  ['p2-name-180','p2-name-hf','p2-name-ld','p2-name-avg'].forEach(id => { const el = document.getElementById(id); if(el) { el.textContent = labelB; el.title = labelB; } });
 }
 
 document.getElementById('player-a-select').addEventListener('change', updatePlayerLabels);
@@ -525,12 +574,20 @@ function getStatsFromForm() {
   if (ldA.length > 0) stats.player_a_low_darts = ldA;
   if (ldB.length > 0) stats.player_b_low_darts = ldB;
 
+  // Average
+  const avgA = parseFloat(document.getElementById('p1-avg').value);
+  const avgB = parseFloat(document.getElementById('p2-avg').value);
+  if (!isNaN(avgA) && avgA > 0) stats.player_a_average = avgA;
+  if (!isNaN(avgB) && avgB > 0) stats.player_b_average = avgB;
+
   return stats;
 }
 
 function resetStatsForm() {
   document.getElementById('p1-180s').value = 0;
   document.getElementById('p2-180s').value = 0;
+  document.getElementById('p1-avg').value = '';
+  document.getElementById('p2-avg').value = '';
   document.getElementById('p1-hf-list').innerHTML = '';
   document.getElementById('p2-hf-list').innerHTML = '';
   document.getElementById('p1-ld-list').innerHTML = '';
@@ -768,6 +825,8 @@ function showMatchDetail(idx) {
   document.getElementById('modal-p2-result').className = resClsB;
   document.getElementById('modal-p1-180s').textContent = m.player_a_180s || 0;
   document.getElementById('modal-p2-180s').textContent = m.player_b_180s || 0;
+  document.getElementById('modal-p1-avg').textContent = m.player_a_average != null ? m.player_a_average.toFixed(2) : '-';
+  document.getElementById('modal-p2-avg').textContent = m.player_b_average != null ? m.player_b_average.toFixed(2) : '-';
   document.getElementById('modal-p1-hf').textContent = hfA;
   document.getElementById('modal-p2-hf').textContent = hfB;
   document.getElementById('modal-p1-ld').textContent = ldA;
@@ -812,6 +871,13 @@ async function showPlayerStats(playerId) {
   document.getElementById('ps-alltime-180s').textContent = a.total_180s;
   document.getElementById('ps-alltime-hf').textContent = a.high_finishes.length;
   document.getElementById('ps-alltime-ld').textContent = a.low_darts.length;
+  // Average stats
+  const periodAvgStr = p.average != null ? p.average.toFixed(2) + (p.average_count > 0 ? ' (out of ' + p.average_count + ' matches)' : '') : '-';
+  document.getElementById('ps-period-avg').textContent = periodAvgStr;
+  const last100Str = a.average_last100 != null ? a.average_last100.toFixed(2) : '-';
+  document.getElementById('ps-avg-last100').textContent = last100Str;
+  const alltimeAvgStr = a.average != null ? a.average.toFixed(2) + (a.average_count > 0 ? ' (out of ' + a.average_count + ' matches)' : '') : '-';
+  document.getElementById('ps-avg-alltime').textContent = alltimeAvgStr;
   // Fetch ATH data
   try {
     const athResp = await fetch('/rankings/player-stats/' + playerId + '/ath');
@@ -839,8 +905,69 @@ async function showPlayerStats(playerId) {
       renderEloChart('all');
     }
   } catch(e) {}
+  // Fetch Average history for chart
+  try {
+    const avgResp = await fetch('/rankings/player-stats/' + playerId + '/average-history');
+    if (avgResp.ok) {
+      const avgData = await avgResp.json();
+      avgHistoryData = avgData.history || [];
+      renderAvgChart('all');
+    }
+  } catch(e) {}
   new bootstrap.Modal(document.getElementById('player-stats-modal')).show();
 }
+
+let avgChart = null;
+let avgHistoryData = [];
+
+function renderAvgChart(range) {
+  const canvas = document.getElementById('avg-chart');
+  if (!canvas) return;
+  if (avgChart) { avgChart.destroy(); avgChart = null; }
+  let data = avgHistoryData;
+  if (range !== 'all') {
+    const now = new Date();
+    let cutoff;
+    if (range === '1y') { cutoff = new Date(now.getFullYear() - 1, now.getMonth(), now.getDate()); }
+    else if (range === '5y') { cutoff = new Date(now.getFullYear() - 5, now.getMonth(), now.getDate()); }
+    else if (range === '10y') { cutoff = new Date(now.getFullYear() - 10, now.getMonth(), now.getDate()); }
+    if (cutoff) { data = data.filter(d => new Date(d.date) >= cutoff); }
+  }
+  if (data.length === 0) { return; }
+  const labels = data.map(d => d.date);
+  const avgs = data.map(d => d.average);
+  avgChart = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{
+        label: '3-Dart Average',
+        data: avgs,
+        borderColor: '#e74c3c',
+        backgroundColor: 'rgba(231, 76, 60, 0.1)',
+        fill: true,
+        tension: 0.3,
+        pointRadius: data.length > 50 ? 0 : 3,
+        pointHoverRadius: 5,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { display: true, ticks: { maxTicksLimit: 10 } },
+        y: { display: true, beginAtZero: false }
+      }
+    }
+  });
+  document.querySelectorAll('#avg-chart-filters .btn').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.textContent.toLowerCase() === range) btn.classList.add('active');
+  });
+}
+
+function filterAvgChart(range) { renderAvgChart(range); }
 
 function renderEloChart(range) {
   const canvas = document.getElementById('elo-chart');

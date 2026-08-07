@@ -270,11 +270,12 @@ class RankingService:
         if not all_matches:
             empty = {"total_matches": 0, "wins": 0, "losses": 0,
                      "legs_won": 0, "legs_lost": 0, "total_180s": 0,
-                     "high_finishes": [], "low_darts": []}
+                     "high_finishes": [], "low_darts": [],
+                     "average": None, "average_count": 0}
             return {
                 "player_id": player_id,
                 "period": dict(empty),
-                "all_time": dict(empty),
+                "all_time": dict(empty, average_last100=None),
             }
 
         # Period matches
@@ -292,6 +293,7 @@ class RankingService:
             losses = 0
             legs_won = 0
             legs_lost = 0
+            averages: list[float] = []
             for m in matches:
                 is_a = m.player_a_id == pid
                 if is_a:
@@ -300,12 +302,16 @@ class RankingService:
                         high_finishes.extend(m.player_a_high_finishes)
                     if m.player_a_low_darts:
                         low_darts.extend(m.player_a_low_darts)
+                    if m.player_a_average is not None:
+                        averages.append(m.player_a_average)
                 else:
                     total_180s += m.player_b_180s or 0
                     if m.player_b_high_finishes:
                         high_finishes.extend(m.player_b_high_finishes)
                     if m.player_b_low_darts:
                         low_darts.extend(m.player_b_low_darts)
+                    if m.player_b_average is not None:
+                        averages.append(m.player_b_average)
                 my_score = m.player1_score if is_a else m.player2_score
                 opp_score = m.player2_score if is_a else m.player1_score
                 legs_won += my_score or 0
@@ -314,6 +320,7 @@ class RankingService:
                     wins += 1
                 else:
                     losses += 1
+            avg_val = round(sum(averages) / len(averages), 2) if averages else None
             return {
                 "total_matches": len(matches),
                 "wins": wins,
@@ -323,13 +330,52 @@ class RankingService:
                 "total_180s": total_180s,
                 "high_finishes": sorted(high_finishes, reverse=True),
                 "low_darts": sorted(low_darts),
+                "average": avg_val,
+                "average_count": len(averages),
             }
+
+        all_time_result = _aggregate(all_matches, player_id)
+        # Compute last-100 average from the most recent matches with averages
+        all_time_averages: list[float] = []
+        for m in reversed(all_matches):
+            is_a = m.player_a_id == player_id
+            avg = m.player_a_average if is_a else m.player_b_average
+            if avg is not None:
+                all_time_averages.append(avg)
+            if len(all_time_averages) >= 100:
+                break
+        avg_last100 = round(sum(all_time_averages) / len(all_time_averages), 2) if all_time_averages else None
+        all_time_result["average_last100"] = avg_last100
 
         return {
             "player_id": player_id,
             "period": _aggregate(period_matches, player_id),
-            "all_time": _aggregate(all_matches, player_id),
+            "all_time": all_time_result,
         }
+
+    def get_average_history(self, player_id: int) -> list[dict]:
+        """Get average history for a player (matches with a recorded average).
+
+        Args:
+            player_id: The player's ID.
+
+        Returns:
+            List of dicts with date, average, match_id.
+        """
+        matches = self.db.query(Match).filter(
+            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
+        ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
+
+        history = []
+        for m in matches:
+            avg = m.player_a_average if m.player_a_id == player_id else m.player_b_average
+            if avg is not None:
+                history.append({
+                    "date": m.date.isoformat(),
+                    "average": avg,
+                    "match_id": m.id,
+                })
+        return history
 
     def get_elo_history(self, player_id: int) -> list[dict]:
         """Get Elo history for a player (all matches with Elo after each).
