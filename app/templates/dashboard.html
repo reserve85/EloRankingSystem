@@ -95,23 +95,15 @@
 
             <!-- Row 3b: Average -->
             <div class="border rounded p-2 mb-2">
-              <label class="form-label fw-bold small mb-2">3-Dart Average <span class="text-muted fw-normal">(optional, e.g. 65.50)</span></label>
+              <label class="form-label fw-bold small mb-2">3-Dart Average <span class="text-muted fw-normal">(optional, format: 000.00)</span></label>
               <div class="row g-2">
                 <div class="col-6">
                   <div class="text-muted small mb-1 text-truncate" id="p1-name-avg" title="Player 1">Player 1</div>
-                  <div class="input-group input-group-sm">
-                    <button type="button" class="btn btn-outline-secondary" onclick="adjustAvgCounter('p1-avg',-0.5)">−</button>
-                    <input type="number" step="0.01" class="form-control text-center" id="p1-avg" min="0" max="200" placeholder="xx.xx" style="max-width:90px">
-                    <button type="button" class="btn btn-outline-secondary" onclick="adjustAvgCounter('p1-avg',0.5)">+</button>
-                  </div>
+                  <input type="text" inputmode="decimal" class="form-control form-control-sm avg-input" id="p1-avg" placeholder="000.00" autocomplete="off">
                 </div>
                 <div class="col-6">
                   <div class="text-muted small mb-1 text-truncate" id="p2-name-avg" title="Player 2">Player 2</div>
-                  <div class="input-group input-group-sm">
-                    <button type="button" class="btn btn-outline-secondary" onclick="adjustAvgCounter('p2-avg',-0.5)">−</button>
-                    <input type="number" step="0.01" class="form-control text-center" id="p2-avg" min="0" max="200" placeholder="xx.xx" style="max-width:90px">
-                    <button type="button" class="btn btn-outline-secondary" onclick="adjustAvgCounter('p2-avg',0.5)">+</button>
-                  </div>
+                  <input type="text" inputmode="decimal" class="form-control form-control-sm avg-input" id="p2-avg" placeholder="000.00" autocomplete="off">
                 </div>
               </div>
             </div>
@@ -474,12 +466,6 @@ function adjustCounter(id, delta) {
   el.value = val;
 }
 
-function adjustAvgCounter(id, delta) {
-  const el = document.getElementById(id);
-  const val = Math.max(0, parseFloat(el.value || 0) + delta);
-  el.value = val > 0 ? val.toFixed(2) : '';
-}
-
 function addHfEntry(player) {
   const container = document.getElementById(player + '-hf-list');
   const div = document.createElement('div');
@@ -574,13 +560,53 @@ function getStatsFromForm() {
   if (ldA.length > 0) stats.player_a_low_darts = ldA;
   if (ldB.length > 0) stats.player_b_low_darts = ldB;
 
-  // Average
-  const avgA = parseFloat(document.getElementById('p1-avg').value);
-  const avgB = parseFloat(document.getElementById('p2-avg').value);
-  if (!isNaN(avgA) && avgA > 0) stats.player_a_average = avgA;
-  if (!isNaN(avgB) && avgB > 0) stats.player_b_average = avgB;
+  // Average (from formatted text input "000.00")
+  const avgA = parseFormattedAvg(document.getElementById('p1-avg').value);
+  const avgB = parseFormattedAvg(document.getElementById('p2-avg').value);
+  if (avgA !== null && avgA > 0) stats.player_a_average = avgA;
+  if (avgB !== null && avgB > 0) stats.player_b_average = avgB;
 
   return stats;
+}
+
+function formatAverageInput(input) {
+  let raw = input.value.replace(/[^0-9]/g, '');
+  if (raw.length === 0) return;
+  raw = raw.replace(/^0+/, '') || '0';
+  if (raw.length > 5) raw = raw.slice(0, 5);
+  let formatted;
+  if (raw.length <= 2) {
+    formatted = '0.' + raw.padStart(2, '0');
+  } else {
+    const intPart = raw.slice(0, raw.length - 2);
+    const decPart = raw.slice(raw.length - 2);
+    formatted = intPart + '.' + decPart;
+  }
+  if (input.value !== formatted) {
+    input.value = formatted;
+    input.setSelectionRange(formatted.length, formatted.length);
+  }
+}
+
+function padAverageInput(input) {
+  let raw = input.value.replace(/[^0-9]/g, '');
+  if (raw.length === 0) return;
+  raw = raw.replace(/^0+/, '') || '0';
+  if (raw.length > 5) raw = raw.slice(0, 5);
+  if (raw.length <= 2) {
+    input.value = '000.' + raw.padStart(2, '0');
+  } else {
+    const intPart = raw.slice(0, raw.length - 2);
+    const decPart = raw.slice(raw.length - 2);
+    input.value = intPart.padStart(3, '0') + '.' + decPart;
+  }
+}
+
+function parseFormattedAvg(val) {
+  if (!val || val.trim() === '') return null;
+  const num = parseFloat(val);
+  if (isNaN(num)) return null;
+  return parseFloat(num.toFixed(2));
 }
 
 function resetStatsForm() {
@@ -593,6 +619,12 @@ function resetStatsForm() {
   document.getElementById('p1-ld-list').innerHTML = '';
   document.getElementById('p2-ld-list').innerHTML = '';
 }
+
+// Attach real-time average formatting
+document.getElementById('p1-avg').addEventListener('input', function() { formatAverageInput(this); });
+document.getElementById('p2-avg').addEventListener('input', function() { formatAverageInput(this); });
+document.getElementById('p1-avg').addEventListener('blur', function() { padAverageInput(this); });
+document.getElementById('p2-avg').addEventListener('blur', function() { padAverageInput(this); });
 
 async function submitMatchForm(force) {
   const fd = new FormData(document.getElementById('add-match-form'));

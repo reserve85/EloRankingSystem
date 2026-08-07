@@ -310,7 +310,7 @@
               <tr><td class="text-muted">Result</td><td><span id="admin-modal-p1-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="admin-modal-p1-elo"></span></td></tr>
               <tr><td class="text-muted">Average</td><td>
-                <input type="number" step="0.01" class="form-control form-control-sm" id="admin-edit-p1-avg" min="0" max="200" placeholder="xx.xx" style="max-width:100px">
+                <input type="text" inputmode="decimal" class="form-control form-control-sm avg-input" id="admin-edit-p1-avg" placeholder="000.00" style="max-width:100px" autocomplete="off">
               </td></tr>
               <tr><td class="text-muted">180</td><td>
                 <div class="input-group input-group-sm" style="max-width:100px">
@@ -339,7 +339,7 @@
               <tr><td class="text-muted">Result</td><td><span id="admin-modal-p2-result"></span></td></tr>
               <tr><td class="text-muted">Elo Change</td><td><span id="admin-modal-p2-elo"></span></td></tr>
               <tr><td class="text-muted">Average</td><td>
-                <input type="number" step="0.01" class="form-control form-control-sm" id="admin-edit-p2-avg" min="0" max="200" placeholder="xx.xx" style="max-width:100px">
+                <input type="text" inputmode="decimal" class="form-control form-control-sm avg-input" id="admin-edit-p2-avg" placeholder="000.00" style="max-width:100px" autocomplete="off">
               </td></tr>
               <tr><td class="text-muted">180</td><td>
                 <div class="input-group input-group-sm" style="max-width:100px">
@@ -626,6 +626,12 @@ function populateModalHfLd(containerId, values, inputClass) {
   });
 }
 
+// Real-time average formatting for admin edit inputs
+document.getElementById('admin-edit-p1-avg').addEventListener('input', function() { formatAverageInput(this); });
+document.getElementById('admin-edit-p2-avg').addEventListener('input', function() { formatAverageInput(this); });
+document.getElementById('admin-edit-p1-avg').addEventListener('blur', function() { padAverageInput(this); });
+document.getElementById('admin-edit-p2-avg').addEventListener('blur', function() { padAverageInput(this); });
+
 // Auto-fill opponent score when selecting a non-winning score in edit modal
 document.getElementById('admin-edit-score-a').addEventListener('change', function() {
   const m = adminMatchData.find(x => x.id === adminEditingMatchId);
@@ -658,6 +664,53 @@ function toggleScoreEdit() {
     btn.textContent = 'Edit Result';
     btn.className = 'btn btn-sm btn-outline-primary mt-1';
   }
+}
+
+function formatAverageInput(input) {
+  let raw = input.value.replace(/[^0-9]/g, '');
+  if (raw.length === 0) return;
+  raw = raw.replace(/^0+/, '') || '0';
+  if (raw.length > 5) raw = raw.slice(0, 5);
+  let formatted;
+  if (raw.length <= 2) {
+    formatted = '0.' + raw.padStart(2, '0');
+  } else {
+    const intPart = raw.slice(0, raw.length - 2);
+    const decPart = raw.slice(raw.length - 2);
+    formatted = intPart + '.' + decPart;
+  }
+  if (input.value !== formatted) {
+    input.value = formatted;
+    input.setSelectionRange(formatted.length, formatted.length);
+  }
+}
+
+function padAverageInput(input) {
+  let raw = input.value.replace(/[^0-9]/g, '');
+  if (raw.length === 0) return;
+  raw = raw.replace(/^0+/, '') || '0';
+  if (raw.length > 5) raw = raw.slice(0, 5);
+  if (raw.length <= 2) {
+    input.value = '000.' + raw.padStart(2, '0');
+  } else {
+    const intPart = raw.slice(0, raw.length - 2);
+    const decPart = raw.slice(raw.length - 2);
+    input.value = intPart.padStart(3, '0') + '.' + decPart;
+  }
+}
+
+function formatAvgForDisplay(val) {
+  // Convert a number like 60.54 to "060.54" string
+  const num = parseFloat(val);
+  if (isNaN(num)) return '';
+  return num.toFixed(2).padStart(6, '0');
+}
+
+function parseFormattedAvg(val) {
+  if (!val || val.trim() === '') return null;
+  const num = parseFloat(val);
+  if (isNaN(num)) return null;
+  return parseFloat(num.toFixed(2));
 }
 
 function showAdminMatchDetail(idx) {
@@ -705,9 +758,9 @@ function showAdminMatchDetail(idx) {
   document.getElementById('admin-modal-p2-elo').textContent = eloB;
   document.getElementById('admin-modal-p1-elo').className = m.elo_change_a >= 0 ? 'text-green' : 'text-red';
   document.getElementById('admin-modal-p2-elo').className = m.elo_change_b >= 0 ? 'text-green' : 'text-red';
-  // Populate editable fields
-  document.getElementById('admin-edit-p1-avg').value = m.player_a_average != null ? m.player_a_average : '';
-  document.getElementById('admin-edit-p2-avg').value = m.player_b_average != null ? m.player_b_average : '';
+  // Populate editable fields (format average as "000.00")
+  document.getElementById('admin-edit-p1-avg').value = m.player_a_average != null ? formatAvgForDisplay(m.player_a_average) : '';
+  document.getElementById('admin-edit-p2-avg').value = m.player_b_average != null ? formatAvgForDisplay(m.player_b_average) : '';
   document.getElementById('admin-edit-p1-180s').value = m.player_a_180s || 0;
   document.getElementById('admin-edit-p2-180s').value = m.player_b_180s || 0;
   populateModalHfLd('admin-edit-p1-hf-list', m.player_a_high_finishes, 'hf-input');
@@ -747,11 +800,11 @@ async function saveAdminMatchStats() {
     player_a_low_darts: [...document.querySelectorAll('#admin-edit-p1-ld-list .ld-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v)),
     player_b_low_darts: [...document.querySelectorAll('#admin-edit-p2-ld-list .ld-input')].map(el => parseInt(el.value)).filter(v => !isNaN(v)),
   };
-  // Include average if provided
-  const avgA = parseFloat(document.getElementById('admin-edit-p1-avg').value);
-  const avgB = parseFloat(document.getElementById('admin-edit-p2-avg').value);
-  if (!isNaN(avgA) && avgA > 0) body.player_a_average = avgA;
-  if (!isNaN(avgB) && avgB > 0) body.player_b_average = avgB;
+  // Include average if provided (from formatted text input "000.00")
+  const avgA = parseFormattedAvg(document.getElementById('admin-edit-p1-avg').value);
+  const avgB = parseFormattedAvg(document.getElementById('admin-edit-p2-avg').value);
+  if (avgA !== null && avgA > 0) body.player_a_average = avgA;
+  if (avgB !== null && avgB > 0) body.player_b_average = avgB;
   // Include score if edit is visible
   const scoreEdit = document.getElementById('admin-modal-score-edit');
   if (scoreEdit.style.display !== 'none') {

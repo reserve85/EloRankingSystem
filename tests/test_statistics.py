@@ -1358,8 +1358,8 @@ class TestAverageValidation:
         })
         assert resp.status_code == 422
 
-    def test_average_over_200_rejected(self, client, db_session):
-        """Average over 200 is rejected."""
+    def test_average_over_167_rejected(self, client, db_session):
+        """Average over 167 (9-darter max) is rejected."""
         _create_user(db_session)
         _login(client)
         pa, pb = _create_players(db_session)
@@ -1370,12 +1370,12 @@ class TestAverageValidation:
             "player_b_id": pb.id,
             "player1_score": 3,
             "player2_score": 0,
-            "player_a_average": 201.0,
+            "player_a_average": 168.0,
         })
         assert resp.status_code == 422
 
-    def test_average_boundary_200_accepted(self, client, db_session):
-        """Average of exactly 200 is accepted."""
+    def test_average_boundary_167_accepted(self, client, db_session):
+        """Average of exactly 167 (9-darter max) is accepted."""
         _create_user(db_session)
         _login(client)
         pa, pb = _create_players(db_session)
@@ -1386,7 +1386,7 @@ class TestAverageValidation:
             "player_b_id": pb.id,
             "player1_score": 3,
             "player2_score": 0,
-            "player_a_average": 200.0,
+            "player_a_average": 167.0,
         })
         assert resp.status_code == 201
 
@@ -1856,5 +1856,37 @@ class TestAverageUIRendering:
         resp = client.get("/ui/admin")
         assert "admin-edit-p1-avg" in resp.text
         assert "admin-edit-p2-avg" in resp.text
+
+    def test_dashboard_average_inputs_are_text_type_with_format(self, client, db_session):
+        """Dashboard average inputs should be type='text' with 000.00 format."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Inputs should be type="text" (not type="number") for auto-formatting
+        assert 'type="text"' in resp.text
+        assert 'id="p1-avg"' in resp.text
+        assert 'id="p2-avg"' in resp.text
+        assert 'placeholder="000.00"' in resp.text
+        assert 'inputmode="decimal"' in resp.text
+        assert 'avg-input' in resp.text
+        assert 'formatAverageInput' in resp.text
+        assert 'padAverageInput' in resp.text
+        # maxlength must NOT be set - it blocks typing when formatted value fills the field
+        assert 'maxlength' not in resp.text.split('p1-avg')[1].split('>')[0]
+
+    def test_admin_average_inputs_are_text_type_with_format(self, client, db_session):
+        """Admin average edit inputs should be type='text' with 000.00 format."""
+        _login_as(client, db_session, "admin_edit", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert 'type="text"' in resp.text
+        assert 'id="admin-edit-p1-avg"' in resp.text
+        assert 'id="admin-edit-p2-avg"' in resp.text
+        assert 'placeholder="000.00"' in resp.text
+        assert 'inputmode="decimal"' in resp.text
+        assert 'formatAverageInput' in resp.text
+        assert 'formatAvgForDisplay' in resp.text
+        assert 'parseFormattedAvg' in resp.text
+        assert 'padAverageInput' in resp.text
+        # maxlength must NOT be set
+        assert 'maxlength' not in resp.text.split('admin-edit-p1-avg')[1].split('>')[0]
 
 

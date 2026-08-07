@@ -32,6 +32,8 @@ def override_get_db():
 @pytest.fixture(scope="function")
 def db_session():
     """Create a fresh database session for each test."""
+    # Drop first to purge any stale data from a crashed previous run
+    Base.metadata.drop_all(bind=test_engine)
     Base.metadata.create_all(bind=test_engine)
     session = TestSessionLocal()
     try:

@@ -514,7 +514,7 @@ Each match stores per-player dart statistics:
 * **180s Count**: Integer, default 0. Number of 180 throws per player.
 * **High Finishes**: List of integer scores (JSON column). Validated against configurable range.
 * **Low Darts**: List of integer dart counts (JSON column). Validated against configurable range.
-* **3-Dart Average**: Optional float per player (nullable, 2 decimal places, e.g. 65.50). Validated range: 0–200. Only visible in match detail and player statistics views. Matches without an average are excluded from aggregation calculations.
+* **3-Dart Average**: Optional float per player (nullable, 2 decimal places, e.g. 65.50). Validated range: 0–167 (theoretical 9-darter maximum). Only visible in match detail and player statistics views. Matches without an average are excluded from aggregation calculations.
 
 Statistics validation is enforced on match creation and update via Pydantic schemas.
 

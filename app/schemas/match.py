@@ -67,8 +67,8 @@ class MatchStatisticsCreate(BaseModel):
     player_b_high_finishes: list[int] = Field(default_factory=list, description="High finish scores for player B")
     player_a_low_darts: list[int] = Field(default_factory=list, description="Low dart counts for player A")
     player_b_low_darts: list[int] = Field(default_factory=list, description="Low dart counts for player B")
-    player_a_average: Optional[float] = Field(default=None, ge=0, le=200, description="3-dart average for player A")
-    player_b_average: Optional[float] = Field(default=None, ge=0, le=200, description="3-dart average for player B")
+    player_a_average: Optional[float] = Field(default=None, ge=0, le=167, description="3-dart average for player A")
+    player_b_average: Optional[float] = Field(default=None, ge=0, le=167, description="3-dart average for player B")
 
     @model_validator(mode="after")
     def validate_statistics(self):
@@ -149,8 +149,8 @@ class MatchStatisticsUpdate(BaseModel):
     player_b_high_finishes: Optional[list[int]] = Field(default=None, description="High finish scores for player B")
     player_a_low_darts: Optional[list[int]] = Field(default=None, description="Low dart counts for player A")
     player_b_low_darts: Optional[list[int]] = Field(default=None, description="Low dart counts for player B")
-    player_a_average: Optional[float] = Field(default=None, ge=0, le=200, description="3-dart average for player A")
-    player_b_average: Optional[float] = Field(default=None, ge=0, le=200, description="3-dart average for player B")
+    player_a_average: Optional[float] = Field(default=None, ge=0, le=167, description="3-dart average for player A")
+    player_b_average: Optional[float] = Field(default=None, ge=0, le=167, description="3-dart average for player B")
 
     @model_validator(mode="after")
     def validate_statistics(self):

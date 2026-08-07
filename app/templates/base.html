@@ -405,6 +405,10 @@
     [data-bs-theme="dark"] canvas {
       background-color: #1e2233 !important;
     }
+
+    /* Average input formatting (shared across templates) */
+    .avg-input { text-align: center; letter-spacing: 0.05em; font-variant-numeric: tabular-nums; }
+    .avg-input::placeholder { letter-spacing: 0.15em; }
   </style>
   {% block extra_css %}{% endblock %}
 </head>
