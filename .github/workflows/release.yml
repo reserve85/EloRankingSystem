@@ -4,6 +4,11 @@ on:
   release:
     types: [published]
 
+# Cancel in-progress runs for same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   build-and-publish:
     runs-on: ubuntu-latest
@@ -56,3 +61,4 @@ jobs:
         with:
           name: release-info-${{ steps.version.outputs.VERSION }}
           path: release_info.txt
+          retention-days: 7

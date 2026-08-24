@@ -5,6 +5,11 @@ on:
     branches: [main]
     tags: ["v*"]
 
+# Cancel in-progress runs for same branch/PR
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository_owner }}/elo_ranking_system
