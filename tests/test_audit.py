@@ -386,17 +386,12 @@ class TestUserAudit:
 class TestSettingsAudit:
     """Tests for club settings audit logging."""
 
-    def test_settings_change_logged(self, client, db_session):
-        """Settings change should be logged."""
+    def test_settings_put_route_removed(self, client, db_session):
+        """Settings PUT route should be removed (settings are env/config only)."""
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
 
-        client.put("/settings/", json={"default_elo": 1500})
-
-        logs = _get_audit_logs(db_session, "CLUB_SETTINGS_CHANGED")
-        assert len(logs) >= 1
-        log = logs[-1]
-        assert log.entity_type == "club_settings"
-        assert "1500" in (log.new_value or "")
+        resp = client.put("/settings/", json={"default_elo": 1500})
+        assert resp.status_code == 405
 
 
 class TestPdfAudit:

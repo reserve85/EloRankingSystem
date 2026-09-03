@@ -119,6 +119,7 @@ class MatchService:
             elo_before_a=0.0, elo_before_b=0.0,
             elo_after_a=0.0, elo_after_b=0.0,
             elo_change_a=0.0, elo_change_b=0.0,
+            k_factor=float(settings.k_factor),
             player_a_180s=data.player_a_180s,
             player_b_180s=data.player_b_180s,
             player_a_high_finishes=data.player_a_high_finishes,
@@ -277,7 +278,7 @@ class MatchService:
                 continue
 
             winner_label = "A" if m.winner_id == m.player_a_id else "B"
-            elo_result = calculate_match_elo(rating_a=pa.current_elo, rating_b=pb.current_elo, winner=winner_label)
+            elo_result = calculate_match_elo(rating_a=pa.current_elo, rating_b=pb.current_elo, winner=winner_label, k_factor=m.k_factor)
 
             m.elo_before_a = pa.current_elo
             m.elo_before_b = pb.current_elo

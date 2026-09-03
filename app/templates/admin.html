@@ -870,25 +870,6 @@ async function deleteMatchFromModal() {
   await Promise.all([loadMatches(), loadPlayers()]);
 }
 
-// --- Club Settings ---
-async function loadClubSettings() {
-  const resp = await fetch('/settings/');
-  if (!resp.ok) return;
-  const s = await resp.json();
-  document.getElementById('club-default-elo').value = s.default_elo || 1200;
-  document.getElementById('club-k-factor').value = s.k_factor || 32;
-  document.getElementById('club-inactivity').value = s.inactivity_months || 3;
-}
-async function saveClubSettings() {
-  const body = { default_elo: parseInt(document.getElementById('club-default-elo').value),
-    k_factor: parseFloat(document.getElementById('club-k-factor').value), inactivity_months: parseInt(document.getElementById('club-inactivity').value) };
-  const resp = await fetch('/settings/', { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
-  const sEl = document.getElementById('club-success'), eEl = document.getElementById('club-error');
-  sEl.classList.add('d-none'); eEl.classList.add('d-none');
-  if (resp.ok) { sEl.textContent='Settings saved!'; sEl.classList.remove('d-none'); }
-  else { eEl.textContent='Failed to save'; eEl.classList.remove('d-none'); }
-}
-
 // --- Audit Log ---
 let auditLogData = [];
 function tryFormatJson(val) {

@@ -253,22 +253,14 @@ class TestSettingsAPI:
         assert resp.status_code == 200
         data = resp.json()
         assert "club_name" in data
-        assert "default_elo" in data
-        assert "k_factor" in data
-        assert "inactivity_months" in data
+        assert "club_logo_path" in data
+        assert "club_logo_dark_path" in data
 
-    def test_admin_can_update_settings(self, client, db_session):
-        """ADMIN should be able to update club settings."""
+    def test_settings_put_removed(self, client, db_session):
+        """PUT /settings/ should no longer exist (settings are env/config only)."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
-        resp = client.put("/settings/", json={
-            "default_elo": 1500,
-            "k_factor": 24,
-            "inactivity_months": 6,
-        })
-        assert resp.status_code == 200
-        data = resp.json()
-        # club_name now comes from env/config, not from DB update
-        assert data["default_elo"] == 1500
+        resp = client.put("/settings/", json={"default_elo": 1500})
+        assert resp.status_code == 405
 
     def test_user_cannot_get_settings(self, client, db_session):
         """USER should not be able to access settings."""

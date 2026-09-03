@@ -63,6 +63,9 @@ class Match(Base):
     elo_change_a: Mapped[float] = mapped_column(Float, nullable=False)
     elo_change_b: Mapped[float] = mapped_column(Float, nullable=False)
 
+    # K-factor used for this match (snapshot from settings at creation time)
+    k_factor: Mapped[float] = mapped_column(Float, nullable=False, default=32.0, server_default="32.0")
+
     # Dart statistics - per player
     player_a_180s: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
     player_b_180s: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
