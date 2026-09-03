@@ -222,20 +222,42 @@ class MatchService:
         self.match_repo.delete(match)
         self._recalculate_elo_timeline(affected_players, deleted_by, username)
 
-    def _recalculate_elo_timeline(self, affected_player_ids: set[int], user_id: int | None = None, username: str | None = None) -> None:
-        """Recalculate the Elo timeline for all affected players."""
+    def _recalculate_elo_timeline(
+        self,
+        affected_player_ids: set[int],
+        user_id: int | None = None,
+        username: str | None = None,
+    ) -> int:
+        """Recalculate the Elo timeline for all affected players.
+
+        Boundary initialization (Fix #12):
+        - Players directly involved in the changed match enter the window at
+          their ``start_elo``. The window always starts at their earliest
+          match, so their whole history lies inside the recalculation window.
+        - Other players that appear inside the window enter at the Elo they
+          had after their last match strictly before the window (or
+          ``start_elo`` if they have no prior match). Pre-window ratings are
+          preserved instead of being discarded.
+
+        Returns:
+            Number of matches recalculated.
+        """
         if not affected_player_ids:
-            return
+            return 0
 
         earliest_match = None
         for pid in affected_player_ids:
             player_matches = self.match_repo.get_by_player(pid)
             if player_matches:
                 candidate = player_matches[0]
-                if earliest_match is None or (candidate.date, candidate.created_at, candidate.id) < (earliest_match.date, earliest_match.created_at, earliest_match.id):
+                if earliest_match is None or (
+                    candidate.date, candidate.created_at, candidate.id
+                ) < (earliest_match.date, earliest_match.created_at, earliest_match.id):
                     earliest_match = candidate
 
         if earliest_match is None:
+            # All affected players have no remaining matches (e.g. their only
+            # match was just deleted) -> reset them to the initial state.
             for pid in affected_player_ids:
                 player = self.player_repo.get_by_id(pid)
                 if player is not None:
@@ -243,7 +265,8 @@ class MatchService:
                     player.last_match_date = None
                     player.active = False
             self.db.commit()
-            return
+            self._audit_recalculation(user_id, username, affected_player_ids, 0)
+            return 0
 
         all_matches_from_start = self.match_repo.get_all()
         start_idx = 0
@@ -254,7 +277,7 @@ class MatchService:
 
         matches_to_recalc = all_matches_from_start[start_idx:]
         if not matches_to_recalc:
-            return
+            return 0
 
         player_ids_in_timeline: set[int] = set()
         for m in matches_to_recalc:
@@ -264,10 +287,30 @@ class MatchService:
         players: dict[int, Player] = {}
         for pid in player_ids_in_timeline:
             player = self.player_repo.get_by_id(pid)
-            if player is not None:
+            if player is None:
+                continue
+
+            if pid in affected_player_ids:
+                # Directly affected player: their entire history is inside the
+                # window, so the timeline starts at start_elo.
                 player.current_elo = float(player.start_elo)
                 player.last_match_date = None
-                players[pid] = player
+            else:
+                # In-window player with pre-window history: enter at the rating
+                # from their last match strictly before the window.
+                pre_window_match = self.match_repo.get_last_match_before(earliest_match, pid)
+                if pre_window_match is not None:
+                    player.current_elo = (
+                        pre_window_match.elo_after_a
+                        if pre_window_match.player_a_id == pid
+                        else pre_window_match.elo_after_b
+                    )
+                    player.last_match_date = pre_window_match.date
+                else:
+                    player.current_elo = float(player.start_elo)
+                    player.last_match_date = None
+
+            players[pid] = player
 
         matches_to_recalc.sort(key=lambda m: (m.date, m.created_at, m.id))
 
@@ -294,13 +337,55 @@ class MatchService:
             pa.active = True
             pb.active = True
 
-        self.db.commit()
+        # Stale-rating edge case: an affected player whose matches were all
+        # deleted is not part of the timeline, so reset it to the initial state.
+        for pid in affected_player_ids:
+            if pid in players:
+                continue
+            player = self.player_repo.get_by_id(pid)
+            if player is not None:
+                player.current_elo = float(player.start_elo)
+                player.last_match_date = None
+                player.active = False
 
+        self.db.commit()
+        self._audit_recalculation(
+            user_id, username, affected_player_ids, len(matches_to_recalc)
+        )
+        return len(matches_to_recalc)
+
+    def _audit_recalculation(
+        self,
+        user_id: int | None,
+        username: str | None,
+        affected_player_ids: set[int],
+        matches_count: int,
+    ) -> None:
+        """Write a RANKING_RECALCULATED audit log entry."""
         audit = AuditLog(
             user_id=user_id, username=username,
             action="RANKING_RECALCULATED", entity_type="ranking", entity_id=None,
             old_value=None,
-            new_value=f'{{"affected_players": {list(affected_player_ids)}, "matches_recalculated": {len(matches_to_recalc)}}}',
+            new_value=f'{{"affected_players": {sorted(affected_player_ids)}, "matches_recalculated": {matches_count}}}',
         )
         self.db.add(audit)
         self.db.commit()
+
+    def recalculate_all(self, user_id: int | None = None, username: str | None = None) -> dict:
+        """Replay the complete Elo history from scratch for every player.
+
+        Used for one-time data repair after a recalculation bugfix. Passes all
+        players as affected, so the window starts at the very first match and
+        every player enters at ``start_elo`` - identical to replaying the full
+        history from scratch and canonicalizing all stored Elo snapshots.
+
+        Returns:
+            Dict with ``matches_recalculated`` and ``players_affected`` counts.
+        """
+        all_players = self.player_repo.get_all(include_disabled=True)
+        all_player_ids = {p.id for p in all_players}
+        matches_count = self._recalculate_elo_timeline(all_player_ids, user_id, username)
+        return {
+            "matches_recalculated": matches_count,
+            "players_affected": len(all_player_ids),
+        }

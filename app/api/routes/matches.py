@@ -7,7 +7,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.auth.dependencies import require_admin, require_user
+from app.auth.dependencies import require_admin, require_system, require_user
 from app.models.user import User
 from app.schemas.match import MatchCreate, MatchUpdate, MatchResponse
 from app.services.match import MatchService
@@ -41,6 +41,34 @@ def list_matches(
     """List all matches with optional date range filter."""
     service = MatchService(db)
     return service.get_all_matches(from_date=from_date, to_date=to_date)
+
+
+@router.post("/recalculate-all")
+def recalculate_all(
+    current_user: User = Depends(require_system),
+    db: Session = Depends(get_db),
+):
+    """Recalculate the complete Elo timeline from scratch. SYSTEM role only.
+
+    Replays every match chronologically from each player's ``start_elo`` to
+    repair any non-canonical Elo snapshots in the database (e.g. after a
+    recalculation bugfix deployment). This is a one-time data-repair
+    operation and is intentionally restricted to the SYSTEM user, who should
+    create a backup before running it.
+    """
+    service = MatchService(db)
+    result = service.recalculate_all(
+        user_id=current_user.id,
+        username=current_user.username,
+    )
+    return {
+        "detail": (
+            f"Full Elo recalculation completed: "
+            f"{result['matches_recalculated']} matches recalculated, "
+            f"{result['players_affected']} players affected."
+        ),
+        **result,
+    }
 
 
 @router.get("/{match_id}", response_model=MatchResponse)

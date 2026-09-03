@@ -11,6 +11,8 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 - **Player management** with enable/disable, initial Elo rating, and automatic inactive player detection
 - **User management** with role-based access control (SYSTEM, ADMIN, USER)
 - **Match management** with configurable match format (Best-of-1 to Best-of-21) and automatic Elo recalculation
+- **Historical Elo recalculation** with boundary initialization — players with pre-window match history keep their rating instead of being reset, so snapshots stay canonical
+- **Full Elo Recalculation (SYSTEM only)** — one-click repair of non-canonical Elo snapshots from the Admin → System tab (or `POST /matches/recalculate-all`)
 - **Mixed match formats** — different formats can coexist (e.g., Best-of-5 and Best-of-9 matches in the same database)
 - **Match format stored per match** — each match records its own Best-of-N for correct validation
 - **Dart statistics** per match: 180s, High Finishes, Low Darts
@@ -443,6 +445,31 @@ Triggers when a GitHub release is published:
 ### Required GitHub Secrets
 
 No custom secrets are required. The workflows use the built-in `GITHUB_TOKEN` for GHCR authentication.
+
+## Full Elo Recalculation (SYSTEM only)
+
+The application replays the complete affected match history chronologically
+whenever a match is added, edited, or deleted ("historical Elo recalculation").
+With boundary initialization (Fix #12), players whose rating history starts
+*before* the recalculation window keep their pre-window rating (their last match
+before the window) instead of being reset to their start Elo. This prevents the
+corrupted snapshots that occurred when in-window players with pre-existing
+history were reset to `start_elo`.
+
+If the database already contains non-canonical Elo snapshots (for example from a
+recalculation bug), deploy the fix and run a **one-time full recalculation** to
+repair all stored Elo snapshots and player ratings. This operation is
+intentionally restricted to the **SYSTEM** user and is **not** executed
+automatically.
+
+- **Where:** Admin Dashboard → *System* tab (only rendered for the SYSTEM user)
+- **API:** `POST /matches/recalculate-all` (requires the SYSTEM role)
+- **What it does:** replays every match from each player's start Elo — identical
+  to rebuilding the whole history from scratch
+- **Warning:** the confirmation dialog asks you to create a database backup
+  first; the operation overwrites stored Elo values and cannot be undone
+- **Audit log:** writes a `RANKING_RECALCULATED` entry with the number of
+  matches recalculated and players affected
 
 ## Security Notes
 

@@ -45,6 +45,34 @@ class MatchRepository:
             .all()
         )
 
+    def get_last_match_before(self, match: Match, player_id: int) -> Optional[Match]:
+        """Get the player's most recent match strictly before the given match.
+
+        Uses the deterministic timeline order ``(date ASC, created_at ASC, id ASC)``
+        and returns None if the player has no prior match.
+
+        The comparison is intentionally done in Python against loaded ORM values
+        instead of a SQL ``tuple_()`` row-value comparison: SQLite stores
+        ``created_at`` via ``func.now()`` with second precision while SQLAlchemy
+        binds datetime parameters with microsecond precision, which breaks
+        string row-value comparisons for matches created within the same second.
+
+        Args:
+            match: The boundary match; the returned match is strictly before it.
+            player_id: The player whose history is queried.
+
+        Returns:
+            The most recent prior match involving the player, or None.
+        """
+        boundary = (match.date, match.created_at, match.id)
+        last_prior: Optional[Match] = None
+        for m in self.get_by_player(player_id):
+            if (m.date, m.created_at, m.id) < boundary:
+                last_prior = m
+            else:
+                break
+        return last_prior
+
     def create(self, match: Match) -> Match:
         """Create a new match."""
         self.db.add(match)

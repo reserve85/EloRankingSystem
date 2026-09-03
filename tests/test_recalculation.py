@@ -414,3 +414,145 @@ class TestRecalculationEdgeCases:
         elo_a_two_wins = _get_player_elo(client, pa.id)
         assert elo_a_two_wins < elo_a_three_wins
         assert elo_a_two_wins > 1200.0
+class TestBoundaryInitialization:
+    """Fix #12 - boundary initialization of ``_recalculate_elo_timeline``.
+
+    Players with a match history before the recalculation window must enter
+    the window at their pre-window rating instead of being reset to
+    ``start_elo``, which corrupted snapshots and ``current_elo`` values.
+    """
+
+    @staticmethod
+    def _expected(ra: float, rb: float) -> float:
+        """Standard Elo expected score for rating ra against rb."""
+        return 1.0 / (1.0 + 10.0 ** ((rb - ra) / 400.0))
+
+    def _assert_equals_full_replay(self, client) -> None:
+        """Assert all stored snapshots equal a manual full-history replay."""
+        matches = sorted(
+            client.get("/matches/").json(),
+            key=lambda m: (m["date"], m["created_at"], m["id"]),
+        )
+        ratings: dict[int, float] = {}
+        for m in matches:
+            pa, pb = m["player_a_id"], m["player_b_id"]
+            ra = ratings.get(pa, 1200.0)
+            rb = ratings.get(pb, 1200.0)
+            ea = self._expected(ra, rb)
+            aa = 1.0 if m["winner_id"] == pa else 0.0
+            ab = 1.0 - aa
+            k = 32.0
+            na, nb = ra + k * (aa - ea), rb + k * (ab - (1.0 - ea))
+            ratings[pa], ratings[pb] = na, nb
+            assert m["elo_before_a"] == pytest.approx(ra, abs=1e-9)
+            assert m["elo_after_a"] == pytest.approx(na, abs=1e-9)
+            assert m["elo_before_b"] == pytest.approx(rb, abs=1e-9)
+            assert m["elo_after_b"] == pytest.approx(nb, abs=1e-9)
+
+    def test_pre_window_rating_preserved(self, client, db_session):
+        """A non-affected player keeps their pre-window Elo, not start_elo."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        eve = _create_player(db_session, "Eve", elo=1200)
+        frank = _create_player(db_session, "Frank", elo=1200)
+        alice = _create_player(db_session, "Alice", elo=1200)
+        charlie = _create_player(db_session, "Charlie", elo=1200)
+
+        # Jan 5: Eve beats Frank -> Frank drops to 1184
+        _create_match_api(client, eve.id, frank.id, eve.id, "2025-01-05")
+        # Jun 1: Alice beats Charlie (this match will be deleted)
+        _create_match_api(client, alice.id, charlie.id, alice.id, "2025-06-01")
+        # Jun 2: Charlie beats Frank
+        m3 = _create_match_api(
+            client, charlie.id, frank.id, charlie.id, "2025-06-02"
+        ).json()
+
+        # Sanity: Frank lost his first match
+        assert _get_player_elo(client, frank.id) < 1200.0
+
+        # Delete the Jun 1 match -> affected = {Alice, Charlie}
+        m2 = next(m for m in client.get("/matches/").json() if m["date"] == "2025-06-01")
+        client.delete(f"/matches/{m2['id']}")
+
+        m3_after = client.get(f"/matches/{m3['id']}").json()
+        # Frank is NOT directly affected: he enters the recalculation window at
+        # his pre-window rating (1184 after losing to Eve), NOT at start_elo.
+        assert m3_after["elo_before_b"] == pytest.approx(1184.0, abs=1e-9)
+        assert m3_after["elo_after_b"] < m3_after["elo_before_b"]
+        # Charlie IS directly affected: he enters at start_elo.
+        assert m3_after["elo_before_a"] == pytest.approx(1200.0, abs=1e-9)
+
+        # Alice's only match was deleted -> reset to start_elo.
+        assert _get_player_elo(client, alice.id) == 1200.0
+
+    def test_boundary_init_equals_full_replay(self, client, db_session):
+        """Window recalculation with boundary init equals full-history replay."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        a = _create_player(db_session, "Alice", elo=1200)
+        b = _create_player(db_session, "Bob", elo=1200)
+        c = _create_player(db_session, "Carl", elo=1200)
+        d = _create_player(db_session, "Dana", elo=1200)
+
+        # Jan 5: Bob beats Alice -> Bob has pre-window history
+        _create_match_api(client, a.id, b.id, b.id, "2025-01-05")
+        # Jun 1: Bob beats Carl
+        _create_match_api(client, b.id, c.id, b.id, "2025-06-01")
+        # Jun 2: Dana beats Carl
+        m3 = _create_match_api(client, c.id, d.id, d.id, "2025-06-02").json()
+
+        # Flip the Jun 2 winner -> affected = {Carl, Dana}, window starts Jun 1
+        client.put(f"/matches/{m3['id']}", json={"player1_score": 3, "player2_score": 0})
+
+        matches = client.get("/matches/").json()
+        assert len(matches) == 3
+
+        # Bob is a non-affected in-window player: he must enter at his
+        # pre-window rating (1216 from the Jan 5 match), not at start_elo.
+        m2 = next(m for m in matches if m["date"] == "2025-06-01")
+        assert m2["elo_before_a"] == pytest.approx(1216.0, abs=1e-9)
+
+        # Every stored snapshot equals the manual full-history replay.
+        self._assert_equals_full_replay(client)
+
+    def test_stale_rating_after_only_match_deleted(self, client, db_session):
+        """A player whose only match is deleted is reset to start_elo."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        b = _create_player(db_session, "Bob", elo=1200)
+        c = _create_player(db_session, "Cara", elo=1200)
+        a = _create_player(db_session, "Ada", elo=1200)
+
+        # Jan 5: Bob beats Cara
+        _create_match_api(client, b.id, c.id, b.id, "2025-01-05")
+        # Jun 1: Ada beats Bob (Ada's ONLY match)
+        m2 = _create_match_api(client, a.id, b.id, a.id, "2025-06-01").json()
+
+        # Delete Ada's only match
+        client.delete(f"/matches/{m2['id']}")
+
+        # Ada is reset to the initial state (stale-rating edge case).
+        db_session.expire_all()
+        player_a = db_session.query(Player).filter(Player.id == a.id).first()
+        assert player_a.current_elo == 1200.0
+        assert player_a.last_match_date is None
+        assert player_a.active is False
+
+        # Bob keeps a recalculated rating from his remaining match.
+        assert _get_player_elo(client, b.id) == pytest.approx(1216.0, abs=1e-9)
+
+    def test_affected_players_still_use_start_elo(self, client, db_session):
+        """Directly affected players enter the recalc window at start_elo."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        a = _create_player(db_session, "Alice", elo=1200)
+        b = _create_player(db_session, "Bob", elo=1200)
+
+        # Jan 5: Bob beats Alice
+        m1 = _create_match_api(client, a.id, b.id, b.id, "2025-01-05").json()
+
+        # Edit the match -> affected = {Alice, Bob}; window = the whole match.
+        client.put(f"/matches/{m1['id']}", json={"player1_score": 3, "player2_score": 0})
+
+        after = client.get(f"/matches/{m1['id']}").json()
+        # Both entered at start_elo (their whole history is inside the window).
+        assert after["elo_before_a"] == pytest.approx(1200.0, abs=1e-9)
+        assert after["elo_before_b"] == pytest.approx(1200.0, abs=1e-9)
+        assert after["elo_after_a"] == pytest.approx(1216.0, abs=1e-9)
+        assert after["elo_after_b"] == pytest.approx(1184.0, abs=1e-9)

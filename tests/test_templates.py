@@ -163,6 +163,22 @@ class TestAdminPage:
         assert "/ui/dashboard" in resp.text
         assert "/ui/admin" in resp.text
 
+    def test_system_recalc_tab_hidden_for_admin(self, client, db_session):
+        """Full Elo Recalculation UI must not render for ADMIN."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "Run Full Elo Recalculation" not in resp.text
+        assert 'id="recalc-confirm-modal"' not in resp.text
+
+    def test_system_recalc_tab_visible_for_system(self, client, db_session):
+        """Full Elo Recalculation UI must render for SYSTEM only."""
+        _login_as(client, db_session, "sys1", "pass", UserRole.SYSTEM)
+        resp = client.get("/ui/admin")
+        assert resp.status_code == 200
+        assert "Run Full Elo Recalculation" in resp.text
+        assert 'id="recalc-confirm-modal"' in resp.text
+        assert "Did you create a backup" in resp.text
+
 
 class TestUserManagementAPI:
     """Tests for user management API endpoints used by admin page."""

@@ -598,6 +598,30 @@ ID ASC
 
 This ensures stable Elo calculations when multiple matches exist on the same date.
 
+## Boundary Initialization (Fix #12)
+
+When recalculating a window, players are initialized as follows:
+
+* **Players directly involved in the changed match** enter the window at their
+  `start_elo` (their whole history lies inside the window).
+* **Other players that appear inside the window** enter at the Elo they had
+  after their last match *strictly before* the window's earliest match (via
+  `MatchRepository.get_last_match_before`), falling back to `start_elo` when
+  they have no prior match.
+* **Stale-rating edge case:** a directly affected player whose matches were all
+  deleted is reset to `start_elo`, `last_match_date=None`, `active=False`.
+
+This preserves pre-window ratings instead of resetting in-window players with
+existing history to `start_elo`, which previously corrupted Elo snapshots.
+
+## Full Elo Recalculation (SYSTEM only)
+
+`POST /matches/recalculate-all` replays the complete match history from scratch
+(identical to rebuilding all ratings from each player's `start_elo`) and repairs
+non-canonical snapshots. It is intentionally restricted to the **SYSTEM** user,
+is **not** executed automatically on startup, and is reachable from the Admin
+Dashboard → *System* tab with a backup-warning confirmation dialog.
+
 ## Important
 
 The system must not only update the edited match.

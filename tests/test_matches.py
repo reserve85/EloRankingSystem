@@ -6,6 +6,7 @@ import pytest
 from app.models.player import Player
 from app.models.user import User, UserRole
 from app.models.audit_log import AuditLog
+from app.models.match import Match
 from app.auth.password import hash_password
 
 
@@ -768,3 +769,106 @@ class TestDuplicateMatchDetection:
             "player2_score": 0,
         })
         assert resp2.status_code == 201
+
+
+class TestRecalculateAll:
+    """POST /matches/recalculate-all - SYSTEM-only full-history replay."""
+
+    @staticmethod
+    def _expected(ra: float, rb: float) -> float:
+        """Standard Elo expected score."""
+        return 1.0 / (1.0 + 10.0 ** ((rb - ra) / 400.0))
+
+    def _assert_canonical(self, client) -> None:
+        """Assert every stored snapshot equals a manual full-history replay."""
+        matches = sorted(
+            client.get("/matches/").json(),
+            key=lambda m: (m["date"], m["created_at"], m["id"]),
+        )
+        ratings: dict[int, float] = {}
+        for m in matches:
+            pa, pb = m["player_a_id"], m["player_b_id"]
+            ra = ratings.get(pa, 1200.0)
+            rb = ratings.get(pb, 1200.0)
+            ea = self._expected(ra, rb)
+            aa = 1.0 if m["winner_id"] == pa else 0.0
+            ab = 1.0 - aa
+            na, nb = ra + 32.0 * (aa - ea), rb + 32.0 * (ab - (1.0 - ea))
+            ratings[pa], ratings[pb] = na, nb
+            assert m["elo_before_a"] == pytest.approx(ra, abs=1e-9)
+            assert m["elo_after_a"] == pytest.approx(na, abs=1e-9)
+            assert m["elo_before_b"] == pytest.approx(rb, abs=1e-9)
+            assert m["elo_after_b"] == pytest.approx(nb, abs=1e-9)
+
+    def test_recalculate_all_as_system(self, client, db_session):
+        """SYSTEM can recalculate all matches and repair corrupted snapshots."""
+        _login_as(client, db_session, "sys", "pass", UserRole.SYSTEM)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        _create_match_via_api(client, pa.id, pb.id, pa.id, "2025-06-01")
+        _create_match_via_api(client, pa.id, pb.id, pb.id, "2025-06-02")
+
+        # Corrupt a snapshot directly in the DB (simulates the pre-fix bug)
+        m1_id = client.get("/matches/").json()[0]["id"]
+        db_session.query(Match).filter(Match.id == m1_id).update({
+            "elo_after_a": 1234.0,
+            "elo_after_b": 1177.0,
+        })
+        db_session.commit()
+
+        resp = client.post("/matches/recalculate-all")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["matches_recalculated"] == 2
+        assert data["players_affected"] == 2
+
+        # All snapshots are canonical again
+        self._assert_canonical(client)
+
+    def test_recalculate_all_resets_stale_current_elo(self, client, db_session):
+        """After recalculate-all, player current_elo equals the latest elo_after."""
+        _login_as(client, db_session, "sys", "pass", UserRole.SYSTEM)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+        _create_match_via_api(client, pa.id, pb.id, pa.id, "2025-06-01")
+        _create_match_via_api(client, pa.id, pb.id, pb.id, "2025-06-02")
+
+        # Manually corrupt the player's current_elo
+        db_session.query(Player).filter(Player.id == pa.id).update({"current_elo": 999.0})
+        db_session.commit()
+
+        client.post("/matches/recalculate-all")
+
+        db_session.expire_all()
+        alice = db_session.query(Player).filter(Player.id == pa.id).first()
+        assert alice.current_elo != 999.0
+        m2 = next(m for m in client.get("/matches/").json() if m["date"] == "2025-06-02")
+        assert alice.current_elo == pytest.approx(m2["elo_after_a"], abs=1e-9)
+
+    def test_recalculate_all_writes_audit_log(self, client, db_session):
+        """Recalculate-all writes a RANKING_RECALCULATED audit entry."""
+        _login_as(client, db_session, "sys", "pass", UserRole.SYSTEM)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+        _create_match_via_api(client, pa.id, pb.id, pa.id, "2025-06-01")
+
+        client.post("/matches/recalculate-all")
+
+        logs = db_session.query(AuditLog).filter(
+            AuditLog.action == "RANKING_RECALCULATED"
+        ).all()
+        assert len(logs) >= 1
+        assert '"matches_recalculated": 1' in logs[-1].new_value
+
+    def test_recalculate_all_requires_system(self, client, db_session):
+        """ADMIN/USER are forbidden, anonymous gets 401."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        assert client.post("/matches/recalculate-all").status_code == 403
+
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        assert client.post("/matches/recalculate-all").status_code == 403
+
+        # Anonymous (broken token) -> 401
+        client.cookies.set("access_token", "garbage")
+        assert client.post("/matches/recalculate-all").status_code == 401

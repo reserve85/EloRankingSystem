@@ -14,6 +14,7 @@
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-club">Club Settings</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-qr">QR Code</a></li>
     <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-audit">Audit Log</a></li>
+    {% if user.role == 'SYSTEM' %}<li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tab-system">System</a></li>{% endif %}
   </ul>
 </div>
 
@@ -260,6 +261,33 @@
       </div>
     </div>
   </div>
+
+  <!-- System Maintenance Tab (SYSTEM only) -->
+  {% if user.role == 'SYSTEM' %}
+  <div class="tab-pane" id="tab-system">
+    <div class="card">
+      <div class="card-header"><h3 class="card-title">System Maintenance</h3></div>
+      <div class="card-body">
+        <h4 class="mb-2">Full Elo Recalculation</h4>
+        <p class="text-muted">
+          Replays <strong>every match</strong> chronologically from each player's start Elo and
+          overwrites all stored Elo snapshots and player ratings. Use this only to repair
+          non-canonical data (e.g. after deploying a recalculation bugfix). This operation
+          <strong>modifies data</strong> and cannot be undone.
+        </p>
+        <div class="alert alert-warning mb-3">
+          <strong>Before you continue:</strong> make sure you have a backup of the database
+          (see the backup procedure in the README). The operation will overwrite the stored
+          Elo history.
+        </div>
+        <div id="recalc-result" class="alert d-none" role="alert"></div>
+        <button type="button" class="btn btn-danger" onclick="openRecalculateAllConfirm()">
+          Run Full Elo Recalculation
+        </button>
+      </div>
+    </div>
+  </div>
+  {% endif %}
 </div>
 
 <!-- Player Modal -->
@@ -369,6 +397,27 @@
     <button class="btn btn-primary" id="admin-modal-save-btn" onclick="saveAdminMatchStats()">Save Changes</button>
   </div>
 </div></div></div>
+
+{% if user.role == 'SYSTEM' %}
+<!-- Recalculate All Confirm Modal (SYSTEM only) -->
+<div class="modal fade" id="recalc-confirm-modal" tabindex="-1" aria-hidden="true"><div class="modal-dialog modal-dialog-centered"><div class="modal-content">
+  <div class="modal-header">
+    <h5 class="modal-title">Full Elo Recalculation</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+  </div>
+  <div class="modal-body">
+    <p>This will recalculate the complete Elo history from scratch and overwrite all stored Elo values and player ratings.</p>
+    <div class="alert alert-danger mb-0">
+      <strong>Did you create a backup?</strong> If not, click Cancel and create one first.
+      This action cannot be undone.
+    </div>
+  </div>
+  <div class="modal-footer">
+    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+    <button type="button" class="btn btn-danger" id="recalc-confirm-btn" onclick="confirmRecalculateAll()">I have a backup &mdash; Continue</button>
+  </div>
+</div></div></div>
+{% endif %}
 
 <!-- User Modal -->
 <div class="modal fade" id="user-modal" tabindex="-1"><div class="modal-dialog"><div class="modal-content">
@@ -1137,6 +1186,45 @@ function _renderPwChecks(pw, elId) {
 }
 function checkPasswordStrength(pw) { _renderPwChecks(pw, 'pw-strength'); }
 function checkResetPasswordStrength(pw) { _renderPwChecks(pw, 'reset-pw-strength'); }
+
+// --- System: Full Elo Recalculation ---
+async function openRecalculateAllConfirm() {
+  const resultEl = document.getElementById('recalc-result');
+  resultEl.classList.add('d-none');
+  resultEl.className = 'alert d-none';
+  new bootstrap.Modal(document.getElementById('recalc-confirm-modal')).show();
+}
+
+async function confirmRecalculateAll() {
+  const btn = document.getElementById('recalc-confirm-btn');
+  const resultEl = document.getElementById('recalc-result');
+  btn.disabled = true;
+  try {
+    const resp = await fetch('/matches/recalculate-all', { method: 'POST' });
+    const data = await resp.json().catch(() => ({}));
+    if (resp.ok) {
+      resultEl.className = 'alert alert-success';
+      resultEl.innerHTML = '<strong>Full Elo recalculation completed.</strong> '
+        + '<span class="badge bg-green">' + data.matches_recalculated + '</span> matches recalculated, '
+        + '<span class="badge bg-blue">' + data.players_affected + '</span> players affected.';
+      // Auto-refresh affected UI components
+      loadMatches();
+      loadPlayers();
+      loadAuditLogs();
+    } else {
+      resultEl.className = 'alert alert-danger';
+      resultEl.textContent = data.detail || ('Recalculation failed (HTTP ' + resp.status + ')');
+    }
+  } catch (err) {
+    resultEl.className = 'alert alert-danger';
+    resultEl.textContent = 'Recalculation failed: ' + err.message;
+  } finally {
+    btn.disabled = false;
+    const modalEl = document.getElementById('recalc-confirm-modal');
+    const modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+  }
+}
 
 // Init
 loadPlayers(); loadUsers(); loadMatches(); loadAuditLogs(); loadResetUsers(); loadLogos(); loadQRUsers();
