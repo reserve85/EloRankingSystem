@@ -1,6 +1,6 @@
 # Code Review Findings — Elo Ranking System
 
-# #2 — DB Settings Ignored + k_factor Not Stored Per Match
+# #2 — DB Settings Ignored + k_factor Not Stored Per Match - Status DONE
 **Severity:** 🔴 CRITICAL | **Category:** Bug | **File:** `app/services/match.py`, `app/models/match.py`, `app/templates/admin.html`
 
 **Problem**
@@ -12,7 +12,7 @@ Store `k_factor` per match (captured from `settings` at creation time). Use per-
 
 ---
 
-# #3 — No CSRF Protection
+# #3 — No CSRF Protection - Status DONE
 **Severity:** 🔴 CRITICAL | **Category:** Security | **File:** All state-changing routes
 
 **Problem**
@@ -114,7 +114,7 @@ user_id = int(sub) if sub is not None else None
 
 ---
 
-# #11 — `_recalculate_elo_timeline` Over-Expands Match Timeline
+# #11 — `_recalculate_elo_timeline` Over-Expands Match Timeline - Status DONE
 **Severity:** 🟡 MEDIUM | **Category:** Performance | **File:** `app/services/match.py:247-254`
 
 **Problem**
@@ -125,7 +125,7 @@ Replace with a bounded repository method `get_from_match(earliest_match)` that r
 
 ---
 
-# #12 — `_recalculate_elo_timeline` Resets All Players to `start_elo` (Wrong for Pre-Window History)
+# #12 — `_recalculate_elo_timeline` Resets All Players to `start_elo` (Wrong for Pre-Window History) - Status DONE
 **Severity:** 🟡 MEDIUM | **Category:** Bug | **File:** `app/services/match.py:258-269`
 
 **Problem**

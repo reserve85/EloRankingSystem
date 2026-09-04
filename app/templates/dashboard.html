@@ -692,7 +692,7 @@ async function submitMatchForm(force) {
     player2_score: parseInt(fd.get('player2_score')),
     ...getStatsFromForm()
   };
-  const resp = await fetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+  const resp = await apiFetch(url, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
   if (resp.ok) {
     sucEl.textContent = 'Match saved!'; sucEl.classList.remove('d-none');
     document.getElementById('add-match-form').reset(); document.querySelector('input[name="date"]').value = todayISO();

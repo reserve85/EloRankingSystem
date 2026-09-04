@@ -273,6 +273,7 @@ Copy `.env.example` to `.env` and adjust as needed:
 | `COOKIE_SECURE` | Secure cookie flag | `true` |
 | `COOKIE_HTTPONLY` | HttpOnly cookie flag | `true` |
 | `COOKIE_SAMESITE` | SameSite cookie policy | `strict` |
+| `CSRF_ENABLED` | Double-submit cookie CSRF protection | `true` |
 | `DATA_DIR` | Data storage path | `./data` |
 | `UPLOAD_DIR` | Upload storage path | `./uploads` |
 | `LOG_DIR` | Log storage path | `./logs` |
@@ -289,7 +290,7 @@ Copy `config.yaml.example` to `config.yaml` and adjust club-specific settings. T
 | `statistics` | `high_finish_min`, `high_finish_max`, `low_darts_min`, `low_darts_max`, `best_of_legs` | Dart statistics & match format validation |
 | `legal` | `contact_company`, `contact_name`, `contact_street`, `contact_city`, `contact_email` | Impressum & Privacy page data |
 | `system_user` | `username`, `password` | Host administrator credentials |
-| `security` | `jwt_secret`, `jwt_algorithm`, `access_token_lifetime_minutes`, `cookie_secure`, `cookie_httponly`, `cookie_samesite` | Authentication & security |
+| `security` | `jwt_secret`, `jwt_algorithm`, `access_token_lifetime_minutes`, `cookie_secure`, `cookie_httponly`, `cookie_samesite`, `csrf_enabled` | Authentication & security |
 | `storage` | `data_dir`, `upload_dir`, `log_dir` | File storage paths |
 
 Values in `.env` or environment variables always override values in `config.yaml`.
@@ -475,7 +476,12 @@ automatically.
 
 - All passwords are hashed using Argon2
 - JWT tokens are stored in secure HttpOnly cookies
-- CSRF protection is implemented for state-changing operations
+- CSRF protection is implemented for state-changing operations using the
+  double-submit cookie pattern: an `X-CSRF-Token` header must echo the value
+  of the `csrf_token` cookie on every POST/PUT/PATCH/DELETE request (validated
+  in constant time). The `apiFetch()` helper in `base.html` injects the header
+  automatically — always use it for mutating calls. `POST /auth/login` and
+  `GET /auth/auto-login` are exempt. Set `CSRF_ENABLED=false` to disable.
 - Role-based access control is enforced on the backend
 - Never commit `.env`, `config.yaml`, or database files
 - Change all default passwords before deploying to production

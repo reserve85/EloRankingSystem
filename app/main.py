@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal, init_db
+from app.core.csrf import CSRFMiddleware
 from app.api.routes.health import router as health_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.players import router as players_router
@@ -47,6 +48,10 @@ app = FastAPI(
     redoc_url="/redoc",
     lifespan=lifespan,
 )
+
+# Register CSRF protection (double-submit cookie pattern). Must be added
+# after app creation so it wraps all routes, including the UI page renderer.
+app.add_middleware(CSRFMiddleware)
 
 
 @app.exception_handler(FastAPIHTTPException)

@@ -6,7 +6,14 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base, get_db
+from app.core.config import settings
 from app.main import app
+
+# The CSRF middleware is part of the app. Existing tests hit state-changing
+# endpoints directly without a CSRF token, so disable enforcement for the
+# general suite. Dedicated CSRF coverage lives in tests/test_csrf.py, which
+# re-enables it per test.
+settings.csrf_enabled = False
 
 
 # Use in-memory SQLite for tests

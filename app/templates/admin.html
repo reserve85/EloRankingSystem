@@ -489,7 +489,7 @@ async function savePlayer() {
   const body = { name: name, start_elo: startElo };
   const url = id ? '/players/'+id : '/players/';
   const method = id ? 'PUT' : 'POST';
-  const resp = await fetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
+  const resp = await apiFetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
   if (resp.ok) { bootstrap.Modal.getInstance(document.getElementById('player-modal')).hide(); loadPlayers(); }
 }
 function editPlayer(id) {
@@ -504,13 +504,13 @@ function editPlayer(id) {
 async function disablePlayer(id) {
   const confirmed = await showConfirmDialog('Disable this player? They will be hidden from the player list and cannot be selected for new matches.', 'Disable Player');
   if (!confirmed) return;
-  await fetch('/players/'+id+'/disable', {method:'POST'});
+  await apiFetch('/players/'+id+'/disable', {method:'POST'});
   loadPlayers();
 }
 async function reactivatePlayer(id) {
   const confirmed = await showConfirmDialog('Reactivate this player? They will appear in the player list again.', 'Reactivate Player');
   if (!confirmed) return;
-  await fetch('/players/'+id+'/reactivate', {method:'POST'});
+  await apiFetch('/players/'+id+'/reactivate', {method:'POST'});
   loadPlayers();
 }
 
@@ -557,10 +557,10 @@ async function saveUser() {
   if (id) {
     const body = { role: role };
     if (password) body.password = password;
-    const resp = await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+    const resp = await apiFetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
     if (resp.ok) { bootstrap.Modal.getInstance(document.getElementById('user-modal')).hide(); loadUsers(); loadResetUsers(); loadQRUsers(); }
   } else {
-    const resp = await fetch('/users/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,password,role}) });
+    const resp = await apiFetch('/users/', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({username,password,role}) });
     if (resp.ok) {
       bootstrap.Modal.getInstance(document.getElementById('user-modal')).hide();
       loadUsers();
@@ -590,13 +590,13 @@ async function toggleUser(id, active) {
   const action = active ? 'Enable' : 'Disable';
   const confirmed = await showConfirmDialog(`${action} this user?`, `${action} User`);
   if (!confirmed) return;
-  const resp = await fetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({active}) });
+  const resp = await apiFetch('/users/'+id, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify({active}) });
   if (resp.ok) { loadUsers(); loadResetUsers(); loadQRUsers(); }
 }
 async function deleteUser(id, username) {
   const confirmed = await showConfirmDialog(`Delete user "${username}"? This action cannot be undone.`, 'Delete User');
   if (!confirmed) return;
-  const resp = await fetch('/users/' + id, { method: 'DELETE' });
+  const resp = await apiFetch('/users/' + id, { method: 'DELETE' });
   if (resp.ok) {
     loadUsers();
     loadResetUsers();
@@ -888,7 +888,7 @@ async function saveAdminMatchStats() {
     const matchBol2 = adminMatchData.find(m => m.id === adminEditingMatchId);
     if (matchBol2 && matchBol2.best_of_legs) body.best_of_legs = matchBol2.best_of_legs;
   }
-  const resp = await fetch('/matches/' + adminEditingMatchId, {
+  const resp = await apiFetch('/matches/' + adminEditingMatchId, {
     method: 'PUT', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body)
   });
   if (resp.ok) {
@@ -907,14 +907,14 @@ async function saveAdminMatchStats() {
 async function deleteMatch(id) {
   const confirmed = await showConfirmDialog('Delete this match? This will trigger Elo recalculation for all affected matches.', 'Delete Match');
   if (!confirmed) return;
-  await fetch('/matches/'+id, {method:'DELETE'});
+  await apiFetch('/matches/'+id, {method:'DELETE'});
   await Promise.all([loadMatches(), loadPlayers()]);
 }
 async function deleteMatchFromModal() {
   if (!adminEditingMatchId) return;
   const confirmed = await showConfirmDialog('Delete this match? This will trigger Elo recalculation for all affected matches.', 'Delete Match');
   if (!confirmed) return;
-  await fetch('/matches/' + adminEditingMatchId, {method: 'DELETE'});
+  await apiFetch('/matches/' + adminEditingMatchId, {method: 'DELETE'});
   bootstrap.Modal.getInstance(document.getElementById('admin-match-detail-modal')).hide();
   await Promise.all([loadMatches(), loadPlayers()]);
 }
@@ -979,7 +979,7 @@ document.getElementById('reset-password-form').addEventListener('submit', async 
     new_password: fd.get('new_password'),
     confirm_new_password: fd.get('confirm_new_password')
   };
-  const resp = await fetch('/password/reset', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
+  const resp = await apiFetch('/password/reset', { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(body) });
   const data = await resp.json();
   if (data.success) {
     sucEl.textContent = data.message; sucEl.classList.remove('d-none');
@@ -1001,7 +1001,7 @@ document.getElementById('logo-form-light').addEventListener('submit', async func
   const sucEl = document.getElementById('logo-success-light');
   const errEl = document.getElementById('logo-error-light');
   sucEl.classList.add('d-none'); errEl.classList.add('d-none');
-  const resp = await fetch('/settings/logo?mode=light', { method: 'POST', body: fd });
+  const resp = await apiFetch('/settings/logo?mode=light', { method: 'POST', body: fd });
   const data = await resp.json();
   if (resp.ok) {
     sucEl.textContent = 'Normal mode logo uploaded!'; sucEl.classList.remove('d-none');
@@ -1018,7 +1018,7 @@ document.getElementById('logo-form-dark').addEventListener('submit', async funct
   const sucEl = document.getElementById('logo-success-dark');
   const errEl = document.getElementById('logo-error-dark');
   sucEl.classList.add('d-none'); errEl.classList.add('d-none');
-  const resp = await fetch('/settings/logo?mode=dark', { method: 'POST', body: fd });
+  const resp = await apiFetch('/settings/logo?mode=dark', { method: 'POST', body: fd });
   const data = await resp.json();
   if (resp.ok) {
     sucEl.textContent = 'Dark mode logo uploaded!'; sucEl.classList.remove('d-none');
@@ -1124,7 +1124,7 @@ async function generateQRCode() {
   if (!username) { errEl.textContent = 'Please select a user'; errEl.classList.remove('d-none'); return; }
   if (!password) { errEl.textContent = 'Please enter the password'; errEl.classList.remove('d-none'); return; }
 
-  const resp = await fetch('/settings/qrcode', {
+  const resp = await apiFetch('/settings/qrcode', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({username, password})
@@ -1200,7 +1200,7 @@ async function confirmRecalculateAll() {
   const resultEl = document.getElementById('recalc-result');
   btn.disabled = true;
   try {
-    const resp = await fetch('/matches/recalculate-all', { method: 'POST' });
+    const resp = await apiFetch('/matches/recalculate-all', { method: 'POST' });
     const data = await resp.json().catch(() => ({}));
     if (resp.ok) {
       resultEl.className = 'alert alert-success';

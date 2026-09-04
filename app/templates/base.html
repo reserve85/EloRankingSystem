@@ -737,6 +737,28 @@
     };
   })();
   </script>
+  <!-- CSRF helper: read the csrf_token cookie and inject the X-CSRF-Token header -->
+  <script>
+  (function() {
+    window.getCsrfToken = function() {
+      var cookies = document.cookie.split(';');
+      for (var i = 0; i < cookies.length; i++) {
+        var c = cookies[i].trim();
+        if (c.indexOf('csrf_token=') === 0) return c.substring('csrf_token='.length);
+      }
+      return null;
+    };
+    // Same signature as fetch(url, options); adds the CSRF header automatically.
+    // Use for all state-changing requests (POST/PUT/PATCH/DELETE).
+    window.apiFetch = function(url, options) {
+      options = options || {};
+      options.headers = options.headers || {};
+      var token = window.getCsrfToken();
+      if (token) options.headers['X-CSRF-Token'] = token;
+      return fetch(url, options);
+    };
+  })();
+  </script>
   <!-- Theme Toggle Script -->
   <script>
   (function() {
