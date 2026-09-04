@@ -330,6 +330,21 @@ class TestSettingsAPI:
         assert "club_logo_path" in data
         assert "club_logo_dark_path" in data
 
+    def test_logo_upload_rejects_oversized_file(self, client, db_session):
+        """Oversized logo uploads must be rejected while streaming (Fix M4).
+
+        The 2MB cap must trip before the whole body is read into memory or
+        written to disk.
+        """
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        big = b"\x89PNG\r\n\x1a\n" + b"0" * (3 * 1024 * 1024)
+        resp = client.post(
+            "/settings/logo?mode=light",
+            files={"file": ("big.png", big, "image/png")},
+        )
+        assert resp.status_code == 400
+        assert "too large" in resp.json()["detail"].lower()
+
     def test_settings_put_removed(self, client, db_session):
         """PUT /settings/ should no longer exist (settings are env/config only)."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)

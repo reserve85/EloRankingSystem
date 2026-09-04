@@ -28,6 +28,11 @@ from typing import Optional
 
 router = APIRouter(prefix="/settings", tags=["settings"])
 
+# Logo uploads are capped at 2MB. The cap is enforced while *streaming* the
+# upload (Fix M4), not after bufferring the whole body into memory.
+MAX_LOGO_SIZE = 2 * 1024 * 1024
+_UPLOAD_READ_CHUNK = 1024 * 1024
+
 class SettingsResponse(BaseModel):
 
     id: int
@@ -58,9 +63,30 @@ def _validate_logo_upload(file: UploadFile, content: bytes) -> None:
 
         raise HTTPException(status_code=400, detail=f"Invalid content type '{file.content_type}'")
 
-    if len(content) > 2 * 1024 * 1024:
+    if len(content) > MAX_LOGO_SIZE:
 
-        raise HTTPException(status_code=400, detail="File too large. Maximum size: 2MB")
+        raise HTTPException(status_code=400, detail=f"File too large. Maximum size: {MAX_LOGO_SIZE // (1024 * 1024)}MB")
+
+
+async def _read_upload_limited(file: UploadFile) -> bytes:
+    """Read an upload in chunks, aborting as soon as it exceeds the 2MB cap.
+
+    Fix M4: the previous ``await file.read()`` buffered the *entire* body into
+    memory before validation, so a multi-GB upload wasted memory/CPU before the
+    size check could trip. Reading in capped chunks keeps peak memory bounded
+    and rejects oversize uploads early.
+    """
+    chunks: list[bytes] = []
+    total = 0
+    while True:
+        chunk = await file.read(_UPLOAD_READ_CHUNK)
+        if not chunk:
+            break
+        total += len(chunk)
+        if total > MAX_LOGO_SIZE:
+            raise HTTPException(status_code=400, detail=f"File too large. Maximum size: {MAX_LOGO_SIZE // (1024 * 1024)}MB")
+        chunks.append(chunk)
+    return b"".join(chunks)
 
 def _save_logo_file(file: UploadFile, content: bytes, prefix: str, upload_dir: str) -> str:
 
@@ -152,7 +178,7 @@ async def upload_logo(
 
     ip, ua = get_client_info(request)
 
-    content = await file.read()
+    content = await _read_upload_limited(file)
 
     _validate_logo_upload(file, content)
 
