@@ -46,5 +46,7 @@ def password_needs_rehash(hash_str: str) -> bool:
     """
     try:
         return _ph.check_needs_rehash(hash_str)
-    except (InvalidHashError, Exception):
+    except Exception:
+        # Unknown/malformed hash format counts as "needs rehash" so the hash
+        # gets replaced with a fresh, correct Argon2 hash on next login.
         return True

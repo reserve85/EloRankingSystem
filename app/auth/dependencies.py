@@ -62,7 +62,17 @@ def get_current_user(
             detail="Invalid token payload",
         )
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    # A forged/legacy token can carry a non-numeric ``sub``; refuse it as an
+    # invalid token instead of letting int() raise an unhandled ValueError.
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+        ) from None
+
+    user = db.query(User).filter(User.id == user_id).first()
 
     if user is None:
         raise HTTPException(
@@ -109,7 +119,12 @@ def get_optional_user(
     if user_id is None:
         return None
 
-    user = db.query(User).filter(User.id == int(user_id)).first()
+    try:
+        user_id = int(user_id)
+    except (TypeError, ValueError):
+        return None
+
+    user = db.query(User).filter(User.id == user_id).first()
 
     if user is None or not user.active:
         return None
