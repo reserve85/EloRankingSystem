@@ -5,6 +5,7 @@ from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.request import get_client_ip
 from app.models.audit_log import AuditLog
 
 
@@ -57,7 +58,11 @@ def log_event(
         user_agent=user_agent,
     )
     db.add(audit)
-    db.commit()
+    # Fix L7: the caller owns the transaction boundary, so this helper does
+    # NOT commit. This keeps an audit event atomic with the business write it
+    # accompanies. Flush (autoflush is off) so any constraint error surfaces
+    # here and the pending row is visible within the current transaction.
+    db.flush()
     return audit
 
 
@@ -122,6 +127,8 @@ def get_client_info(request) -> tuple[Optional[str], Optional[str]]:
     ip = None
     ua = None
     if request:
-        ip = request.client.host if request.client else None
+        # Fix M6: honor X-Forwarded-For when a trusted reverse proxy is
+        # configured, otherwise fall back to the socket peer.
+        ip = get_client_ip(request)
         ua = request.headers.get("user-agent", None)
     return ip, ua

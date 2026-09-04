@@ -67,6 +67,7 @@ def change_own_password(
         username=current_user.username,
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
 
     return PasswordResponse(success=True, message="Password changed successfully")
 
@@ -124,6 +125,7 @@ def reset_user_password(
         new_value={"target_user": target_user.username},
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
 
     return PasswordResponse(
         success=True,

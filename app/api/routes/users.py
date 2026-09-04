@@ -7,6 +7,7 @@ from app.core.database import get_db
 from app.auth.dependencies import require_admin
 from app.auth.password import hash_password
 from app.auth.password_validation import validate_password_strength
+from app.models.match import Match
 from app.models.user import User, UserRole
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
 from app.services.audit import log_event, get_client_info
@@ -36,6 +37,7 @@ def create_user(request: Request, data: UserCreate, current_user: User = Depends
         new_value={"username": user.username, "role": user.role.value},
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
     return user
 
 
@@ -79,6 +81,19 @@ def delete_user(user_id: int, request: Request, current_user: User = Depends(req
     if current_user.role == UserRole.ADMIN and user.role == UserRole.ADMIN:
         raise HTTPException(status_code=403, detail="ADMIN cannot delete other ADMIN accounts. Only SYSTEM can delete ADMIN accounts.")
 
+    # Cannot delete a user who authored matches: ``matches.created_by`` is a
+    # FK to users.id (NOT NULL), so deleting the user would raise an unhandled
+    # FK violation (Fix M4). Return a clear 400 pointing at the disable
+    # workflow instead of a 500.
+    authored_count = db.query(Match).filter(Match.created_by == user.id).count()
+    if authored_count > 0:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"User '{user.username}' has authored {authored_count} match(es). "
+                "Delete the matches first or disable the user account instead."
+            ),
+        )
     old_value = {"username": user.username, "role": user.role.value, "active": user.active}
 
     # Delete the user
@@ -92,6 +107,7 @@ def delete_user(user_id: int, request: Request, current_user: User = Depends(req
         old_value=old_value,
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
 
     return {"message": f"User '{old_value['username']}' deleted successfully"}
 
@@ -140,4 +156,5 @@ def update_user(user_id: int, request: Request, data: UserUpdate, current_user: 
         old_value=old, new_value=new,
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
     return user

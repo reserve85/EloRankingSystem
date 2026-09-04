@@ -5,7 +5,7 @@ from pathlib import Path
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import DeclarativeBase, sessionmaker, Session
 
-from app.core.config import settings
+from app.core.config import BASE_DIR, settings
 
 
 # Ensure data directory exists
@@ -80,7 +80,7 @@ def init_db() -> None:
     inspector = inspect(engine)
     existing_tables = set(inspector.get_table_names())
 
-    alembic_cfg = Config("alembic.ini")
+    alembic_cfg = Config(str(BASE_DIR / "alembic.ini"))
 
     if not existing_tables:
         # Scenario 1: Fresh database — create all tables and stamp as head
@@ -99,7 +99,10 @@ def init_db() -> None:
             command.upgrade(alembic_cfg, "head")
             logger.info("Database migrations applied successfully.")
         except Exception as e:
-            logger.error(f"Alembic upgrade failed: {e}")
+            raise RuntimeError(
+                f"Alembic upgrade failed: {e}. Refusing to start on an unknown "
+                "schema state. Fix the migration error and restart."
+            ) from e
 
     else:
         # Scenario 3: Pre-Alembic database — stamp and upgrade
@@ -109,4 +112,7 @@ def init_db() -> None:
             command.upgrade(alembic_cfg, "head")
             logger.info("Database stamped and migrations applied successfully.")
         except Exception as e:
-            logger.error(f"Alembic stamp/upgrade failed: {e}")
+            raise RuntimeError(
+                f"Alembic stamp/upgrade failed: {e}. Refusing to start on an "
+                "unknown schema state. Fix the migration error and restart."
+            ) from e

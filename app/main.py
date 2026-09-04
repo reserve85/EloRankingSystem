@@ -11,7 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.core.config import BASE_DIR, settings
 from app.core.database import SessionLocal, init_db
 from app.core.csrf import CSRFMiddleware
 from app.core.rate_limit import limiter
@@ -74,8 +74,9 @@ async def ui_http_exception_handler(request: Request, exc: FastAPIHTTPException)
     return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
 
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
+# Mount static files. Anchored to BASE_DIR so the app works regardless of the
+# current working directory (Fix M3).
+app.mount("/static", StaticFiles(directory=str(BASE_DIR / "app/static")), name="static")
 
 # Include API routers. Auth-gated functional routers also require the password
 # to have been changed (Fix H2) - a freshly-provisioned SYSTEM bootstrap (or a

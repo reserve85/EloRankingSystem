@@ -150,7 +150,6 @@ All data is persisted in Docker named volumes:
 |--------|---------------|---------|
 | `elo_data` | `/data` | SQLite database |
 | `elo_uploads` | `/uploads` | Club logo uploads |
-| `elo_logs` | `/logs` | Application logs |
 
 #### Version Display
 
@@ -226,7 +225,6 @@ The `portainer_compose.yaml` uses bind mounts with example paths:
 |---------------------|---------------|---------|
 | `/volume1/docker/elo/data` | `/data` | SQLite database |
 | `/volume1/docker/elo/uploads` | `/uploads` | Club logo uploads |
-| `/volume1/docker/elo/logs` | `/logs` | Application logs |
 
 Adjust the host paths to match your NAS or Docker host directory structure.
 
@@ -287,9 +285,9 @@ Copy `.env.example` to `.env` and adjust as needed:
 | `COOKIE_SAMESITE` | SameSite cookie policy | `strict` |
 | `CSRF_ENABLED` | Double-submit cookie CSRF protection | `true` |
 | `RATE_LIMIT_ENABLED` | Rate limiting on auth endpoints | `true` |
+| `TRUSTED_PROXIES` | Comma-separated trusted reverse-proxy IPs (enables X-Forwarded-For) | `(empty)` |
 | `DATA_DIR` | Data storage path | `./data` |
 | `UPLOAD_DIR` | Upload storage path | `./uploads` |
-| `LOG_DIR` | Log storage path | `./logs` |
 
 ### YAML Configuration (config.yaml)
 
@@ -303,8 +301,8 @@ Copy `config.yaml.example` to `config.yaml` and adjust club-specific settings. T
 | `statistics` | `high_finish_min`, `high_finish_max`, `low_darts_min`, `low_darts_max`, `best_of_legs` | Dart statistics & match format validation |
 | `legal` | `contact_company`, `contact_name`, `contact_street`, `contact_city`, `contact_email` | Impressum & Privacy page data |
 | `system_user` | `username`, `password` | Host administrator credentials |
-| `security` | `jwt_secret`, `jwt_algorithm`, `access_token_lifetime_minutes`, `cookie_secure`, `cookie_httponly`, `cookie_samesite`, `csrf_enabled`, `rate_limit_enabled` | Authentication & security |
-| `storage` | `data_dir`, `upload_dir`, `log_dir` | File storage paths |
+| `security` | `jwt_secret`, `jwt_algorithm`, `access_token_lifetime_minutes`, `cookie_secure`, `cookie_httponly`, `cookie_samesite`, `csrf_enabled`, `rate_limit_enabled`, `trusted_proxies` | Authentication & security |
+| `storage` | `data_dir`, `upload_dir` | File storage paths |
 
 Values in `.env` or environment variables always override values in `config.yaml`.
 

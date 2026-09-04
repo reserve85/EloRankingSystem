@@ -22,7 +22,7 @@ from app.models.audit_log import AuditLog
 from app.core.config import settings
 from app.repositories.match import MatchRepository
 from app.repositories.player import PlayerRepository
-from app.schemas.match import MatchCreate, MatchUpdate, determine_winner
+from app.schemas.match import MatchCreate, MatchUpdate, VALID_BEST_OF, determine_winner
 from app.services.elo import calculate_match_elo
 
 
@@ -150,13 +150,49 @@ class MatchService:
         match = self.get_match(match_id)
         old_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}, "average_a": {match.player_a_average}, "average_b": {match.player_b_average}}}}}'
         affected_players = {match.player_a_id, match.player_b_id}
+    # Duplicate protection on update (Fix M7): when the date and/or scores
+        # are changed, check against other matches with the effective values
+        # and reject collisions exactly like the create path. The match itself
+        # is excluded so an edit that leaves it unchanged (or re-saves the same
+        # day/result) is not treated as its own duplicate.
+        if data.date is not None or (
+            data.player1_score is not None and data.player2_score is not None
+        ):
+            eff_date = data.date if data.date is not None else match.date
+            eff_score_a = (
+                data.player1_score if data.player1_score is not None else match.player1_score
+            )
+            eff_score_b = (
+                data.player2_score if data.player2_score is not None else match.player2_score
+            )
+            duplicate = self.check_duplicate(
+                player_a_id=match.player_a_id,
+                player_b_id=match.player_b_id,
+                player1_score=eff_score_a,
+                player2_score=eff_score_b,
+                match_date=eff_date,
+                exclude_match_id=match.id,
+            )
+            if duplicate is not None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="A match with the same result on the same day already exists. Do you want to save it anyway?",
+                )
 
         if data.date is not None:
             match.date = data.date
 
         if data.player1_score is not None and data.player2_score is not None:
             bol = data.best_of_legs if data.best_of_legs and data.best_of_legs > 0 else match.best_of_legs
-            winner_label = determine_winner(data.player1_score, data.player2_score, bol)
+            if data.best_of_legs and data.best_of_legs > 0 and data.best_of_legs not in VALID_BEST_OF:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"best_of_legs must be one of {sorted(VALID_BEST_OF)}, got {data.best_of_legs}",
+                )
+            try:
+                winner_label = determine_winner(data.player1_score, data.player2_score, bol)
+            except ValueError as exc:
+                raise HTTPException(status_code=422, detail=str(exc)) from exc
             if data.best_of_legs and data.best_of_legs > 0:
                 match.best_of_legs = data.best_of_legs
             match.player1_score = data.player1_score

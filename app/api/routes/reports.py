@@ -68,6 +68,7 @@ def export_ranking_pdf(
         new_value={"from_date": str(from_date), "to_date": str(to_date), "include_inactive": include_inactive},
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
 
     filename = f"ranking_{from_date}_{to_date}.pdf"
 

@@ -34,6 +34,15 @@ def load_yaml_config(config_path: Optional[str] = None) -> dict:
         config_path = os.getenv("CONFIG_PATH", str(BASE_DIR / "config.yaml"))
 
     config_file = Path(config_path)
+    if config_file.is_dir():
+        # Fix L3: docker bind-mounts can auto-create `config.yaml` as a
+        # directory when the host file is missing, which makes open() raise a
+        # confusing IsADirectoryError. Fail with an actionable message instead.
+        raise RuntimeError(
+            f"CONFIG_PATH points to a directory, not a YAML file: {config_file}. "
+            "Create a config.yaml file (see config.yaml.example), or remove the "
+            "volume binding so the app's built-in defaults are used."
+        )
     if config_file.exists():
         with open(config_file, "r", encoding="utf-8") as f:
             return yaml.safe_load(f) or {}
@@ -89,9 +98,9 @@ def _yaml_to_env_defaults(yaml_config: dict) -> dict[str, str]:
         ("security", "cookie_samesite", "COOKIE_SAMESITE"),
         ("security", "csrf_enabled", "CSRF_ENABLED"),
         ("security", "rate_limit_enabled", "RATE_LIMIT_ENABLED"),
+        ("security", "trusted_proxies", "TRUSTED_PROXIES"),
         ("storage", "data_dir", "DATA_DIR"),
         ("storage", "upload_dir", "UPLOAD_DIR"),
-        ("storage", "log_dir", "LOG_DIR"),
     ]
 
     for section, key, env_var in mappings:
@@ -164,6 +173,11 @@ class Settings(BaseSettings):
     cookie_samesite: str = Field(default="lax", alias="COOKIE_SAMESITE")
     csrf_enabled: bool = Field(default=True, alias="CSRF_ENABLED")
     rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
+    # Comma-separated IPs of trusted reverse proxies. When empty, forwarded
+    # headers are ignored (the socket peer is used). When set and the direct
+    # peer matches, ``X-Forwarded-For`` is honored for rate-limiting keys and
+    # audit IPs (Fix M6). Parsed into a list by ``get_client_ip``.
+    trusted_proxies: str = Field(default="", alias="TRUSTED_PROXIES")
 
     # ── Timezone & Date Format
     timezone: str = Field(default="UTC", alias="TIMEZONE")
@@ -174,7 +188,6 @@ class Settings(BaseSettings):
     upload_dir: str = Field(
         default=str(BASE_DIR / "uploads"), alias="UPLOAD_DIR"
     )
-    log_dir: str = Field(default=str(BASE_DIR / "logs"), alias="LOG_DIR")
 
     model_config = ConfigDict(
         env_file=".env",

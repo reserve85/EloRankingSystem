@@ -31,6 +31,7 @@ def create_player(
         new_value={"name": player.name, "start_elo": player.start_elo},
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
     return player
 
 
@@ -88,6 +89,7 @@ def update_player(
         new_value={"name": player.name, "start_elo": player.start_elo},
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
     return player
 
 
@@ -108,6 +110,7 @@ def disable_player(
         username=current_user.username,
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
     return player
 
 
@@ -128,4 +131,5 @@ def reactivate_player(
         username=current_user.username,
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
     return player

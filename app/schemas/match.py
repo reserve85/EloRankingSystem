@@ -1,6 +1,6 @@
 """Match schemas for input/output validation."""
 
-from datetime import date, datetime
+from datetime import date as date_cls, datetime
 from typing import Optional
 
 from pydantic import BaseModel, Field, model_validator
@@ -112,7 +112,7 @@ class MatchStatisticsCreate(BaseModel):
 class MatchCreate(MatchStatisticsCreate):
     """Schema for creating a new match."""
 
-    date: date
+    date: date_cls
     player_a_id: int
     player_b_id: int
     player1_score: int = Field(..., ge=0, description="Legs won by player A")
@@ -198,24 +198,16 @@ class MatchStatisticsUpdate(BaseModel):
 class MatchUpdate(MatchStatisticsUpdate):
     """Schema for updating a match (ADMIN/SYSTEM only)."""
 
-    date: Optional[date] = None
+    date: Optional[date_cls] = None
     player1_score: Optional[int] = Field(default=None, ge=0)
     player2_score: Optional[int] = Field(default=None, ge=0)
     best_of_legs: Optional[int] = Field(default=None, ge=0, description="Best of N legs (None=keep original)")
 
     @model_validator(mode="after")
     def validate_scores(self):
-        """Validate score combination if both are provided."""
-        if self.player1_score is not None and self.player2_score is not None:
-            bol = self.best_of_legs if self.best_of_legs and self.best_of_legs > 0 else settings.best_of_legs
-            valid = get_valid_scores(bol)
-            if (self.player1_score, self.player2_score) not in valid:
-                wins = (bol + 1) // 2
-                raise ValueError(
-                    f"Invalid score combination {self.player1_score}:{self.player2_score}. "
-                    f"Best of {bol}: first to {wins} wins."
-                )
-        elif self.player1_score is not None or self.player2_score is not None:
+        """Scores must be supplied together; combination validity is checked
+        in the service where the stored best_of_legs is known (Fix M5)."""
+        if (self.player1_score is not None) != (self.player2_score is not None):
             raise ValueError("Both player1_score and player2_score must be provided together")
         return self
 
@@ -224,7 +216,7 @@ class MatchResponse(BaseModel):
     """Schema for match response."""
 
     id: int
-    date: date
+    date: date_cls
     player_a_id: int
     player_b_id: int
     best_of_legs: int = 5

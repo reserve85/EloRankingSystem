@@ -405,6 +405,64 @@ class TestMixedFormatMatches:
         assert resp.status_code == 201
         assert resp.json()["best_of_legs"] == 5
 
+class TestMatchUpdateM5:
+    """M5: update score validation uses the match's stored best_of_legs."""
+
+    def test_update_accepts_2_1_on_stored_best_of_three(self, client, db_session):
+        """M5: 2:1 is a legal update when the stored format is best-of-3."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        create = client.post("/matches/", json={
+            "date": "2025-06-10",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 2, "player2_score": 1, "best_of_legs": 3,
+        })
+        assert create.status_code == 201
+
+        match_id = create.json()["id"]
+        resp = client.put(f"/matches/{match_id}", json={"player1_score": 2, "player2_score": 1})
+        assert resp.status_code == 200
+        assert resp.json()["player1_score"] == 2
+
+    def test_update_rejects_3_2_on_stored_best_of_three(self, client, db_session):
+        """M5: 3:2 is invalid when the stored format is best-of-3."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        create = client.post("/matches/", json={
+            "date": "2025-06-10",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 2, "player2_score": 1, "best_of_legs": 3,
+        })
+        assert create.status_code == 201
+
+        match_id = create.json()["id"]
+        resp = client.put(f"/matches/{match_id}", json={"player1_score": 3, "player2_score": 2})
+        assert resp.status_code == 422
+
+    def test_update_with_new_best_of_legs_validates_new_format(self, client, db_session):
+        """M5: passing best_of_legs on update retargets score validation."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        create = client.post("/matches/", json={
+            "date": "2025-06-10",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 2, "player2_score": 1, "best_of_legs": 3,
+        })
+        assert create.status_code == 201
+
+        match_id = create.json()["id"]
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={"best_of_legs": 5, "player1_score": 3, "player2_score": 2},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["best_of_legs"] == 5
 
 # ── List and Get Tests ──────────────────────────────────────────────────
 
@@ -769,6 +827,85 @@ class TestDuplicateMatchDetection:
             "player2_score": 0,
         })
         assert resp2.status_code == 201
+
+
+    def test_update_to_duplicate_returns_409(self, client, db_session):
+        """Editing a match to collide with an existing identical match returns 409 (Fix M7).
+
+        The create path already rejects duplicates (POST /matches/ -> 409), but
+        the update path never checked. Editing a match's date/scores so it equals
+        another existing match must be rejected the same way.
+        """
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice")
+        pb = _create_player(db_session, "Bob")
+
+        # First match: Alice beats Bob 3:0 on 2025-06-01.
+        m1 = _create_match_via_api(client, pa.id, pb.id, pa.id, match_date="2025-06-01")
+        assert m1.status_code == 201
+
+        # Second match: Alice beats Bob 3:0 on a different date (2025-06-02).
+        m2 = _create_match_via_api(client, pa.id, pb.id, pa.id, match_date="2025-06-02")
+        assert m2.status_code == 201
+        m2_id = m2.json()["id"]
+
+        # Editing m2 to the same date as m1 -> now identical to m1 -> 409.
+        resp = client.put(f"/matches/{m2_id}", json={"date": "2025-06-01"})
+        assert resp.status_code == 409
+        assert "already exists" in resp.json()["detail"].lower()
+
+        # Editing m2's score so it collides with m1 -> 409.
+        resp = client.put(
+            f"/matches/{m2_id}",
+            json={"date": "2025-06-02", "player1_score": 3, "player2_score": 0},
+        )
+        assert resp.status_code == 200  # no collision yet (different date)
+        resp = client.put(
+            f"/matches/{m2_id}",
+            json={"date": "2025-06-01", "player1_score": 3, "player2_score": 0},
+        )
+        assert resp.status_code == 409
+
+    def test_update_self_identical_is_not_duplicate(self, client, db_session):
+        """Editing a match to its own current values must NOT 409 (Fix M7).
+
+        ``exclude_match_id`` must exclude the match being updated, otherwise a
+        no-op resave (or a legitimate re-save) would be rejected as a duplicate
+        of itself.
+        """
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice")
+        pb = _create_player(db_session, "Bob")
+
+        m1 = _create_match_via_api(client, pa.id, pb.id, pa.id, match_date="2025-06-01")
+        assert m1.status_code == 201
+        m1_id = m1.json()["id"]
+
+        # Re-saving the exact same date and scores on the same match -> 200.
+        resp = client.put(
+            f"/matches/{m1_id}",
+            json={"date": "2025-06-01", "player1_score": 3, "player2_score": 0},
+        )
+        assert resp.status_code == 200
+
+    def test_update_to_non_duplicate_is_allowed(self, client, db_session):
+        """Editing to a non-colliding value still succeeds (Fix M7)."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice")
+        pb = _create_player(db_session, "Bob")
+
+        m1 = _create_match_via_api(client, pa.id, pb.id, pa.id, match_date="2025-06-01")
+        assert m1.status_code == 201
+        m1_id = m1.json()["id"]
+
+        # A different score on the same date is not a duplicate.
+        resp = client.put(
+            f"/matches/{m1_id}",
+            json={"date": "2025-06-01", "player1_score": 3, "player2_score": 1},
+        )
+        assert resp.status_code == 200
+        assert resp.json()["player1_score"] == 3
+        assert resp.json()["player2_score"] == 1
 
 
 class TestRecalculateAll:

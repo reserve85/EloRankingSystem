@@ -30,6 +30,13 @@ class TestLoadYamlConfig:
         assert result["app"]["name"] == "Test Club"
         assert result["elo"]["default_rating"] == 1500
 
+    def test_load_yaml_config_dir_raises(self, tmp_path):
+        """A directory passed as CONFIG_PATH must fail with a clear error (Fix L3)."""
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        with pytest.raises(RuntimeError, match="CONFIG_PATH points to a directory"):
+            load_yaml_config(str(config_dir))
+
     def test_load_missing_yaml(self, tmp_path):
         """Test loading a non-existent YAML file returns empty dict."""
         result = load_yaml_config(str(tmp_path / "nonexistent.yaml"))
@@ -73,7 +80,6 @@ class TestLoadYamlConfig:
             "storage": {
                 "data_dir": "/custom/data",
                 "upload_dir": "/custom/uploads",
-                "log_dir": "/custom/logs",
                 "backup_dir": "/custom/backups",
             },
         }
@@ -161,18 +167,15 @@ class TestYamlToEnvDefaults:
         # out of the environment to exercise the mapping.
         monkeypatch.delenv("DATA_DIR", raising=False)
         monkeypatch.delenv("UPLOAD_DIR", raising=False)
-        monkeypatch.delenv("LOG_DIR", raising=False)
         yaml_config = {
             "storage": {
                 "data_dir": "/custom/data",
                 "upload_dir": "/custom/uploads",
-                "log_dir": "/custom/logs",
             }
         }
         result = _yaml_to_env_defaults(yaml_config)
         assert result["DATA_DIR"] == "/custom/data"
         assert result["UPLOAD_DIR"] == "/custom/uploads"
-        assert result["LOG_DIR"] == "/custom/logs"
 
     def test_env_vars_not_overwritten(self, monkeypatch):
         """Test that existing env vars are NOT overwritten by YAML."""
@@ -240,7 +243,6 @@ class TestSettings:
         settings = Settings()
         assert "data" in settings.data_dir
         assert "uploads" in settings.upload_dir
-        assert "logs" in settings.log_dir
 
     def test_default_database_url(self):
         """Test default database URL contains sqlite."""
@@ -337,7 +339,6 @@ class TestGetSettings:
             "storage": {
                 "data_dir": "/srv/data",
                 "upload_dir": "/srv/uploads",
-                "log_dir": "/srv/logs",
                 "backup_dir": "/srv/backups",
             },
         }
@@ -350,7 +351,7 @@ class TestGetSettings:
             "INACTIVITY_MONTHS", "SYSTEM_USER_USERNAME", "SYSTEM_USER_PASSWORD",
             "JWT_SECRET", "JWT_ALGORITHM", "ACCESS_TOKEN_LIFETIME_MINUTES",
             "COOKIE_SECURE", "COOKIE_HTTPONLY", "COOKIE_SAMESITE",
-            "DATA_DIR", "UPLOAD_DIR", "LOG_DIR", "BACKUP_DIR",
+            "DATA_DIR", "UPLOAD_DIR", "BACKUP_DIR",
         ]
         saved = {}
         for var in env_vars:
@@ -374,7 +375,6 @@ class TestGetSettings:
             assert s.cookie_samesite == "strict"
             assert "/srv/data" in s.data_dir
             assert "/srv/uploads" in s.upload_dir
-            assert "/srv/logs" in s.log_dir
         finally:
             for var, val in saved.items():
                 if val is None:

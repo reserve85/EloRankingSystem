@@ -194,6 +194,8 @@ async def upload_logo(
 
     )
 
+    db.commit()
+
     # Override club_name from env/config
 
     cs.club_name = settings.club_name or settings.app_name

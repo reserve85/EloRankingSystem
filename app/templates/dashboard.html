@@ -417,6 +417,22 @@
 <script>
 // Use shared utilities from base.html
 const today = todayISO();
+
+// Fix L1: HTML-escape database values interpolated into innerHTML strings to
+// close the stored-XSS window (defense-in-depth; names/values could contain
+// markup even though creation is admin-only).
+function escapeHtml(v) {
+  return String(v == null ? '' : v)
+    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+// Escape a value embedded in a single-quoted JS string literal inside a
+// double-quoted HTML attribute (used by inline onclick handlers).
+function escapeJsStr(v) {
+  return String(v == null ? '' : v)
+    .replace(/\\/g, '\\\\').replace(/'/g, "\\'")
+    .replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+}
 const firstOfMonth = today.substring(0, 7) + '-01';
 
 document.querySelector('input[name="date"]').value = today;
@@ -739,7 +755,7 @@ async function loadRanking() {
     const hfCount = Array.isArray(e.high_finishes) ? e.high_finishes.length : 0;
     const ldCount = Array.isArray(e.low_darts) ? e.low_darts.length : 0;
     const trophy = e.position <= 3 ? trophies[e.position - 1] : '';
-    tbody.innerHTML += '<tr><td>'+(trophy || e.position)+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+e.player_name+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+(hfCount||'-')+'</td><td>'+(ldCount||'-')+'</td><td>'+e.total_matches+'</td></tr>';
+    tbody.innerHTML += '<tr><td>'+(trophy || e.position)+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+escapeHtml(e.player_name)+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+(hfCount||'-')+'</td><td>'+(ldCount||'-')+'</td><td>'+e.total_matches+'</td></tr>';
   });
 }
 
@@ -827,7 +843,7 @@ function renderMatchTable(data) {
     const eloLoser = m.winner_id === m.player_a_id ? m.elo_change_b : m.elo_change_a;
     const winnerScore = m.winner_id === m.player_a_id ? m.player1_score : m.player2_score;
     const loserScore = m.winner_id === m.player_a_id ? m.player2_score : m.player1_score;
-    tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td><span class="badge bg-green-lt">'+winnerName+'</span> <span class="text-green small">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span></td><td><strong>'+(winnerScore != null ? winnerScore+':'+loserScore : '-')+'</strong></td><td><span class="badge bg-red-lt">'+loserName+'</span> <span class="text-red small">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
+    tbody.innerHTML += '<tr style="cursor:pointer" onclick="showMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td><span class="badge bg-green-lt">'+escapeHtml(winnerName)+'</span> <span class="text-green small">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span></td><td><strong>'+(winnerScore != null ? winnerScore+':'+loserScore : '-')+'</strong></td><td><span class="badge bg-red-lt">'+escapeHtml(loserName)+'</span> <span class="text-red small">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
   });
   $('#match-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true, lengthChange: false, info: false });
 }

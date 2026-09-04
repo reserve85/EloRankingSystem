@@ -168,3 +168,65 @@ class TestMigrations:
             assert "player_b_low_darts" in columns
         finally:
             engine.dispose()
+    def test_init_db_raises_runtimeerror_when_upgrade_fails(self, tmp_path, monkeypatch):
+        """Scenario 2 (tracked DB): a failed Alembic upgrade must abort startup (Fix M2).
+
+        Previously ``init_db()`` only logged the error and let the app continue
+        on an un-migrated schema. Now it must raise so the process exits with a
+        non-zero status and the orchestrator can restart it.
+        """
+        import pytest
+        from sqlalchemy import text
+        import app.core.database as db_module
+        from alembic import command as alembic_command
+
+        db_path = tmp_path / "stale_tracked.db"
+        engine = create_engine(
+            f"sqlite:///{db_path}", connect_args={"check_same_thread": False}
+        )
+        try:
+            # Pre-stage an Alembic-tracked database: only the alembic_version
+            # table exists, which routes init_db() into scenario 2 (upgrade).
+            with engine.begin() as conn:
+                conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
+                conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('base')"))
+
+            def boom_upgrade(cfg, revision):
+                raise RuntimeError("migration boom")
+
+            monkeypatch.setattr(db_module, "engine", engine)
+            monkeypatch.setattr(alembic_command, "upgrade", boom_upgrade)
+
+            with pytest.raises(RuntimeError, match="Alembic upgrade failed"):
+                db_module.init_db()
+        finally:
+            engine.dispose()
+
+    def test_init_db_raises_runtimeerror_when_stamp_fails(self, tmp_path, monkeypatch):
+        """Scenario 3 (pre-Alembic DB): a failed stamp/upgrade must abort startup (Fix M2)."""
+        import pytest
+        from sqlalchemy import text
+        import app.core.database as db_module
+        from alembic import command as alembic_command
+
+        db_path = tmp_path / "pre_alembic.db"
+        engine = create_engine(
+            f"sqlite:///{db_path}", connect_args={"check_same_thread": False}
+        )
+        try:
+            # Pre-Alembic database: tables exist but no alembic_version table,
+            # which routes init_db() into scenario 3 (stamp then upgrade).
+            with engine.begin() as conn:
+                conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY, username VARCHAR(50))"))
+
+            def boom_stamp(cfg, revision):
+                raise RuntimeError("stamp boom")
+
+            monkeypatch.setattr(db_module, "engine", engine)
+            monkeypatch.setattr(alembic_command, "stamp", boom_stamp)
+
+            with pytest.raises(RuntimeError, match="Alembic stamp/upgrade failed"):
+                db_module.init_db()
+        finally:
+            engine.dispose()
+

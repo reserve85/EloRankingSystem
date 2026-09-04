@@ -21,7 +21,6 @@ _TEST_ROOT = tempfile.mkdtemp(prefix="elo-pytest-")
 os.environ.setdefault("DATABASE_URL", "sqlite://")
 os.environ.setdefault("DATA_DIR", os.path.join(_TEST_ROOT, "data"))
 os.environ.setdefault("UPLOAD_DIR", os.path.join(_TEST_ROOT, "uploads"))
-os.environ.setdefault("LOG_DIR", os.path.join(_TEST_ROOT, "logs"))
 
 from app.core.database import Base, get_db  # noqa: E402
 from app.core.config import settings  # noqa: E402
@@ -43,6 +42,25 @@ settings.rate_limit_enabled = False
 limiter.enabled = False
 
 
+@pytest.fixture(autouse=True)
+def _restore_settings_state():
+    """L5: stop global settings mutations from leaking across tests..
+
+    The shared ``settings`` singleton and the slowapi ``limiter.enabled`` flag are
+    snapshotted before each test and restored after it. Dedicated tests (test_csrf.py,
+    test_rate_limit.py, test_proxy_headers.py) may temporarily toggle these;the
+    autouse restore guarantees no mutation survives into a later test, regardless
+    of import order. The baseline snapshot takes the suite-wide defaults (CSRF and
+    rate limiting disabled` above, so those defaults persist for the general suite..
+    """
+    saved_state = vars(settings).copy()
+    saved_limiter_enabled = limiter.enabled
+    yield
+    settings.__dict__.clear()
+    settings.__dict__.update(saved_state)
+    limiter.enabled = saved_limiter_enabled
+
+
 # True in-memory SQLite, shared by every session through a single pooled
 # connection. A plain "sqlite://" engine creates a *fresh* in-memory database
 # per connection, so StaticPool is required to make all sessions/connections
@@ -54,6 +72,21 @@ test_engine = create_engine(
     connect_args={"check_same_thread": False},
     poolclass=StaticPool,
 )
+
+# Mirror the production engine's SQLite pragmas (Fix M4): the production engine
+# enables ``PRAGMA foreign_keys=ON`` (app/core/database.py) but the test engine
+# historically did not, so the suite could never observe foreign-key violations
+# (e.g. deleting a user who authored matches). Register the same pragma here so
+# tests exercise the same constraints the running app enforces.
+from sqlalchemy import event  # noqa: E402
+
+
+@event.listens_for(test_engine, "connect")
+def _set_test_sqlite_pragma(dbapi_connection, connection_record):
+    """Enable SQLite foreign keys on every test-engine connection."""
+    cursor = dbapi_connection.cursor()
+    cursor.execute("PRAGMA foreign_keys=ON")
+    cursor.close()
 
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 

@@ -35,6 +35,7 @@ def login(
             new_value={"username": form_data.username},
             ip_address=ip, user_agent=ua,
         )
+        db.commit()
         return JSONResponse(
             status_code=status.HTTP_401_UNAUTHORIZED,
             content={"detail": "Invalid username or password"},
@@ -47,6 +48,7 @@ def login(
         user_id=user.id, username=user.username,
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
 
     response.set_cookie(
         key=AUTH_COOKIE_NAME,
@@ -80,6 +82,7 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
                 username=payload.get("username"),
                 ip_address=ip, user_agent=ua,
             )
+            db.commit()
 
     response.delete_cookie(
         key=AUTH_COOKIE_NAME,
@@ -111,6 +114,7 @@ def auto_login(
             new_value={"username": u, "source": "qr_code"},
             ip_address=ip, user_agent=ua,
         )
+        db.commit()
         return RedirectResponse(url="/ui/login", status_code=302)
 
     # Only USER role allowed via QR code auto-login
@@ -126,6 +130,7 @@ def auto_login(
         new_value={"source": "qr_code"},
         ip_address=ip, user_agent=ua,
     )
+    db.commit()
 
     response = RedirectResponse(
         url="/ui/change-password" if user.must_change_password else "/ui/dashboard",

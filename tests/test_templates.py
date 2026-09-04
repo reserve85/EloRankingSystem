@@ -1833,6 +1833,69 @@ class TestUserDeletion:
         assert len(logs) >= 1
         assert logs[-1].entity_id == user_id
 
+    def test_cannot_delete_user_who_authored_matches(self, client, db_session):
+        """Deleting a user who authored matches must return a clear 400 (Fix M4).
+
+        ``matches.created_by`` is a FK to users.id; without a guard the delete
+        would raise an unhandled FK violation and return 500. Requires the
+        test engine to run with ``PRAGMA foreign_keys=ON`` (see conftest.py).
+        """
+        from datetime import date
+        from app.models.player import Player
+        from app.models.match import Match
+        from app.models.audit_log import AuditLog
+
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+
+        # Create a target USER account to delete.
+        create_resp = client.post("/users/", json={
+            "username": "author", "password": "Pass123!", "role": "USER"
+        })
+        assert create_resp.status_code == 201
+        author_id = create_resp.json()["id"]
+
+        # The author created a match (created_by -> author.id).
+        pa = Player(name="Alice", start_elo=1200, current_elo=1200.0, active=True)
+        pb = Player(name="Bob", start_elo=1200, current_elo=1200.0, active=True)
+        db_session.add_all([pa, pb])
+        db_session.commit()
+        db_session.refresh(pa)
+        db_session.refresh(pb)
+        match = Match(
+            date=date(2025, 6, 1),
+            player_a_id=pa.id, player_b_id=pb.id,
+            best_of_legs=5,
+            player1_score=3, player2_score=0,
+            winner_id=pa.id, loser_id=pb.id,
+            elo_before_a=1200.0, elo_before_b=1200.0,
+            elo_after_a=1224.0, elo_after_b=1176.0,
+            elo_change_a=24.0, elo_change_b=-24.0,
+            k_factor=32.0,
+            created_by=author_id,
+        )
+        db_session.add(match)
+        db_session.commit()
+
+        resp = client.delete(f"/users/{author_id}")
+        assert resp.status_code == 400
+        assert "authored" in resp.json()["detail"]
+        assert "disable" in resp.json()["detail"]
+
+        # User must not be deleted, and no USER_DELETED audit entry recorded.
+        assert db_session.query(User).filter(User.id == author_id).count() == 1
+        del_logs = db_session.query(AuditLog).filter(
+            AuditLog.action == "USER_DELETED"
+        ).all()
+        assert not any(log.entity_id == author_id for log in del_logs)
+
+        # Sanity: after removing the authored matches, deletion succeeds,
+        # proving the guard is only about authored matches.
+        db_session.query(Match).filter(Match.created_by == author_id).delete()
+        db_session.commit()
+        resp = client.delete(f"/users/{author_id}")
+        assert resp.status_code == 200
+        assert "deleted successfully" in resp.json()["message"]
+
 
 class TestDarkModeFlashPrevention:
     """Tests for Task 39: Dark Mode / Remove White Flash During Navigation."""
@@ -1961,3 +2024,34 @@ class TestLoginLogoResponsiveScaling:
         resp = client.get("/ui/login")
         assert "theme-toggle-btn" in resp.text
         assert "loadLoginLogo" in resp.text
+class TestTemplateEscaping:
+    """L1: database values are HTML-escaped before innerHTML interpolation."""
+
+    def test_dashboard_escapes_names(self, client, db_session):
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert resp.status_code == 200
+        text = resp.text
+        assert "function escapeHtml" in text
+        assert "escapeHtml(e.player_name)" in text
+        assert "escapeHtml(winnerName)" in text
+        assert "escapeHtml(loserName)" in text
+        assert "'+e.player_name+'" not in text
+        assert "'+winnerName+'" not in text
+        assert "'+loserName+'" not in text
+
+    def test_admin_escapes_names(self, client, db_session):
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert resp.status_code == 200
+        text = resp.text
+        assert "function escapeHtml" in text
+        assert "escapeHtml(p.name)" in text
+        assert "escapeHtml(u.username)" in text
+        assert "escapeHtml(adminPmap[m.winner_id])" in text
+        assert "escapeHtml(adminPmap[m.loser_id])" in text
+        assert "escapeJsStr(u.username)" in text
+        assert "'+p.name+'" not in text
+        assert "'+u.username+'" not in text
+        assert "'+adminPmap[m.winner_id]+'" not in text
+        assert "'+adminPmap[m.loser_id]+'" not in text
