@@ -458,6 +458,15 @@ Triggers when a GitHub release is published:
 
 No custom secrets are required. The workflows use the built-in `GITHUB_TOKEN` for GHCR authentication.
 
+## Logging
+
+One line per request is written to the console (stderr, captured by Docker
+logs) with a `request_id`. The same id is echoed in the `X-Request-ID` response
+header, so you can correlate a failing request with its exception traceback and
+the audit log entries it produced. Health-check probes (`/health`) are skipped
+to keep orchestrator polls from drowning out real traffic. Set `LOG_LEVEL` to
+tune verbosity (defaults to INFO); exceptions always log with a full traceback.
+
 ## Full Elo Recalculation (SYSTEM only)
 
 The application replays the complete affected match history chronologically

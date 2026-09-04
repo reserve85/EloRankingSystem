@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.core.config import BASE_DIR, settings
 from app.core.database import SessionLocal, init_db
 from app.core.csrf import CSRFMiddleware
+from app.core.logging import RequestLoggingMiddleware, configure_logging
 from app.core.rate_limit import limiter
 from app.api.routes.health import router as health_router
 from app.api.routes.auth import router as auth_router
@@ -66,6 +67,12 @@ app.add_middleware(CSRFMiddleware)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
+
+# Structured request logging with correlation IDs (Fix L11). Added last so it
+# is the outermost layer: every request (including CSRF/rate-limit rejections)
+# is logged with a request_id echoed in the X-Request-ID response header.
+configure_logging()
+app.add_middleware(RequestLoggingMiddleware)
 
 
 @app.exception_handler(FastAPIHTTPException)
