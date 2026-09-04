@@ -384,8 +384,13 @@ class MatchService:
             pb.current_elo = elo_result.new_rating_b
             pa.last_match_date = m.date
             pb.last_match_date = m.date
-            pa.active = True
-            pb.active = True
+            # Never re-activate a disabled player: recalculation updates the
+            # rating timeline but must not override an admin's disable (fixes
+            # recalculate-all silently un-disabling players).
+            if not pa.disabled:
+                pa.active = True
+            if not pb.disabled:
+                pb.active = True
 
         # Stale-rating edge case: an affected player whose matches were all
         # deleted is not part of the timeline, so reset it to the initial state.

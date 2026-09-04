@@ -1052,3 +1052,28 @@ class TestRecalculateAll:
         # Anonymous (broken token) -> 401
         client.cookies.set("access_token", "garbage")
         assert client.post("/matches/recalculate-all").status_code == 401
+
+    def test_recalculate_all_preserves_disabled_player_state(self, client, db_session):
+        """recalculate-all must not re-activate disabled players."""
+        _login_as(client, db_session, "sys", "pass", UserRole.SYSTEM)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+        _create_match_via_api(client, pa.id, pb.id, pa.id, "2025-06-01")
+
+        # Disable Alice directly in the DB (as an admin would in the UI)
+        db_session.query(Player).filter(Player.id == pa.id).update({
+            "disabled": True,
+            "active": False,
+        })
+        db_session.commit()
+
+        resp = client.post("/matches/recalculate-all")
+        assert resp.status_code == 200
+
+        db_session.expire_all()
+        alice = db_session.query(Player).filter(Player.id == pa.id).first()
+        bob = db_session.query(Player).filter(Player.id == pb.id).first()
+        assert alice.disabled is True
+        assert alice.active is False  # stays inactive after full replay
+        assert bob.disabled is False
+        assert bob.active is True  # active players are still marked active

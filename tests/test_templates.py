@@ -258,6 +258,64 @@ class TestUserManagementAPI:
         resp = client.put("/users/9999", json={"role": "ADMIN"})
         assert resp.status_code == 404
 
+    def test_admin_cannot_promote_self_to_system(self, client, db_session):
+        """ADMIN must not be able to grant the SYSTEM role to their own account."""
+        admin = _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.put(f"/users/{admin.id}", json={"role": "SYSTEM"})
+        assert resp.status_code == 403
+
+    def test_admin_cannot_reset_system_user_password(self, client, db_session):
+        """ADMIN must not be able to reset the SYSTEM account's password."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        sys_user = User(
+            username="System",
+            password_hash=hash_password("Bootstrap0!"),
+            role=UserRole.SYSTEM,
+            active=True,
+        )
+        db_session.add(sys_user)
+        db_session.commit()
+        db_session.refresh(sys_user)
+        resp = client.put(f"/users/{sys_user.id}", json={"password": "Hacked0!"})
+        assert resp.status_code == 403
+
+    def test_admin_cannot_modify_other_admin_account(self, client, db_session):
+        """ADMIN must not be able to disable/modify another ADMIN account."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        other_admin = User(
+            username="admin2",
+            password_hash=hash_password("Pass123!"),
+            role=UserRole.ADMIN,
+            active=True,
+        )
+        db_session.add(other_admin)
+        db_session.commit()
+        db_session.refresh(other_admin)
+        resp = client.put(f"/users/{other_admin.id}", json={"active": False})
+        assert resp.status_code == 403
+
+    def test_admin_cannot_change_own_active_state(self, client, db_session):
+        """ADMIN must not be able to disable their own account."""
+        admin = _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.put(f"/users/{admin.id}", json={"active": False})
+        assert resp.status_code == 400
+
+    def test_system_can_still_manage_admin_account(self, client, db_session):
+        """SYSTEM stays able to manage ADMIN accounts (no over-blocking)."""
+        _login_as(client, db_session, "sys1", "pass", UserRole.SYSTEM)
+        other_admin = User(
+            username="admin2",
+            password_hash=hash_password("Pass123!"),
+            role=UserRole.ADMIN,
+            active=True,
+        )
+        db_session.add(other_admin)
+        db_session.commit()
+        db_session.refresh(other_admin)
+        resp = client.put(f"/users/{other_admin.id}", json={"active": False})
+        assert resp.status_code == 200
+        assert resp.json()["active"] is False
+
 
 class TestSettingsAPI:
     """Tests for club settings API endpoints."""

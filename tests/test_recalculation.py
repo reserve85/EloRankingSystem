@@ -712,3 +712,33 @@ class TestBoundedTimeline:
 
         rows = repo.get_from_match(earliest)
         assert [m.id for m in rows] == [m2["id"], m3["id"]]
+class TestDisabledPlayerRecalculation:
+    """Disabled players must stay inactive when recalculation touches their timeline."""
+
+    def test_match_edit_does_not_reactivate_disabled_player(self, client, db_session):
+        """A timeline recalculation triggered by a match edit keeps disabled players inactive."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        resp = _create_match_api(client, pa.id, pb.id, pa.id, "2025-06-01")
+        assert resp.status_code == 201
+        m_id = resp.json()["id"]
+
+        # Disable Alice directly in the DB (as an admin would in the UI)
+        db_session.query(Player).filter(Player.id == pa.id).update({
+            "disabled": True,
+            "active": False,
+        })
+        db_session.commit()
+
+        # Editing the match triggers a timeline recalculation that includes Alice
+        resp = client.put(f"/matches/{m_id}", json={"player_a_180s": 1})
+        assert resp.status_code == 200
+
+        db_session.expire_all()
+        alice = db_session.query(Player).filter(Player.id == pa.id).first()
+        bob = db_session.query(Player).filter(Player.id == pb.id).first()
+        assert alice.disabled is True
+        assert alice.active is False
+        assert bob.active is True

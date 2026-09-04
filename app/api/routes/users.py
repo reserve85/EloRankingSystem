@@ -115,10 +115,52 @@ def delete_user(user_id: int, request: Request, current_user: User = Depends(req
 
 @router.put("/{user_id}", response_model=UserResponse)
 def update_user(user_id: int, request: Request, data: UserUpdate, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
-    """Update a user. Requires ADMIN or SYSTEM role."""
+    """Update a user. Requires ADMIN or SYSTEM role.
+
+    Authorization model (mirrors ``delete_user``):
+    - Only SYSTEM may modify the SYSTEM account or grant the SYSTEM role.
+    - Only SYSTEM may modify ADMIN accounts.
+    - A user can never change their own role or active state.
+    """
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
         raise HTTPException(status_code=404, detail=f"User {user_id} not found")
+
+    # ── Authorization guards: prevent privilege escalation (review fix) ──
+    # Without these checks an ADMIN could reset the SYSTEM account's password
+    # or grant the SYSTEM role to any account - a full takeover. Mirrors the
+    # delete_user hierarchy above.
+    is_system = current_user.role == UserRole.SYSTEM
+
+    # 1. Only SYSTEM may modify the SYSTEM account (password, role, active).
+    if user.role == UserRole.SYSTEM and not is_system:
+        raise HTTPException(
+            status_code=403,
+            detail="Only SYSTEM users can modify the SYSTEM account",
+        )
+
+    # 2. Only SYSTEM may grant the SYSTEM role.
+    if data.role == UserRole.SYSTEM and not is_system:
+        raise HTTPException(
+            status_code=403,
+            detail="Only SYSTEM users can grant the SYSTEM role",
+        )
+
+    # 3. A user can never change their own role or active state.
+    if user.id == current_user.id and (data.role is not None or data.active is not None):
+        raise HTTPException(
+            status_code=400,
+            detail="You cannot change your own role or active state",
+        )
+
+    # 4. Only SYSTEM may modify an ADMIN account (same rule as delete_user).
+    if user.role == UserRole.ADMIN and not is_system:
+        raise HTTPException(
+            status_code=403,
+            detail="ADMIN cannot modify other ADMIN accounts. Only SYSTEM users can.",
+        )
+
+    # Defence in depth for the SYSTEM account (clearer 400s for SYSTEM edges).
     if user.role == UserRole.SYSTEM and data.role is not None and data.role != UserRole.SYSTEM:
         raise HTTPException(status_code=400, detail="Cannot downgrade SYSTEM user")
     if user.role == UserRole.SYSTEM and data.active is not None and not data.active:
