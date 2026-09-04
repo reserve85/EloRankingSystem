@@ -7,6 +7,7 @@ Configuration loading priority (highest to lowest):
 4. Default values defined in Settings class
 """
 
+import logging
 import os
 from pathlib import Path
 from typing import Optional
@@ -35,9 +36,21 @@ def load_yaml_config(config_path: Optional[str] = None) -> dict:
 
     config_file = Path(config_path)
     if config_file.is_dir():
-        # Fix L3: docker bind-mounts can auto-create `config.yaml` as a
-        # directory when the host file is missing, which makes open() raise a
-        # confusing IsADirectoryError. Fail with an actionable message instead.
+        # Fix L3 + M3: a Docker bind-mount of ``./config.yaml`` auto-creates an
+        # *empty directory* at that path when the host file is missing, which
+        # makes open() raise a confusing IsADirectoryError (L3) and previously
+        # crash-looped the default compose stack. An empty directory is treated
+        # as "no config file" so the app boots on .env/defaults. A NON-empty
+        # directory is always a misconfiguration and still fails with an
+        # actionable message.
+        if not any(config_file.iterdir()):
+            logging.getLogger(__name__).warning(
+                "CONFIG_PATH '%s' is an empty directory (e.g. auto-created by a "
+                "docker bind-mount when the host config.yaml is missing); "
+                "ignoring it and using .env/defaults.",
+                config_file,
+            )
+            return {}
         raise RuntimeError(
             f"CONFIG_PATH points to a directory, not a YAML file: {config_file}. "
             "Create a config.yaml file (see config.yaml.example), or remove the "

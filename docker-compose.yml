@@ -17,6 +17,12 @@ services:
     volumes:
       - elo_data:/data
       - elo_uploads:/uploads
+      # config.yaml is OPTIONAL. When the host file is missing, the bind-mount
+      # auto-creates an empty directory at /app/config.yaml; the app treats an
+      # empty CONFIG_PATH directory as "no config file" and boots on .env/env
+      # defaults instead of crash-looping (Fix M3). Copy config.yaml.example to
+      # config.yaml only if you want YAML overrides:
+      #   cp config.yaml.example config.yaml
       - ./config.yaml:/app/config.yaml:ro
     env_file:
       - .env

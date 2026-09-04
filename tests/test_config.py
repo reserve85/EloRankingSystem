@@ -30,12 +30,30 @@ class TestLoadYamlConfig:
         assert result["app"]["name"] == "Test Club"
         assert result["elo"]["default_rating"] == 1500
 
-    def test_load_yaml_config_dir_raises(self, tmp_path):
-        """A directory passed as CONFIG_PATH must fail with a clear error (Fix L3)."""
+    def test_load_yaml_config_dir_raises_when_nonempty(self, tmp_path):
+        """A NON-empty directory passed as CONFIG_PATH must fail clearly (Fix L3).
+
+        Only an *empty* directory is tolerated, because Docker bind-mounts
+        auto-create an empty dir when the host ``config.yaml`` is missing (M3).
+        """
         config_dir = tmp_path / "config"
         config_dir.mkdir()
+        (config_dir / "some_file.yaml").write_text("app: {}\n", encoding="utf-8")
         with pytest.raises(RuntimeError, match="CONFIG_PATH points to a directory"):
             load_yaml_config(str(config_dir))
+
+    def test_load_yaml_config_empty_dir_is_tolerated(self, tmp_path):
+        """An EMPTY directory at CONFIG_PATH must be treated as 'no config file' (Fix M3).
+
+        This is the docker compose ``./config.yaml:/app/config.yaml:ro`` bind-mount
+        scenario: when the host file is missing, Docker creates an empty
+        directory at the mount point and the app must boot on .env/defaults
+        instead of crash-looping.
+        """
+        config_dir = tmp_path / "config"
+        config_dir.mkdir()
+        result = load_yaml_config(str(config_dir))
+        assert result == {}
 
     def test_load_missing_yaml(self, tmp_path):
         """Test loading a non-existent YAML file returns empty dict."""
