@@ -11,6 +11,58 @@ from app.core.config import settings
 IMPOSSIBLE_HIGH_FINISHES = {169, 168, 166, 165, 163, 162, 159}
 
 
+def _validate_stat_values(
+    values, label: str, lo: int, hi: int, impossible: set[int] | None
+) -> None:
+    """Validate one statistics list (high finishes or low darts) against its range.
+
+    Shared by ``MatchStatisticsCreate`` and ``MatchStatisticsUpdate`` so the
+    rules cannot drift between the two schemas (Fix L7).
+    """
+    for val in values:
+        if val < lo or val > hi:
+            raise ValueError(f"{label} value {val} is outside valid range [{lo}, {hi}]")
+        if impossible is not None and val in impossible:
+            raise ValueError(f"{label} value {val} is impossible with 3 darts")
+
+
+def _validate_statistics(
+    player_a_high_finishes,
+    player_b_high_finishes,
+    player_a_low_darts,
+    player_b_low_darts,
+) -> None:
+    """Validate all per-player statistics lists against the configured ranges."""
+    _validate_stat_values(
+        player_a_high_finishes or [],
+        "High finish",
+        settings.high_finish_min,
+        settings.high_finish_max,
+        IMPOSSIBLE_HIGH_FINISHES,
+    )
+    _validate_stat_values(
+        player_b_high_finishes or [],
+        "High finish",
+        settings.high_finish_min,
+        settings.high_finish_max,
+        IMPOSSIBLE_HIGH_FINISHES,
+    )
+    _validate_stat_values(
+        player_a_low_darts or [],
+        "Low darts",
+        settings.low_darts_min,
+        settings.low_darts_max,
+        None,
+    )
+    _validate_stat_values(
+        player_b_low_darts or [],
+        "Low darts",
+        settings.low_darts_min,
+        settings.low_darts_max,
+        None,
+    )
+
+
 # Valid best_of_legs values (odd numbers 1-21)
 VALID_BEST_OF = {1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21}
 
@@ -84,35 +136,12 @@ class MatchStatisticsCreate(BaseModel):
     @model_validator(mode="after")
     def validate_statistics(self):
         """Validate statistics values against configured ranges."""
-        hf_min = settings.high_finish_min
-        hf_max = settings.high_finish_max
-        ld_min = settings.low_darts_min
-        ld_max = settings.low_darts_max
-
-        for val in self.player_a_high_finishes:
-            if val < hf_min or val > hf_max:
-                raise ValueError(
-                    f"High finish value {val} is outside valid range [{hf_min}, {hf_max}]"
-                )
-            if val in IMPOSSIBLE_HIGH_FINISHES:
-                raise ValueError(f"High finish value {val} is impossible with 3 darts")
-        for val in self.player_b_high_finishes:
-            if val < hf_min or val > hf_max:
-                raise ValueError(
-                    f"High finish value {val} is outside valid range [{hf_min}, {hf_max}]"
-                )
-            if val in IMPOSSIBLE_HIGH_FINISHES:
-                raise ValueError(f"High finish value {val} is impossible with 3 darts")
-        for val in self.player_a_low_darts:
-            if val < ld_min or val > ld_max:
-                raise ValueError(
-                    f"Low darts value {val} is outside valid range [{ld_min}, {ld_max}]"
-                )
-        for val in self.player_b_low_darts:
-            if val < ld_min or val > ld_max:
-                raise ValueError(
-                    f"Low darts value {val} is outside valid range [{ld_min}, {ld_max}]"
-                )
+        _validate_statistics(
+            self.player_a_high_finishes,
+            self.player_b_high_finishes,
+            self.player_a_low_darts,
+            self.player_b_low_darts,
+        )
         return self
 
 
@@ -178,39 +207,12 @@ class MatchStatisticsUpdate(BaseModel):
     @model_validator(mode="after")
     def validate_statistics(self):
         """Validate statistics values against configured ranges."""
-        hf_min = settings.high_finish_min
-        hf_max = settings.high_finish_max
-        ld_min = settings.low_darts_min
-        ld_max = settings.low_darts_max
-
-        if self.player_a_high_finishes is not None:
-            for val in self.player_a_high_finishes:
-                if val < hf_min or val > hf_max:
-                    raise ValueError(
-                        f"High finish value {val} is outside valid range [{hf_min}, {hf_max}]"
-                    )
-                if val in IMPOSSIBLE_HIGH_FINISHES:
-                    raise ValueError(f"High finish value {val} is impossible with 3 darts")
-        if self.player_b_high_finishes is not None:
-            for val in self.player_b_high_finishes:
-                if val < hf_min or val > hf_max:
-                    raise ValueError(
-                        f"High finish value {val} is outside valid range [{hf_min}, {hf_max}]"
-                    )
-                if val in IMPOSSIBLE_HIGH_FINISHES:
-                    raise ValueError(f"High finish value {val} is impossible with 3 darts")
-        if self.player_a_low_darts is not None:
-            for val in self.player_a_low_darts:
-                if val < ld_min or val > ld_max:
-                    raise ValueError(
-                        f"Low darts value {val} is outside valid range [{ld_min}, {ld_max}]"
-                    )
-        if self.player_b_low_darts is not None:
-            for val in self.player_b_low_darts:
-                if val < ld_min or val > ld_max:
-                    raise ValueError(
-                        f"Low darts value {val} is outside valid range [{ld_min}, {ld_max}]"
-                    )
+        _validate_statistics(
+            self.player_a_high_finishes or [],
+            self.player_b_high_finishes or [],
+            self.player_a_low_darts or [],
+            self.player_b_low_darts or [],
+        )
         return self
 
 
