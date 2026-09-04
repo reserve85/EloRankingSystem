@@ -59,7 +59,6 @@ def change_own_password(
     # A successful self-service change satisfies any forced-change requirement
     # that was in place (e.g. right after SYSTEM bootstrap provision).
     current_user.must_change_password = False
-    db.commit()
 
     log_event(
         db, action="PASSWORD_CHANGED", entity_type="user",
@@ -67,6 +66,7 @@ def change_own_password(
         username=current_user.username,
         ip_address=ip, user_agent=ua,
     )
+    # Single commit: password change and its audit entry are atomic (Fix L7).
     db.commit()
 
     return PasswordResponse(success=True, message="Password changed successfully")
@@ -116,7 +116,6 @@ def reset_user_password(
     target_user.password_hash = hash_password(data.new_password)
     # A reset sets a new temporary password: require it to be changed on next login.
     target_user.must_change_password = True
-    db.commit()
 
     log_event(
         db, action="PASSWORD_RESET_BY_ADMIN", entity_type="user",
@@ -125,6 +124,7 @@ def reset_user_password(
         new_value={"target_user": target_user.username},
         ip_address=ip, user_agent=ua,
     )
+    # Single commit: reset and its audit entry are atomic (Fix L7).
     db.commit()
 
     return PasswordResponse(

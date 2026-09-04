@@ -150,7 +150,20 @@ class MatchService:
         match = self.get_match(match_id)
         old_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}, "average_a": {match.player_a_average}, "average_b": {match.player_b_average}}}}}'
         affected_players = {match.player_a_id, match.player_b_id}
-    # Duplicate protection on update (Fix M7): when the date and/or scores
+
+        # Validate any supplied format BEFORE touching the match, independent of
+        # whether scores are present. ``best_of_legs`` is optional on update and
+        # > 0 means "apply this format"; a non-valid value (e.g. 4) is rejected
+        # with 422 exactly like the create path, even when no scores are sent
+        # (previously it was silently ignored).
+        if data.best_of_legs is not None and data.best_of_legs > 0:
+            if data.best_of_legs not in VALID_BEST_OF:
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"best_of_legs must be one of {sorted(VALID_BEST_OF)}, got {data.best_of_legs}",
+                )
+
+        # Duplicate protection on update (Fix M7): when the date and/or scores
         # are changed, check against other matches with the effective values
         # and reject collisions exactly like the create path. The match itself
         # is excluded so an edit that leaves it unchanged (or re-saves the same
@@ -184,11 +197,6 @@ class MatchService:
 
         if data.player1_score is not None and data.player2_score is not None:
             bol = data.best_of_legs if data.best_of_legs and data.best_of_legs > 0 else match.best_of_legs
-            if data.best_of_legs and data.best_of_legs > 0 and data.best_of_legs not in VALID_BEST_OF:
-                raise HTTPException(
-                    status_code=422,
-                    detail=f"best_of_legs must be one of {sorted(VALID_BEST_OF)}, got {data.best_of_legs}",
-                )
             try:
                 winner_label = determine_winner(data.player1_score, data.player2_score, bol)
             except ValueError as exc:

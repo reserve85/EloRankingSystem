@@ -128,7 +128,11 @@ def get_client_info(request) -> tuple[Optional[str], Optional[str]]:
     ua = None
     if request:
         # Fix M6: honor X-Forwarded-For when a trusted reverse proxy is
-        # configured, otherwise fall back to the socket peer.
-        ip = get_client_ip(request)
+        # configured, otherwise fall back to the socket peer. When there is no
+        # client at all (e.g. an internal/request-less producer), keep the IP
+        # as None rather than fabricating a loopback address that would be
+        # indistinguishable from a genuinely local client.
+        if request.client is not None and request.client.host:
+            ip = get_client_ip(request)
         ua = request.headers.get("user-agent", None)
     return ip, ua

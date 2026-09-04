@@ -28,8 +28,9 @@ def create_user(request: Request, data: UserCreate, current_user: User = Depends
         raise HTTPException(status_code=400, detail=strength_errors)
     user = User(username=data.username, password_hash=hash_password(data.password), role=data.role, active=True)
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    # Flush so user.id is assigned before the audit references it. No commit
+    # yet: the user and its audit entry are committed together below (Fix L7).
+    db.flush()
     ip, ua = get_client_info(request)
     log_event(
         db, action="USER_CREATED", entity_type="user",
@@ -96,9 +97,9 @@ def delete_user(user_id: int, request: Request, current_user: User = Depends(req
         )
     old_value = {"username": user.username, "role": user.role.value, "active": user.active}
 
-    # Delete the user
+    # Delete the user. No commit yet: the deletion and its audit entry are
+    # committed together below (single transaction, Fix L7).
     db.delete(user)
-    db.commit()
 
     ip, ua = get_client_info(request)
     log_event(
@@ -136,8 +137,6 @@ def update_user(user_id: int, request: Request, data: UserUpdate, current_user: 
         user.role = data.role
     if data.active is not None:
         user.active = data.active
-    db.commit()
-    db.refresh(user)
 
     new = {"role": user.role.value, "active": user.active}
 
@@ -156,5 +155,6 @@ def update_user(user_id: int, request: Request, data: UserUpdate, current_user: 
         old_value=old, new_value=new,
         ip_address=ip, user_agent=ua,
     )
+    # Single commit: the mutation and its audit entry are written together (Fix L7).
     db.commit()
     return user

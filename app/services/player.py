@@ -45,7 +45,9 @@ class PlayerService:
         )
 
         player = self.repo.create(player)
-        self.repo.db.commit()
+        # The repository already flushed (id assigned). The caller (API route)
+        # owns the transaction boundary and commits once after the audit log,
+        # so the player and its audit entry are written atomically (Fix L7).
         return player
 
     def get_player(self, player_id: int) -> Player:
@@ -129,9 +131,9 @@ class PlayerService:
             match_service = MatchService(self.repo.db)
             match_service._recalculate_elo_timeline({player_id})
 
-        # Single commit at the end of the logical operation (Fix #7).
-        self.repo.db.commit()
-
+        # No commit here: the caller (API route) owns the transaction boundary
+        # and commits once after the audit log, keeping the mutation, the Elo
+        # recalculation, and the audit entry in a single transaction (Fix L7).
         return player
 
     def disable_player(self, player_id: int) -> Player:
@@ -153,7 +155,6 @@ class PlayerService:
         player.disabled = True
         player.active = False
         player = self.repo.update(player)
-        self.repo.db.commit()
         return player
 
     def reactivate_player(self, player_id: int) -> Player:
@@ -169,5 +170,4 @@ class PlayerService:
         player.disabled = False
         player.active = True
         player = self.repo.update(player)
-        self.repo.db.commit()
         return player

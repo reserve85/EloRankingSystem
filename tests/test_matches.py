@@ -464,6 +464,30 @@ class TestMatchUpdateM5:
         assert resp.status_code == 200
         assert resp.json()["best_of_legs"] == 5
 
+    def test_update_rejects_invalid_best_of_legs_without_scores(self, client, db_session):
+        """M5: an invalid format is rejected even when no scores are supplied.
+
+        Previously ``best_of_legs`` was validated only inside the score-update
+        branch, so a score-less update with an invalid format (e.g. 4) was
+        silently ignored. It must now fail with 422 like the create path.
+        """
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice", elo=1200)
+        pb = _create_player(db_session, "Bob", elo=1200)
+
+        create = client.post("/matches/", json={
+            "date": "2025-06-10",
+            "player_a_id": pa.id, "player_b_id": pb.id,
+            "player1_score": 2, "player2_score": 1, "best_of_legs": 3,
+        })
+        assert create.status_code == 201
+        match_id = create.json()["id"]
+
+        # Score-less update with an invalid format -> rejected, not ignored.
+        resp = client.put(f"/matches/{match_id}", json={"best_of_legs": 4})
+        assert resp.status_code == 422
+        assert "best_of_legs" in resp.json()["detail"].lower()
+
 # ── List and Get Tests ──────────────────────────────────────────────────
 
 
@@ -906,6 +930,25 @@ class TestDuplicateMatchDetection:
         assert resp.status_code == 200
         assert resp.json()["player1_score"] == 3
         assert resp.json()["player2_score"] == 1
+
+    def test_statistics_only_update_not_duplicate(self, client, db_session):
+        """M7: an update that touches only statistics (no date/scores) must not 409.
+
+        The duplicate guard only fires when the date and/or scores are actually
+        being changed. A statistics-only edit could otherwise be treated as a
+        collision with the match itself if the guard weren't conditional.
+        """
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice")
+        pb = _create_player(db_session, "Bob")
+
+        m1 = _create_match_via_api(client, pa.id, pb.id, pa.id, match_date="2025-06-01")
+        assert m1.status_code == 201
+        m1_id = m1.json()["id"]
+
+        resp = client.put(f"/matches/{m1_id}", json={"player_a_180s": 1})
+        assert resp.status_code == 200
+        assert resp.json()["player_a_180s"] == 1
 
 
 class TestRecalculateAll:
