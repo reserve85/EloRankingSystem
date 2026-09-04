@@ -11,8 +11,13 @@ def test_health_endpoint(client):
     assert "timestamp" in data
 
 
-def test_health_endpoint_reports_db_failure(client, monkeypatch):
-    """A failed database check must return 503 unhealthy (Fix L2)."""
+def test_health_endpoint_reports_db_failure(client, monkeypatch, caplog):
+    """A failed database check must return 503 unhealthy (Fix L2).
+
+    The raw exception is logged server side but never echoed to the caller,
+    so unauthenticated health probes cannot leak database internals (Fix L1).
+    """
+    import logging
     import app.api.routes.health as health
 
     class _BrokenEngine:
@@ -20,11 +25,14 @@ def test_health_endpoint_reports_db_failure(client, monkeypatch):
             raise RuntimeError("database is down")
 
     monkeypatch.setattr(health, "engine", _BrokenEngine())
-    response = client.get("/health")
+    with caplog.at_level(logging.ERROR, logger="app.api.routes.health"):
+        response = client.get("/health")
     assert response.status_code == 503
     data = response.json()
     assert data["status"] == "unhealthy"
-    assert "database is down" in data["detail"]
+    assert data["detail"] == "database unavailable"
+    # The exception detail is surfaced in the server log, not the response.
+    assert "database is down" in caplog.text
 
 
 def test_root_redirects_to_login(client):
