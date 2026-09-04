@@ -556,3 +556,159 @@ class TestBoundaryInitialization:
         assert after["elo_before_b"] == pytest.approx(1200.0, abs=1e-9)
         assert after["elo_after_a"] == pytest.approx(1216.0, abs=1e-9)
         assert after["elo_after_b"] == pytest.approx(1184.0, abs=1e-9)
+
+
+class TestBoundedTimeline:
+    """Fix #11 - _recalculate_elo_timeline only loads matches from the window.
+
+    The recalculation window is fetched with ``MatchRepository.get_from_match``
+    (a bounded query) instead of ``get_all()`` + index-scan + slice. Results must
+    be identical to the previous full-table algorithm.
+    """
+
+    @staticmethod
+    def _expected(ra: float, rb: float) -> float:
+        """Standard Elo expected score for rating ra against rb."""
+        return 1.0 / (1.0 + 10.0 ** ((rb - ra) / 400.0))
+
+    def _assert_equals_full_replay(self, client) -> None:
+        """Assert all stored snapshots equal a manual full-history replay.
+
+        Each player begins the from-scratch replay at their real ``start_elo``
+        — players do not all start at 1200.
+        """
+        players = client.get("/players/").json()
+        start_ratings = {p["id"]: float(p["start_elo"]) for p in players}
+        matches = sorted(
+            client.get("/matches/").json(),
+            key=lambda m: (m["date"], m["created_at"], m["id"]),
+        )
+        ratings: dict[int, float] = {}
+        for m in matches:
+            pa, pb = m["player_a_id"], m["player_b_id"]
+            ra = ratings.get(pa, start_ratings[pa])
+            rb = ratings.get(pb, start_ratings[pb])
+            ea = self._expected(ra, rb)
+            aa = 1.0 if m["winner_id"] == pa else 0.0
+            ab = 1.0 - aa
+            k = 32.0
+            na, nb = ra + k * (aa - ea), rb + k * (ab - (1.0 - ea))
+            ratings[pa], ratings[pb] = na, nb
+            assert m["elo_before_a"] == pytest.approx(ra, abs=1e-9)
+            assert m["elo_after_a"] == pytest.approx(na, abs=1e-9)
+            assert m["elo_before_b"] == pytest.approx(rb, abs=1e-9)
+            assert m["elo_after_b"] == pytest.approx(nb, abs=1e-9)
+
+    def test_equivalence_with_full_replay(self, client, db_session):
+        """Window recalc (bounded query, mixed start Elos) equals a full replay."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        a = _create_player(db_session, "Alice", elo=1200)
+        b = _create_player(db_session, "Bob", elo=1400)
+        c = _create_player(db_session, "Carl", elo=1500)
+        d = _create_player(db_session, "Dana", elo=1100)
+        e = _create_player(db_session, "Eve", elo=1600)
+        f = _create_player(db_session, "Frank", elo=900)
+
+        # Pre-window history with differing starting ratings.
+        _create_match_api(client, a.id, b.id, a.id, "2025-01-05")
+        _create_match_api(client, c.id, d.id, c.id, "2025-01-05")
+        # Feb 1: Eve vs Frank - their FIRST match, so deleting it opens a
+        # MID-window recalculation (the Jan 5 matches stay untouched).
+        m2 = _create_match_api(client, e.id, f.id, e.id, "2025-02-01").json()
+        # Matches the recalculation must reproduce exactly.
+        _create_match_api(client, b.id, e.id, b.id, "2025-03-01")
+        _create_match_api(client, a.id, f.id, f.id, "2025-03-02")
+
+        # Delete the Feb match -> affected = {Eve, Frank}; their earliest remaining
+        # match is Mar 1, so the window starts MID-history. Every remaining snapshot
+        # must equal a from-scratch replay seeded from each player's real start_elo.
+        client.delete(f"/matches/{m2['id']}")
+        self._assert_equals_full_replay(client)
+
+    def test_different_start_elo_entered_at_real_value(self, client, db_session):
+        """Non-default start_elo players enter recalculation at their real value."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        pro = _create_player(db_session, "Pro", elo=1500)
+        rook = _create_player(db_session, "Rookie", elo=1000)
+
+        m1 = _create_match_api(client, pro.id, rook.id, pro.id, "2025-01-05").json()
+        # Edit -> affected = {Pro, Rookie}. They must enter the recalculation at
+        # their REAL start_elo (1500 and 1000), NOT at a hardcoded 1200.
+        client.put(f"/matches/{m1['id']}", json={"player1_score": 0, "player2_score": 3})
+
+        after = client.get(f"/matches/{m1['id']}").json()
+        assert after["elo_before_a"] == pytest.approx(1500.0, abs=1e-9)
+        assert after["elo_before_b"] == pytest.approx(1000.0, abs=1e-9)
+        self._assert_equals_full_replay(client)
+
+    def test_slice_equals_get_from_match(self, client, db_session):
+        """get_from_match returns the same [id] sequence as get_all()[start_idx:]."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        a = _create_player(db_session, "Alice", elo=1200)
+        b = _create_player(db_session, "Bob", elo=1200)
+        _create_match_api(client, a.id, b.id, a.id, "2025-01-05")
+        m2 = _create_match_api(client, a.id, b.id, b.id, "2025-01-05").json()  # same day
+        _create_match_api(client, a.id, b.id, a.id, "2025-02-01")
+
+        from app.repositories.match import MatchRepository
+
+        db_session.expire_all()
+        repo = MatchRepository(db_session)
+        earliest = repo.get_by_id(m2["id"])
+        assert earliest is not None
+
+        # Old algorithm output: get_all() + linear scan + slice.
+        all_matches = repo.get_all()
+        start_idx = next(i for i, mm in enumerate(all_matches) if mm.id == earliest.id)
+        expected_ids = [m.id for m in all_matches[start_idx:]]
+
+        # New bounded query output.
+        actual_ids = [m.id for m in repo.get_from_match(earliest)]
+        assert actual_ids == expected_ids
+
+    def test_boundary_respects_same_day_ties(self, client, db_session):
+        """A same-day match before the earliest affected match stays out of the window."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        a = _create_player(db_session, "Alice", elo=1200)
+        b = _create_player(db_session, "Bob", elo=1200)
+        c = _create_player(db_session, "Carl", elo=1200)
+        d = _create_player(db_session, "Dana", elo=1200)
+
+        # Jan 5: A beats B (same-day EARLIER), then C beats D (same-day LATER).
+        m1 = _create_match_api(client, a.id, b.id, a.id, "2025-01-05").json()
+        m2 = _create_match_api(client, c.id, d.id, c.id, "2025-01-05").json()
+        _create_match_api(client, a.id, c.id, c.id, "2025-01-07")
+
+        # Edit m2 (C vs D) -> affected = {C, D}; window starts at m2, which sits
+        # on the SAME DAY as m1 (A vs B) but strictly AFTER it. m1 must NOT be
+        # pulled into the recalculation window: its snapshots must stay untouched.
+        # (If m1 were wrongly included, A/B would be boundary-initialised from m1
+        # itself and its stored snapshots would be recomputed to different values.)
+        client.put(f"/matches/{m2['id']}", json={"player1_score": 0, "player2_score": 3})
+
+        m1_after = client.get(f"/matches/{m1['id']}").json()
+        assert m1_after["elo_after_a"] == pytest.approx(1216.0, abs=1e-9)
+        assert m1_after["elo_after_b"] == pytest.approx(1184.0, abs=1e-9)
+
+        # Affected players (C, D) have no pre-window history, so the window result
+        # is byte-identical to a full-history replay across all remaining matches.
+        self._assert_equals_full_replay(client)
+
+    def test_earliest_match_is_first_returned(self, client, db_session):
+        """get_from_match includes earliest_match itself (inclusive boundary)."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        a = _create_player(db_session, "Alice", elo=1200)
+        b = _create_player(db_session, "Bob", elo=1200)
+        _create_match_api(client, a.id, b.id, a.id, "2025-01-05")
+        m2 = _create_match_api(client, b.id, a.id, b.id, "2025-01-06").json()
+        m3 = _create_match_api(client, a.id, b.id, a.id, "2025-01-07").json()
+
+        from app.repositories.match import MatchRepository
+
+        db_session.expire_all()
+        repo = MatchRepository(db_session)
+        earliest = repo.get_by_id(m2["id"])
+        assert earliest is not None
+
+        rows = repo.get_from_match(earliest)
+        assert [m.id for m in rows] == [m2["id"], m3["id"]]

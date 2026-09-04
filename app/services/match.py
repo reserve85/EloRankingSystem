@@ -268,14 +268,7 @@ class MatchService:
             self._audit_recalculation(user_id, username, affected_player_ids, 0)
             return 0
 
-        all_matches_from_start = self.match_repo.get_all()
-        start_idx = 0
-        for i, m in enumerate(all_matches_from_start):
-            if m.id == earliest_match.id:
-                start_idx = i
-                break
-
-        matches_to_recalc = all_matches_from_start[start_idx:]
+        matches_to_recalc = self.match_repo.get_from_match(earliest_match)
         if not matches_to_recalc:
             return 0
 
@@ -311,8 +304,6 @@ class MatchService:
                     player.last_match_date = None
 
             players[pid] = player
-
-        matches_to_recalc.sort(key=lambda m: (m.date, m.created_at, m.id))
 
         for m in matches_to_recalc:
             pa = players.get(m.player_a_id)

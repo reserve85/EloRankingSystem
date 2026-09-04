@@ -73,6 +73,33 @@ class MatchRepository:
                 break
         return last_prior
 
+    def get_from_match(self, match: Match) -> list[Match]:
+        """Get all matches at or after the given boundary match's timeline position.
+
+        Returns matches where (date, created_at, id) >= (match.date, match.created_at,
+        match.id), ordered date ASC, created_at ASC, id ASC — identical set and order to
+        ``get_all()[i:]`` where ``i`` is the boundary match's index.
+
+        The boundary is split into two parts deliberately:
+          1. a SQL ``date >= match.date`` pre-filter (indexed, cheap), then
+          2. a Python tuple comparison on the loaded same-day rows.
+
+        A single SQL row-value comparison ``tuple_(date, created_at, id) >= (...)``
+        is intentionally avoided: ``created_at`` is written by ``func.now()`` at *second*
+        precision while SQLAlchemy binds datetimes at *microsecond* precision, which
+        breaks string row-value comparisons on SQLite for matches created within the
+        same second (same precision pitfall as ``get_last_match_before``).
+        """
+        boundary = (match.date, match.created_at, match.id)
+        return [
+            m
+            for m in self.db.query(Match)
+            .filter(Match.date >= match.date)
+            .order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc())
+            .all()
+            if (m.date, m.created_at, m.id) >= boundary
+        ]
+
     def create(self, match: Match) -> Match:
         """Create a new match."""
         self.db.add(match)
