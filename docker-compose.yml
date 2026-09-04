@@ -1,4 +1,8 @@
 services:
+  # IMPORTANT (SQLite): run with EXACTLY ONE uvicorn worker. start.sh
+  # already launches uvicorn without --workers, which defaults to a single
+  # worker. Multiple workers against SQLite cause write-lock contention. To
+  # scale horizontally, migrate the database to PostgreSQL first. (Fix #13)
   elo:
     image: ghcr.io/reserve85/elo_ranking_system:latest
     build:

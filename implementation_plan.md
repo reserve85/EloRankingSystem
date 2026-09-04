@@ -62,7 +62,7 @@ Reorder `delete_match`: `get_match` → capture `affected_players` → `match_re
 
 ---
 
-# #7 — Double `commit()` Pattern in Repositories + Services
+# #7 — Double `commit()` Pattern in Repositories + Services - Status DONE
 **Severity:** 🟠 HIGH | **Category:** Architecture | **File:** `app/repositories/match.py:51,57,64`, `app/repositories/player.py:51,57,64`, `app/services/match.py:132-143,183-190`
 
 **Problem**
@@ -73,7 +73,7 @@ Remove `commit()` from repository methods. Replace with `flush()` + `refresh()` 
 
 ---
 
-# #8 — `check_same_thread: False` Applied Unconditionally
+# #8 — `check_same_thread: False` Applied Unconditionally - Status DONE
 **Severity:** 🟡 MEDIUM | **Category:** Concurrency | **File:** `app/core/database.py:23`
 
 **Problem**
@@ -88,7 +88,7 @@ Also guard the `PRAGMA` event listener with `if "sqlite" in settings.database_ur
 
 ---
 
-# #9 — Audit `_redact_secrets` Only Scans Top-Level Keys
+# #9 — Audit `_redact_secrets` Only Scans Top-Level Keys - Status DONE
 **Severity:** 🟡 MEDIUM | **Category:** Security | **File:** `app/services/audit.py:76-96`
 
 **Problem**
@@ -99,7 +99,7 @@ Replace `_redact_secrets` with a recursive version that walks nested dicts and l
 
 ---
 
-# #10 — Logout Logs `user_id=0` for Missing JWT Payload
+# #10 — Logout Logs `user_id=0` for Missing JWT Payload - Status DONE
 **Severity:** 🟡 MEDIUM | **Category:** Bug | **File:** `app/api/routes/auth.py:75`
 
 **Problem**
@@ -144,7 +144,7 @@ Note: affected players (the ones directly involved in the changed match) always 
 
 ---
 
-# #13 — SQLite + WAL + Multiple Workers Write Contention
+# #13 — SQLite + WAL + Multiple Workers Write Contention - Status DONE
 **Severity:** 🟡 MEDIUM | **Category:** Architecture | **File:** `app/core/database.py`
 
 **Problem**
@@ -155,7 +155,7 @@ Add a note to the README deployment section and `docker-compose.yml` comments: t
 
 ---
 
-# #14 — Dead Code: `get_current_user_or_redirect`
+# #14 — Dead Code: `get_current_user_or_redirect` - Status DONE
 **Severity:** 🔵 LOW | **Category:** Code Quality | **File:** `app/auth/dependencies.py:145-170`
 
 **Problem**

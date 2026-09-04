@@ -1,6 +1,7 @@
 """Tests for audit logging."""
 
 
+import json
 from unittest.mock import patch
 
 import pytest
@@ -528,3 +529,80 @@ class TestAuditApi:
             assert "T" not in ts  # No ISO 'T' separator
             # Should contain time portion
             assert ":" in ts
+
+
+class TestSecretRedaction:
+    """Tests for recursive secret redaction in audit values (Fix #9)."""
+
+    def test_plain_dict_string_passthrough(self):
+        """A plain dict without sensitive keys passes through unchanged."""
+        from app.services.audit import _redact_secrets
+
+        value = json.dumps({"name": "Alice", "level": 3})
+        assert json.loads(_redact_secrets(value)) == {"name": "Alice", "level": 3}
+
+    def test_non_dict_string_passthrough(self):
+        """A non-JSON string passes through unchanged; None stays None."""
+        from app.services.audit import _redact_secrets
+
+        assert _redact_secrets("just a plain string") == "just a plain string"
+        assert _redact_secrets(None) is None
+
+    def test_nested_dict_password_redacted(self):
+        """A password in a nested dict must be redacted."""
+        from app.services.audit import _redact_secrets
+
+        value = json.dumps({"user": {"password": "s3cret", "name": "Bob"}})
+        result = json.loads(_redact_secrets(value))
+        assert result["user"]["password"] == "[REDACTED]"
+        assert result["user"]["name"] == "Bob"
+
+    def test_deeply_nested_secret_redacted(self):
+        """A token several levels deep must be redacted, other values kept."""
+        from app.services.audit import _redact_secrets
+
+        value = json.dumps({"a": {"b": {"token": "abc123", "keep": {"x": 1}}}})
+        result = json.loads(_redact_secrets(value))
+        assert result["a"]["b"]["token"] == "[REDACTED]"
+        assert result["a"]["b"]["keep"]["x"] == 1
+
+    def test_list_containing_dict_with_token_redacted(self):
+        """Dicts inside lists must also be scanned for secrets."""
+        from app.services.audit import _redact_secrets
+
+        value = json.dumps([{"name": "Alice"}, {"access_token": "xyz"}])
+        result = json.loads(_redact_secrets(value))
+        assert result[0]["name"] == "Alice"
+        assert result[1]["access_token"] == "[REDACTED]"
+
+    def test_non_secret_nested_value_kept(self):
+        """Non-sensitive nested values must survive untouched."""
+        from app.services.audit import _redact_secrets
+
+        value = json.dumps({"user": {"email": "a@b.c"}})
+        result = json.loads(_redact_secrets(value))
+        assert result["user"]["email"] == "a@b.c"
+
+    def test_log_event_redacts_nested_password(self, client, db_session):
+        """log_event must redact nested secrets before persisting."""
+        from app.services.audit import log_event
+
+        log_event(
+            db_session,
+            action="TEST_NESTED_REDACTION",
+            entity_type="user",
+            old_value={"admin": {"token": "xyz"}},
+            new_value={"user": {"password": "hunter2", "name": "Bob"}},
+        )
+
+        log = (
+            db_session.query(AuditLog)
+            .filter(AuditLog.action == "TEST_NESTED_REDACTION")
+            .first()
+        )
+        assert log is not None
+        new_value = json.loads(log.new_value)
+        assert new_value["user"]["password"] == "[REDACTED]"
+        assert new_value["user"]["name"] == "Bob"
+        old_value = json.loads(log.old_value)
+        assert old_value["admin"]["token"] == "[REDACTED]"

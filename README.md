@@ -100,6 +100,12 @@ A dart club ranking system using the [Elo Rating System](https://en.wikipedia.or
 
 ### Docker Deployment
 
+> ⚠️ **SQLite requires exactly one Uvicorn worker.** SQLite does not handle
+> concurrent writers well, so the application must run with `--workers 1`
+> (the default; the Docker `start.sh` and `docker-compose.yml` already do
+> this). If you scale to multiple workers, migrate the database to
+> PostgreSQL first — SQLite will experience write-lock contention (Fix #13).
+
 #### Quick Start with Docker
 
 1. Copy configuration files:

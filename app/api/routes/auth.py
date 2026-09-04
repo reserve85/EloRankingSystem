@@ -72,9 +72,11 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
         from app.auth.jwt import decode_access_token
         payload = decode_access_token(token)
         if payload:
+            # ``user_id`` must be None (not 0) when the JWT payload has no ``sub``
+            sub = payload.get("sub")
             log_event(
                 db, action="LOGOUT", entity_type="user",
-                user_id=int(payload.get("sub", 0)),
+                user_id=int(sub) if sub is not None else None,
                 username=payload.get("username"),
                 ip_address=ip, user_agent=ua,
             )

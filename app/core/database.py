@@ -18,21 +18,30 @@ if "sqlite" in settings.database_url:
     db_dir.mkdir(parents=True, exist_ok=True)
 
 
+# ``check_same_thread`` is SQLite-specific and must only be passed for SQLite.
+# PostgreSQL/MySQL drivers reject unknown connect args (Fix #8).
+connect_args = (
+    {"check_same_thread": False} if "sqlite" in settings.database_url else {}
+)
+
 engine = create_engine(
     settings.database_url,
-    connect_args={"check_same_thread": False},  # SQLite specific
+    connect_args=connect_args,
     echo=settings.app_debug,
 )
 
+# Enable WAL mode and foreign keys for SQLite (SQLite-only pragmas; Fix #8).
+# Do NOT register this listener for non-SQLite databases - PRAGMA statements
+# are not supported by PostgreSQL/MySQL.
+if "sqlite" in settings.database_url:
 
-# Enable WAL mode and foreign keys for SQLite
-@event.listens_for(engine, "connect")
-def set_sqlite_pragma(dbapi_connection, connection_record):
-    """Set SQLite pragmas on connection."""
-    cursor = dbapi_connection.cursor()
-    cursor.execute("PRAGMA journal_mode=WAL")
-    cursor.execute("PRAGMA foreign_keys=ON")
-    cursor.close()
+    @event.listens_for(engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        """Set SQLite pragmas on connection."""
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA journal_mode=WAL")
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
 
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

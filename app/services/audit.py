@@ -73,26 +73,40 @@ def _safe_serialize(value: Any) -> Optional[str]:
         return str(value)
 
 
+SENSITIVE_KEYS: list[str] = [
+    "password", "password_hash", "secret", "token",
+    "jwt_secret", "jwt", "access_token", "authorization",
+]
+
+
+def _redact_node(node: Any, sensitive_keys: list[str]) -> Any:
+    """Recursively walk dicts and lists, replacing values under sensitive keys."""
+
+    if isinstance(node, dict):
+        return {
+            key: "[REDACTED]"
+            if any(s in str(key.lower()) for s in sensitive_keys)
+            else _redact_node(value, sensitive_keys)
+            for key, value in node.items()
+        }
+    if isinstance(node, list):
+        return [_redact_node(item, sensitive_keys) for item in node]
+    return node
+
+
 def _redact_secrets(value: Optional[str]) -> Optional[str]:
-    """Redact passwords and secrets from audit log values."""
+    """Redact passwords and secrets from audit log values (recursive; Fix #9)."""
+
     if value is None:
         return None
 
-    sensitive_keys = [
-        "password", "password_hash", "secret", "token",
-        "jwt_secret", "jwt", "access_token", "authorization",
-    ]
-
     try:
         data = json.loads(value)
-        if isinstance(data, dict):
-            for key in list(data.keys()):
-                if any(s in key.lower() for s in sensitive_keys):
-                    data[key] = "[REDACTED]"
-            return json.dumps(data, default=str)
     except (json.JSONDecodeError, TypeError):
-        pass
+        return value
 
+    if isinstance(data, (dict, list)):
+        return json.dumps(_redact_node(data, SENSITIVE_KEYS), default=str)
     return value
 
 

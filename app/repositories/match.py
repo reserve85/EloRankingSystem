@@ -1,4 +1,10 @@
-"""Match repository for database access."""
+"""Match repository for database access.
+
+Mutation methods (create/update/delete) only flush the session so that
+auto-generated IDs are available; they never commit. The service layer owns
+the transaction boundary and commits once at the end of a logical operation
+(Fix #7).
+"""
 
 from datetime import date
 from typing import Optional
@@ -103,20 +109,20 @@ class MatchRepository:
     def create(self, match: Match) -> Match:
         """Create a new match."""
         self.db.add(match)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(match)
         return match
 
     def update(self, match: Match) -> Match:
         """Update an existing match."""
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(match)
         return match
 
     def delete(self, match: Match) -> None:
         """Delete a match."""
         self.db.delete(match)
-        self.db.commit()
+        self.db.flush()
 
     def get_duplicate_match(
         self,

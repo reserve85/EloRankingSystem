@@ -1,4 +1,10 @@
-"""Player repository for database access."""
+"""Player repository for database access.
+
+Mutation methods (create/update/delete) only flush the session so that
+auto-generated IDs are available; they never commit. The service layer owns
+the transaction boundary and commits once at the end of a logical operation
+(Fix #7).
+"""
 
 from typing import Optional
 
@@ -48,17 +54,17 @@ class PlayerRepository:
     def create(self, player: Player) -> Player:
         """Create a new player."""
         self.db.add(player)
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(player)
         return player
 
     def update(self, player: Player) -> Player:
         """Update an existing player."""
-        self.db.commit()
+        self.db.flush()
         self.db.refresh(player)
         return player
 
     def delete(self, player: Player) -> None:
         """Delete a player (should only be used if no match history)."""
         self.db.delete(player)
-        self.db.commit()
+        self.db.flush()

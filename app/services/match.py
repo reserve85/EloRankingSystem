@@ -133,6 +133,7 @@ class MatchService:
         match = self.match_repo.create(match)
 
         self._recalculate_elo_timeline({data.player_a_id, data.player_b_id}, created_by, username)
+        self.db.flush()
         self.db.refresh(match)
 
         audit = AuditLog(
@@ -181,8 +182,8 @@ class MatchService:
         if data.player_b_average is not None:
             match.player_b_average = data.player_b_average
 
-        self.db.commit()
         self._recalculate_elo_timeline(affected_players, updated_by, username)
+        self.db.flush()
         self.db.refresh(match)
 
         new_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}, "average_a": {match.player_a_average}, "average_b": {match.player_b_average}}}}}'
@@ -279,7 +280,6 @@ class MatchService:
                     player.current_elo = float(player.start_elo)
                     player.last_match_date = None
                     player.active = False
-            self.db.commit()
             self._audit_recalculation(user_id, username, affected_player_ids, 0)
             return 0
 
@@ -354,7 +354,6 @@ class MatchService:
                 player.last_match_date = None
                 player.active = False
 
-        self.db.commit()
         self._audit_recalculation(
             user_id, username, affected_player_ids, len(matches_to_recalc)
         )
@@ -375,7 +374,6 @@ class MatchService:
             new_value=f'{{"affected_players": {sorted(affected_player_ids)}, "matches_recalculated": {matches_count}}}',
         )
         self.db.add(audit)
-        self.db.commit()
 
     def recalculate_all(self, user_id: int | None = None, username: str | None = None) -> dict:
         """Replay the complete Elo history from scratch for every player.
@@ -391,6 +389,7 @@ class MatchService:
         all_players = self.player_repo.get_all(include_disabled=True)
         all_player_ids = {p.id for p in all_players}
         matches_count = self._recalculate_elo_timeline(all_player_ids, user_id, username)
+        self.db.commit()
         return {
             "matches_recalculated": matches_count,
             "players_affected": len(all_player_ids),
