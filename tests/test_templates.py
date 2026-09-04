@@ -345,6 +345,42 @@ class TestSettingsAPI:
         assert resp.status_code == 400
         assert "too large" in resp.json()["detail"].lower()
 
+    def test_logo_upload_rejects_non_image_content(self, client, db_session):
+        """A renamed non-image file must be rejected by its magic bytes (Fix L6).
+
+        The extension and Content-Type are client-supplied, so a polyglot saved
+        as ``.png`` must not be accepted just because it is named like an image.
+        """
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        fake = b"<html>not an image</html>"  # lies about being a PNG
+        resp = client.post(
+            "/settings/logo?mode=light",
+            files={"file": ("fake.png", fake, "image/png")},
+        )
+        assert resp.status_code == 400
+        assert "magic bytes" in resp.json()["detail"].lower()
+
+    def test_logo_upload_accepts_real_png(self, client, db_session, tmp_path, monkeypatch):
+        """A real PNG upload should succeed and be stored (regression for L6)."""
+        import os as _os
+
+        import app.api.routes.settings as settings_route
+
+        upload_dir = tmp_path / "uploads"
+        monkeypatch.setattr(settings_route.settings, "upload_dir", str(upload_dir))
+
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        # Minimal 1x1 PNG
+        png = b"\x89PNG\r\n\x1a\n" + b"\x00" * 100
+        resp = client.post(
+            "/settings/logo?mode=light",
+            files={"file": ("logo.png", png, "image/png")},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["club_logo_path"]
+        assert _os.path.exists(data["club_logo_path"])
+
     def test_settings_put_removed(self, client, db_session):
         """PUT /settings/ should no longer exist (settings are env/config only)."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)

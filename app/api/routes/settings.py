@@ -47,7 +47,7 @@ class SettingsResponse(BaseModel):
 
 
 def _validate_logo_upload(file: UploadFile, content: bytes) -> None:
-    """Validate logo file extension, MIME type, and size."""
+    """Validate logo file extension, MIME type, size, and magic bytes."""
 
     allowed_extensions = {".png", ".jpg", ".jpeg"}
 
@@ -69,6 +69,23 @@ def _validate_logo_upload(file: UploadFile, content: bytes) -> None:
             status_code=400,
             detail=f"File too large. Maximum size: {MAX_LOGO_SIZE // (1024 * 1024)}MB",
         )
+
+    _validate_logo_magic_bytes(ext, content)
+
+
+def _validate_logo_magic_bytes(ext: str, content: bytes) -> None:
+    """Verify the file's magic bytes match the declared extension (Fix L6).
+
+    The extension and Content-Type header are client-supplied and easily
+    spoofed, so a renamed polyglot (e.g. an HTML document saved as ``logo.png``)
+    would pass the header checks and be stored. Checking the binary signature
+    is cheap defense-in-depth against serving/embedding non-image content.
+    """
+    if ext == ".png" and not content.startswith(b"\x89PNG\r\n\x1a\n"):
+        raise HTTPException(status_code=400, detail="Invalid PNG file: magic bytes do not match")
+
+    if ext in (".jpg", ".jpeg") and not content.startswith(b"\xff\xd8\xff"):
+        raise HTTPException(status_code=400, detail="Invalid JPEG file: magic bytes do not match")
 
 
 async def _read_upload_limited(file: UploadFile) -> bytes:
