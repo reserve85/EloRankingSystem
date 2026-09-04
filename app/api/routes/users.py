@@ -9,6 +9,7 @@ from app.auth.password import hash_password
 from app.auth.password_validation import validate_password_strength
 from app.models.match import Match
 from app.models.user import User, UserRole
+from app.repositories.user import UserRepository
 from app.schemas.user import UserCreate, UserUpdate, UserResponse
 from app.services.audit import log_event, get_client_info
 
@@ -23,7 +24,8 @@ def create_user(
     db: Session = Depends(get_db),
 ):
     """Create a new user. Requires ADMIN or SYSTEM role."""
-    existing = db.query(User).filter(User.username == data.username).first()
+    repo = UserRepository(db)
+    existing = repo.get_by_username(data.username)
     if existing:
         raise HTTPException(status_code=409, detail=f"Username '{data.username}' already exists")
     if data.role == UserRole.SYSTEM:
@@ -31,16 +33,17 @@ def create_user(
     strength_errors = validate_password_strength(data.password)
     if strength_errors:
         raise HTTPException(status_code=400, detail=strength_errors)
-    user = User(
-        username=data.username,
-        password_hash=hash_password(data.password),
-        role=data.role,
-        active=True,
+    # repo.create() flushes so user.id is assigned before the audit references
+    # it. No commit yet: the user and its audit entry are committed together
+    # below (Fix L7).
+    user = repo.create(
+        User(
+            username=data.username,
+            password_hash=hash_password(data.password),
+            role=data.role,
+            active=True,
+        )
     )
-    db.add(user)
-    # Flush so user.id is assigned before the audit references it. No commit
-    # yet: the user and its audit entry are committed together below (Fix L7).
-    db.flush()
     ip, ua = get_client_info(request)
     log_event(
         db,
@@ -60,7 +63,7 @@ def create_user(
 @router.get("/", response_model=list[UserResponse])
 def list_users(current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     """List all users. Requires ADMIN or SYSTEM role."""
-    return db.query(User).order_by(User.id).all()
+    return UserRepository(db).get_all()
 
 
 @router.get("/{user_id}", response_model=UserResponse)
@@ -68,7 +71,7 @@ def get_user(
     user_id: int, current_user: User = Depends(require_admin), db: Session = Depends(get_db)
 ):
     """Get a user by ID. Requires ADMIN or SYSTEM role."""
-    user = db.query(User).filter(User.id == user_id).first()
+    user = UserRepository(db).get_by_id(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail=f"User {user_id} not found")
     return user
@@ -88,7 +91,7 @@ def delete_user(
     - ADMIN can only delete USER accounts.
     - SYSTEM can delete both ADMIN and USER accounts.
     """
-    user = db.query(User).filter(User.id == user_id).first()
+    user = UserRepository(db).get_by_id(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail=f"User {user_id} not found")
 
@@ -124,7 +127,7 @@ def delete_user(
 
     # Delete the user. No commit yet: the deletion and its audit entry are
     # committed together below (single transaction, Fix L7).
-    db.delete(user)
+    UserRepository(db).delete(user)
 
     ip, ua = get_client_info(request)
     log_event(
@@ -158,7 +161,7 @@ def update_user(
     - Only SYSTEM may modify ADMIN accounts.
     - A user can never change their own role or active state.
     """
-    user = db.query(User).filter(User.id == user_id).first()
+    user = UserRepository(db).get_by_id(user_id)
     if user is None:
         raise HTTPException(status_code=404, detail=f"User {user_id} not found")
 

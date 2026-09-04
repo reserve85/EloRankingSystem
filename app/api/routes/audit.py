@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.core.config import settings
 from app.auth.dependencies import require_admin
 from app.models.user import User
-from app.models.audit_log import AuditLog
+from app.repositories.audit import AuditLogRepository
 
 router = APIRouter(prefix="/audit", tags=["audit"])
 
@@ -40,12 +40,11 @@ def list_audit_logs(
     db: Session = Depends(get_db),
 ):
     """List audit log entries. Requires ADMIN or SYSTEM role."""
-    query = db.query(AuditLog)
-    if action:
-        query = query.filter(AuditLog.action == action)
-    if entity_type:
-        query = query.filter(AuditLog.entity_type == entity_type)
-    logs = query.order_by(AuditLog.timestamp.desc()).limit(limit).all()
+    logs = AuditLogRepository(db).get_logs(
+        limit=limit,
+        action=action,
+        entity_type=entity_type,
+    )
 
     # Convert timestamps to configured timezone and date format
     from datetime import datetime, timezone as dt_timezone
