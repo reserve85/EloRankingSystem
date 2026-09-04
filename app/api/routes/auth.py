@@ -65,24 +65,40 @@ def login(
 
 @router.post("/logout")
 def logout(request: Request, response: Response, db: Session = Depends(get_db)):
-    """Clear the authentication cookie."""
+    """Clear the authentication cookie.
+
+    The cookie is always cleared. Audit logging is best-effort: a malformed or
+    legacy token payload (e.g. a signed token with a non-numeric ``sub``) or a
+    failing audit write must never turn logout into a 500 that keeps the
+    session alive (Fix H1).
+    """
     ip, ua = get_client_info(request)
 
-    # Try to get current user for logging
-    token = request.cookies.get(AUTH_COOKIE_NAME)
-    if token:
-        from app.auth.jwt import decode_access_token
-        payload = decode_access_token(token)
-        if payload:
-            # ``user_id`` must be None (not 0) when the JWT payload has no ``sub``
-            sub = payload.get("sub")
-            log_event(
-                db, action="LOGOUT", entity_type="user",
-                user_id=int(sub) if sub is not None else None,
-                username=payload.get("username"),
-                ip_address=ip, user_agent=ua,
-            )
-            db.commit()
+    try:
+        token = request.cookies.get(AUTH_COOKIE_NAME)
+        if token:
+            from app.auth.jwt import decode_access_token
+            payload = decode_access_token(token)
+            if payload:
+                # ``user_id`` must be None (not 0) when the JWT payload has no
+                # ``sub``, and a forged/legacy token can carry a non-numeric
+                # ``sub`` - refuse it instead of crashing on int().
+                sub = payload.get("sub")
+                if sub is not None:
+                    try:
+                        sub = int(sub)
+                    except (TypeError, ValueError):
+                        sub = None
+                log_event(
+                    db, action="LOGOUT", entity_type="user",
+                    user_id=sub,
+                    username=payload.get("username"),
+                    ip_address=ip, user_agent=ua,
+                )
+                db.commit()
+    except Exception:  # noqa: BLE001 - logout must always succeed
+        # Audit failures are non-fatal; the session cookie is still cleared.
+        pass
 
     response.delete_cookie(
         key=AUTH_COOKIE_NAME,

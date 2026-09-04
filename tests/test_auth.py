@@ -475,6 +475,29 @@ class TestAuthEndpoints:
         assert response.status_code == 200
         assert response.json()["message"] == "Logged out successfully"
 
+    def test_logout_with_non_numeric_sub_does_not_crash(self, client, db_session):
+        """Logout must not 500 on a signed token whose ``sub`` is non-numeric (Fix H1).
+
+        A forged/legacy token with ``sub="not-a-number"`` decodes fine (it is
+        signed with the app secret), so the logout endpoint must refuse it
+        instead of raising ``ValueError`` and leaving the session cookie alive.
+        """
+        import jwt as pyjwt
+
+        from app.core.config import settings
+        from app.auth.dependencies import AUTH_COOKIE_NAME
+
+        bad_token = pyjwt.encode(
+            {"sub": "not-a-number", "username": "legacy", "role": "USER"},
+            settings.jwt_secret,
+            algorithm=settings.jwt_algorithm,
+        )
+        client.cookies.set(AUTH_COOKIE_NAME, bad_token)
+
+        response = client.post("/auth/logout")
+        assert response.status_code == 200
+        assert response.json()["message"] == "Logged out successfully"
+
     def test_me_authenticated(self, client, db_session):
         """GET /auth/me with valid cookie should return user info."""
         user = User(
