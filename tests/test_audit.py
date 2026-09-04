@@ -1,6 +1,10 @@
 """Tests for audit logging."""
 
 
+from unittest.mock import patch
+
+import pytest
+
 from app.models.user import User, UserRole
 from app.models.player import Player
 from app.models.audit_log import AuditLog
@@ -295,6 +299,35 @@ class TestMatchAudit:
         log = logs[-1]
         assert log.user_id == user.id
         assert log.username == "deleter"
+
+    def test_match_delete_audit_not_logged_when_recalculation_fails(self, client, db_session):
+        """If Elo recalculation fails, no MATCH_DELETED audit is written (Fix #6)."""
+        _login_as(client, db_session, "admin_fail", "pass", UserRole.ADMIN)
+        pa = _create_player(db_session, "Alice")
+        pb = _create_player(db_session, "Bob")
+
+        resp = client.post("/matches/", json={
+            "date": "2025-06-01",
+            "player_a_id": pa.id,
+            "player_b_id": pb.id,
+            "player1_score": 3,
+            "player2_score": 0,
+        })
+        match_id = resp.json()["id"]
+
+        # Simulate a failure during the Elo recalculation step. The TestClient
+        # re-raises the server exception, so expect it to propagate.
+        with patch(
+            "app.services.match.MatchService._recalculate_elo_timeline",
+            side_effect=RuntimeError("recalculation failed"),
+        ):
+            with pytest.raises(RuntimeError):
+                client.delete(f"/matches/{match_id}")
+
+        # The audit must NOT have been committed, because the deletion
+        # "operation" (including recalculation) never completed successfully.
+        logs = _get_audit_logs(db_session, "MATCH_DELETED")
+        assert len(logs) == 0
 
     def test_match_update_logged_with_username(self, client, db_session):
         """Match update audit entry should include user_id and username."""

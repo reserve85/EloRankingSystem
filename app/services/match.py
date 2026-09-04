@@ -207,20 +207,35 @@ class MatchService:
         return self.match_repo.get_by_player(player_id)
 
     def delete_match(self, match_id: int, deleted_by: int | None = None, username: str | None = None) -> None:
-        """Delete a match and recalculate the affected Elo timeline."""
+        """Delete a match and recalculate the affected Elo timeline.
+
+        Fix #6: the ``MATCH_DELETED`` audit log is recorded only AFTER the
+        deletion and the Elo recalculation have both succeeded. If either step
+        raises, no audit entry is committed, so the audit log can never claim
+        a deletion that did not actually happen.
+        """
         match = self.get_match(match_id)
         affected_players = {match.player_a_id, match.player_b_id}
+        entity_id = match.id
+        old_value = (
+            f'{{"player_a": {match.player_a_id}, "player_b": {match.player_b_id}, '
+            f'"score": "{match.player1_score}:{match.player2_score}", '
+            f'"winner": {match.winner_id}, "date": "{match.date}"}}'
+        )
+
+        # Deletion + recalculation first. If either fails, the audit below is
+        # never added and nothing is falsely recorded.
+        self.match_repo.delete(match)
+        self._recalculate_elo_timeline(affected_players, deleted_by, username)
 
         audit = AuditLog(
             user_id=deleted_by, username=username, action="MATCH_DELETED", entity_type="match",
-            entity_id=match.id,
-            old_value=f'{{"player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "score": "{match.player1_score}:{match.player2_score}", "winner": {match.winner_id}, "date": "{match.date}"}}',
+            entity_id=entity_id,
+            old_value=old_value,
             new_value=None,
         )
         self.db.add(audit)
         self.db.commit()
-        self.match_repo.delete(match)
-        self._recalculate_elo_timeline(affected_players, deleted_by, username)
 
     def _recalculate_elo_timeline(
         self,

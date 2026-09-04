@@ -51,7 +51,7 @@ Output for real semver inputs (`v1.2.3`, `1.2.3`) is byte-identical to today.
 
 ---
 
-# #6 — `delete_match` Creates Audit Log Before Deletion Succeeds
+# #6 — `delete_match` Creates Audit Log Before Deletion Succeeds - Status DONE
 **Severity:** 🟠 HIGH | **Category:** Bug | **File:** `app/services/match.py:208-222`
 
 **Problem**
