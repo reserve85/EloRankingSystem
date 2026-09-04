@@ -664,7 +664,7 @@ async function loadMatches() {
     const totalLD = countArr(m.player_a_low_darts) + countArr(m.player_b_low_darts);
     const eloWinner = m.winner_id === m.player_a_id ? m.elo_change_a : m.elo_change_b;
     const eloLoser = m.winner_id === m.player_a_id ? m.elo_change_b : m.elo_change_a;
-    tbody.innerHTML += '<tr style="cursor:pointer" onclick="showAdminMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td><span class="badge bg-green-lt">'+escapeHtml(adminPmap[m.winner_id])+'</span> <span class="text-green small">'+(eloWinner>=0?'+':'')+eloWinner.toFixed(1)+'</span></td><td><strong>'+score+'</strong></td><td><span class="badge bg-red-lt">'+escapeHtml(adminPmap[m.loser_id])+'</span> <span class="text-red small">'+(eloLoser>=0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
+    tbody.innerHTML += '<tr style="cursor:pointer" onclick="showAdminMatchDetail('+idx+')"><td>'+m.id+'</td><td>'+fmtDisplay(m.date)+'</td><td><span class="badge bg-green-lt">'+escapeHtml(adminPmap[m.winner_id])+'</span> <span class="text-green small">'+(eloWinner>0?'+':'')+eloWinner.toFixed(1)+'</span></td><td><strong>'+score+'</strong></td><td><span class="badge bg-red-lt">'+escapeHtml(adminPmap[m.loser_id])+'</span> <span class="text-red small">'+(eloLoser>0?'+':'')+eloLoser.toFixed(1)+'</span></td><td>'+(total180s||'-')+'</td><td>'+(totalHF||'-')+'</td><td>'+(totalLD||'-')+'</td></tr>';
   });
   $('#matches-table').DataTable({ paging: true, pageLength: 25, order: [[0,'desc']], searching: true });
 }
@@ -842,8 +842,8 @@ function showAdminMatchDetail(idx) {
   document.getElementById('admin-modal-p1-result').className = resClsA;
   document.getElementById('admin-modal-p2-result').textContent = resultB;
   document.getElementById('admin-modal-p2-result').className = resClsB;
-  const eloA = m.elo_change_a >= 0 ? '+' + m.elo_change_a.toFixed(1) : m.elo_change_a.toFixed(1);
-  const eloB = m.elo_change_b >= 0 ? '+' + m.elo_change_b.toFixed(1) : m.elo_change_b.toFixed(1);
+  const eloA = m.elo_change_a > 0 ? '+' + m.elo_change_a.toFixed(1) : m.elo_change_a.toFixed(1);
+  const eloB = m.elo_change_b > 0 ? '+' + m.elo_change_b.toFixed(1) : m.elo_change_b.toFixed(1);
   document.getElementById('admin-modal-p1-elo').textContent = eloA;
   document.getElementById('admin-modal-p2-elo').textContent = eloB;
   document.getElementById('admin-modal-p1-elo').className = m.elo_change_a >= 0 ? 'text-green' : 'text-red';

@@ -143,8 +143,15 @@ def generate_ranking_pdf(
     # Table data
     data = [header]
     for entry in ranking.entries:
-        elo_sign = "+" if entry.elo_change >= 0 else ""
-        pos_sign = "+" if entry.position_change >= 0 else ""
+        # Zero change is shown without a "+" prefix. Position change zero uses
+        # a bare "-" exactly like the dashboard so both surfaces agree (Fix L5).
+        elo_sign = "+" if entry.elo_change > 0 else ""
+        if entry.position_change > 0:
+            pos_txt = f"+{entry.position_change}"
+        elif entry.position_change < 0:
+            pos_txt = str(entry.position_change)
+        else:
+            pos_txt = "-"
         hf_count = len(entry.high_finishes) if entry.high_finishes else 0
         ld_count = len(entry.low_darts) if entry.low_darts else 0
         data.append(
@@ -153,7 +160,7 @@ def generate_ranking_pdf(
                 entry.player_name,
                 f"{entry.elo_rating:.1f}",
                 f"{elo_sign}{entry.elo_change:.1f}",
-                f"{pos_sign}{entry.position_change}",
+                pos_txt,
                 str(entry.total_180s) if entry.total_180s else "-",
                 str(hf_count) if hf_count else "-",
                 str(ld_count) if ld_count else "-",

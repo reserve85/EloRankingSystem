@@ -755,7 +755,7 @@ async function loadRanking() {
     const hfCount = Array.isArray(e.high_finishes) ? e.high_finishes.length : 0;
     const ldCount = Array.isArray(e.low_darts) ? e.low_darts.length : 0;
     const trophy = e.position <= 3 ? trophies[e.position - 1] : '';
-    tbody.innerHTML += '<tr><td>'+(trophy || e.position)+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+escapeHtml(e.player_name)+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>=0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+(hfCount||'-')+'</td><td>'+(ldCount||'-')+'</td><td>'+e.total_matches+'</td></tr>';
+    tbody.innerHTML += '<tr><td>'+(trophy || e.position)+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+escapeHtml(e.player_name)+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+(hfCount||'-')+'</td><td>'+(ldCount||'-')+'</td><td>'+e.total_matches+'</td></tr>';
   });
 }
 
@@ -835,7 +835,7 @@ function renderMatchTable(data) {
     const loserName = playerMap[m.loser_id] || 'Player ' + m.loser_id;
     const score = (m.player1_score != null && m.player2_score != null) ? m.player1_score + ':' + m.player2_score : '-';
     const cls = m.elo_change_a > 0 ? 'text-green' : 'text-red';
-    const eloStr = (m.elo_change_a >= 0 ? '+' : '') + m.elo_change_a.toFixed(1);
+    const eloStr = (m.elo_change_a > 0 ? '+' : '') + m.elo_change_a.toFixed(1);
     const total180s = (m.player_a_180s || 0) + (m.player_b_180s || 0);
     const totalHF = countArray(m.player_a_high_finishes) + countArray(m.player_b_high_finishes);
     const totalLD = countArray(m.player_a_low_darts) + countArray(m.player_b_low_darts);
@@ -887,8 +887,8 @@ function showMatchDetail(idx) {
   document.getElementById('modal-p1-ld').textContent = ldA;
   document.getElementById('modal-p2-ld').textContent = ldB;
 
-  const eloA = m.elo_change_a >= 0 ? '+' + m.elo_change_a.toFixed(1) : m.elo_change_a.toFixed(1);
-  const eloB = m.elo_change_b >= 0 ? '+' + m.elo_change_b.toFixed(1) : m.elo_change_b.toFixed(1);
+  const eloA = m.elo_change_a > 0 ? '+' + m.elo_change_a.toFixed(1) : m.elo_change_a.toFixed(1);
+  const eloB = m.elo_change_b > 0 ? '+' + m.elo_change_b.toFixed(1) : m.elo_change_b.toFixed(1);
   document.getElementById('modal-p1-elo').textContent = eloA;
   document.getElementById('modal-p2-elo').textContent = eloB;
   document.getElementById('modal-p1-elo').className = m.elo_change_a >= 0 ? 'text-green' : 'text-red';
