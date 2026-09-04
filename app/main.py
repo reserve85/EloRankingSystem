@@ -45,12 +45,16 @@ async def lifespan(app: FastAPI):
     # Shutdown
 
 
+# ``/docs``, ``/redoc`` and the OpenAPI schema are only exposed outside
+# production (Fix #9); everything else is unchanged.
+_is_production = str(settings.app_env).strip().lower() == "production"
 app = FastAPI(
     title=settings.app_name,
     description="A dart club ranking system using the Elo Rating System.",
-    version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
+    version="1.0.24",
+    docs_url=None if _is_production else "/docs",
+    redoc_url=None if _is_production else "/redoc",
+    openapi_url=None if _is_production else "/openapi.json",
     lifespan=lifespan,
 )
 

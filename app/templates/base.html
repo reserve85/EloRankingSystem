@@ -535,7 +535,9 @@
       <div class="row text-center align-items-center flex-row-reverse">
         <div class="col-lg-auto ms-lg-auto">
           <ul class="list-inline list-inline-dots mb-0">
+            {% if api_docs_enabled %}
             <li class="list-inline-item"><a href="/docs" class="link-secondary">API Docs</a></li>
+            {% endif %}
             <li class="list-inline-item"><a href="/ui/impressum" class="link-secondary">Impressum</a></li>
             <li class="list-inline-item"><a href="/ui/privacy" class="link-secondary">Privacy Policy</a></li>
           </ul>
