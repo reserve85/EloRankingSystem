@@ -61,10 +61,14 @@ def change_own_password(
     current_user.must_change_password = False
 
     log_event(
-        db, action="PASSWORD_CHANGED", entity_type="user",
-        entity_id=current_user.id, user_id=current_user.id,
+        db,
+        action="PASSWORD_CHANGED",
+        entity_type="user",
+        entity_id=current_user.id,
+        user_id=current_user.id,
         username=current_user.username,
-        ip_address=ip, user_agent=ua,
+        ip_address=ip,
+        user_agent=ua,
     )
     # Single commit: password change and its audit entry are atomic (Fix L7).
     db.commit()
@@ -118,11 +122,15 @@ def reset_user_password(
     target_user.must_change_password = True
 
     log_event(
-        db, action="PASSWORD_RESET_BY_ADMIN", entity_type="user",
-        entity_id=target_user.id, user_id=current_user.id,
+        db,
+        action="PASSWORD_RESET_BY_ADMIN",
+        entity_type="user",
+        entity_id=target_user.id,
+        user_id=current_user.id,
         username=current_user.username,
         new_value={"target_user": target_user.username},
-        ip_address=ip, user_agent=ua,
+        ip_address=ip,
+        user_agent=ua,
     )
     # Single commit: reset and its audit entry are atomic (Fix L7).
     db.commit()

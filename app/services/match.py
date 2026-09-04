@@ -65,7 +65,13 @@ class MatchService:
             exclude_match_id=exclude_match_id,
         )
 
-    def create_match(self, data: MatchCreate, created_by: int | None = None, username: str | None = None, force: bool = False) -> Match:
+    def create_match(
+        self,
+        data: MatchCreate,
+        created_by: int | None = None,
+        username: str | None = None,
+        force: bool = False,
+    ) -> Match:
         """Create a new match using Best-of-5 scores, then recalculate.
 
         Args:
@@ -76,14 +82,20 @@ class MatchService:
         """
         player_a = self.player_repo.get_by_id(data.player_a_id)
         if player_a is None:
-            raise HTTPException(status_code=404, detail=f"Player A (id={data.player_a_id}) not found")
+            raise HTTPException(
+                status_code=404, detail=f"Player A (id={data.player_a_id}) not found"
+            )
 
         player_b = self.player_repo.get_by_id(data.player_b_id)
         if player_b is None:
-            raise HTTPException(status_code=404, detail=f"Player B (id={data.player_b_id}) not found")
+            raise HTTPException(
+                status_code=404, detail=f"Player B (id={data.player_b_id}) not found"
+            )
 
         if data.player_a_id == data.player_b_id:
-            raise HTTPException(status_code=400, detail="Player A and Player B cannot be the same player")
+            raise HTTPException(
+                status_code=400, detail="Player A and Player B cannot be the same player"
+            )
 
         # Determine winner from scores
         bol = data.best_of_legs if data.best_of_legs > 0 else settings.best_of_legs
@@ -103,7 +115,7 @@ class MatchService:
             if duplicate is not None:
                 raise HTTPException(
                     status_code=409,
-                    detail="A match with the same result on the same day already exists. Do you want to save it anyway?"
+                    detail="A match with the same result on the same day already exists. Do you want to save it anyway?",
                 )
 
         # Create match with placeholder Elo and statistics
@@ -116,9 +128,12 @@ class MatchService:
             player2_score=data.player2_score,
             winner_id=winner_id,
             loser_id=loser_id,
-            elo_before_a=0.0, elo_before_b=0.0,
-            elo_after_a=0.0, elo_after_b=0.0,
-            elo_change_a=0.0, elo_change_b=0.0,
+            elo_before_a=0.0,
+            elo_before_b=0.0,
+            elo_after_a=0.0,
+            elo_after_b=0.0,
+            elo_change_a=0.0,
+            elo_change_b=0.0,
             k_factor=float(settings.k_factor),
             player_a_180s=data.player_a_180s,
             player_b_180s=data.player_b_180s,
@@ -137,15 +152,25 @@ class MatchService:
         self.db.refresh(match)
 
         audit = AuditLog(
-            user_id=created_by, username=username, action="MATCH_CREATED", entity_type="match",
-            entity_id=match.id, old_value=None,
+            user_id=created_by,
+            username=username,
+            action="MATCH_CREATED",
+            entity_type="match",
+            entity_id=match.id,
+            old_value=None,
             new_value=f'{{"player_a": {data.player_a_id}, "player_b": {data.player_b_id}, "score": "{data.player1_score}:{data.player2_score}", "winner": {winner_id}, "date": "{data.date}", "statistics": {{"180s_a": {data.player_a_180s}, "180s_b": {data.player_b_180s}, "high_finishes_a": {data.player_a_high_finishes}, "high_finishes_b": {data.player_b_high_finishes}, "low_darts_a": {data.player_a_low_darts}, "low_darts_b": {data.player_b_low_darts}, "average_a": {data.player_a_average}, "average_b": {data.player_b_average}}}}}',
         )
         self.db.add(audit)
         self.db.commit()
         return match
 
-    def update_match(self, match_id: int, data: MatchUpdate, updated_by: int | None = None, username: str | None = None) -> Match:
+    def update_match(
+        self,
+        match_id: int,
+        data: MatchUpdate,
+        updated_by: int | None = None,
+        username: str | None = None,
+    ) -> Match:
         """Update a match and recalculate the affected Elo timeline."""
         match = self.get_match(match_id)
         old_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}, "average_a": {match.player_a_average}, "average_b": {match.player_b_average}}}}}'
@@ -196,7 +221,11 @@ class MatchService:
             match.date = data.date
 
         if data.player1_score is not None and data.player2_score is not None:
-            bol = data.best_of_legs if data.best_of_legs and data.best_of_legs > 0 else match.best_of_legs
+            bol = (
+                data.best_of_legs
+                if data.best_of_legs and data.best_of_legs > 0
+                else match.best_of_legs
+            )
             try:
                 winner_label = determine_winner(data.player1_score, data.player2_score, bol)
             except ValueError as exc:
@@ -231,7 +260,15 @@ class MatchService:
         self.db.refresh(match)
 
         new_value = f'{{"date": "{match.date}", "score": "{match.player1_score}:{match.player2_score}", "winner_id": {match.winner_id}, "player_a": {match.player_a_id}, "player_b": {match.player_b_id}, "statistics": {{"180s_a": {match.player_a_180s}, "180s_b": {match.player_b_180s}, "high_finishes_a": {match.player_a_high_finishes}, "high_finishes_b": {match.player_b_high_finishes}, "low_darts_a": {match.player_a_low_darts}, "low_darts_b": {match.player_b_low_darts}, "average_a": {match.player_a_average}, "average_b": {match.player_b_average}}}}}'
-        audit = AuditLog(user_id=updated_by, username=username, action="MATCH_UPDATED", entity_type="match", entity_id=match.id, old_value=old_value, new_value=new_value)
+        audit = AuditLog(
+            user_id=updated_by,
+            username=username,
+            action="MATCH_UPDATED",
+            entity_type="match",
+            entity_id=match.id,
+            old_value=old_value,
+            new_value=new_value,
+        )
         self.db.add(audit)
         self.db.commit()
         return match
@@ -243,7 +280,9 @@ class MatchService:
             raise HTTPException(status_code=404, detail=f"Match with id {match_id} not found")
         return match
 
-    def get_all_matches(self, from_date: date | None = None, to_date: date | None = None) -> list[Match]:
+    def get_all_matches(
+        self, from_date: date | None = None, to_date: date | None = None
+    ) -> list[Match]:
         """Get all matches, optionally filtered by date range."""
         return self.match_repo.get_all(from_date=from_date, to_date=to_date)
 
@@ -251,7 +290,9 @@ class MatchService:
         """Get all matches for a specific player."""
         return self.match_repo.get_by_player(player_id)
 
-    def delete_match(self, match_id: int, deleted_by: int | None = None, username: str | None = None) -> None:
+    def delete_match(
+        self, match_id: int, deleted_by: int | None = None, username: str | None = None
+    ) -> None:
         """Delete a match and recalculate the affected Elo timeline.
 
         Fix #6: the ``MATCH_DELETED`` audit log is recorded only AFTER the
@@ -274,7 +315,10 @@ class MatchService:
         self._recalculate_elo_timeline(affected_players, deleted_by, username)
 
         audit = AuditLog(
-            user_id=deleted_by, username=username, action="MATCH_DELETED", entity_type="match",
+            user_id=deleted_by,
+            username=username,
+            action="MATCH_DELETED",
+            entity_type="match",
             entity_id=entity_id,
             old_value=old_value,
             new_value=None,
@@ -311,7 +355,9 @@ class MatchService:
             if player_matches:
                 candidate = player_matches[0]
                 if earliest_match is None or (
-                    candidate.date, candidate.created_at, candidate.id
+                    candidate.date,
+                    candidate.created_at,
+                    candidate.id,
                 ) < (earliest_match.date, earliest_match.created_at, earliest_match.id):
                     earliest_match = candidate
 
@@ -371,7 +417,12 @@ class MatchService:
                 continue
 
             winner_label = "A" if m.winner_id == m.player_a_id else "B"
-            elo_result = calculate_match_elo(rating_a=pa.current_elo, rating_b=pb.current_elo, winner=winner_label, k_factor=m.k_factor)
+            elo_result = calculate_match_elo(
+                rating_a=pa.current_elo,
+                rating_b=pb.current_elo,
+                winner=winner_label,
+                k_factor=m.k_factor,
+            )
 
             m.elo_before_a = pa.current_elo
             m.elo_before_b = pb.current_elo
@@ -403,9 +454,7 @@ class MatchService:
                 player.last_match_date = None
                 player.active = False
 
-        self._audit_recalculation(
-            user_id, username, affected_player_ids, len(matches_to_recalc)
-        )
+        self._audit_recalculation(user_id, username, affected_player_ids, len(matches_to_recalc))
         return len(matches_to_recalc)
 
     def _audit_recalculation(
@@ -417,8 +466,11 @@ class MatchService:
     ) -> None:
         """Write a RANKING_RECALCULATED audit log entry."""
         audit = AuditLog(
-            user_id=user_id, username=username,
-            action="RANKING_RECALCULATED", entity_type="ranking", entity_id=None,
+            user_id=user_id,
+            username=username,
+            action="RANKING_RECALCULATED",
+            entity_type="ranking",
+            entity_id=None,
             old_value=None,
             new_value=f'{{"affected_players": {sorted(affected_player_ids)}, "matches_recalculated": {matches_count}}}',
         )

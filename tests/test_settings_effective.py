@@ -32,8 +32,12 @@ class TestKFactorStoredPerMatch:
         db_session.flush()
 
         data = MatchCreate(
-            date=date.today(), player_a_id=pa.id, player_b_id=pb.id,
-            player1_score=3, player2_score=0, best_of_legs=5,
+            date=date.today(),
+            player_a_id=pa.id,
+            player_b_id=pb.id,
+            player1_score=3,
+            player2_score=0,
+            best_of_legs=5,
         )
         match = svc.create_match(data)
         assert match.k_factor == 48.0
@@ -53,18 +57,31 @@ class TestKFactorStoredPerMatch:
         # First match with K=32
         monkeypatch.setattr("app.services.elo.settings.k_factor", 32)
         monkeypatch.setattr("app.services.match.settings.k_factor", 32)
-        data1 = MatchCreate(date=date.today() - timedelta(days=1), player_a_id=pa.id, player_b_id=pb.id,
-                            player1_score=3, player2_score=0, best_of_legs=5)
+        data1 = MatchCreate(
+            date=date.today() - timedelta(days=1),
+            player_a_id=pa.id,
+            player_b_id=pb.id,
+            player1_score=3,
+            player2_score=0,
+            best_of_legs=5,
+        )
         match1 = svc.create_match(data1)
         assert match1.k_factor == 32.0
 
         # Second match with K=16
         monkeypatch.setattr("app.services.elo.settings.k_factor", 16)
         monkeypatch.setattr("app.services.match.settings.k_factor", 16)
-        data2 = MatchCreate(date=date.today(), player_a_id=pb.id, player_b_id=pa.id,
-                            player1_score=3, player2_score=0, best_of_legs=5)
+        data2 = MatchCreate(
+            date=date.today(),
+            player_a_id=pb.id,
+            player_b_id=pa.id,
+            player1_score=3,
+            player2_score=0,
+            best_of_legs=5,
+        )
         match2 = svc.create_match(data2)
         assert match2.k_factor == 16.0
+
 
 class TestDeterministicRecalculation:
     """Test that recalculation uses per-match k_factor, not global settings."""
@@ -84,8 +101,14 @@ class TestDeterministicRecalculation:
         db_session.flush()
 
         # Create match with K=32
-        data = MatchCreate(date=date.today(), player_a_id=pa.id, player_b_id=pb.id,
-                           player1_score=3, player2_score=0, best_of_legs=5)
+        data = MatchCreate(
+            date=date.today(),
+            player_a_id=pa.id,
+            player_b_id=pb.id,
+            player1_score=3,
+            player2_score=0,
+            best_of_legs=5,
+        )
         match = svc.create_match(data)
         original_change = match.elo_change_a
 
@@ -123,18 +146,33 @@ class TestConfigInactivityMonths:
 
         player_repo = PlayerRepository(db_session)
         three_months_ago = date.today() - timedelta(days=90)
-        p = Player(name="RecentPlayer", start_elo=1200, current_elo=1200,
-                   active=True, disabled=False, last_match_date=three_months_ago)
+        p = Player(
+            name="RecentPlayer",
+            start_elo=1200,
+            current_elo=1200,
+            active=True,
+            disabled=False,
+            last_match_date=three_months_ago,
+        )
         player_repo.create(p)
         db_session.flush()
 
         m = Match(
-            date=three_months_ago, player_a_id=p.id, player_b_id=p.id,
-            winner_id=p.id, loser_id=p.id, best_of_legs=5,
-            player1_score=3, player2_score=0,
-            elo_before_a=1200, elo_before_b=1200,
-            elo_after_a=1200, elo_after_b=1200,
-            elo_change_a=0, elo_change_b=0, k_factor=32.0,
+            date=three_months_ago,
+            player_a_id=p.id,
+            player_b_id=p.id,
+            winner_id=p.id,
+            loser_id=p.id,
+            best_of_legs=5,
+            player1_score=3,
+            player2_score=0,
+            elo_before_a=1200,
+            elo_before_b=1200,
+            elo_after_a=1200,
+            elo_after_b=1200,
+            elo_change_a=0,
+            elo_change_b=0,
+            k_factor=32.0,
         )
         db_session.add(m)
         db_session.commit()

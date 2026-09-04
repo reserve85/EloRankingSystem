@@ -20,9 +20,7 @@ class Player(Base):
     current_elo: Mapped[float] = mapped_column(Float, nullable=False, default=1200.0)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     disabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    last_match_date: Mapped[Optional[date]] = mapped_column(
-        Date, nullable=True, default=None
-    )
+    last_match_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

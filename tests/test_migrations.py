@@ -28,23 +28,46 @@ class TestMigrations:
             inspector = inspect(engine)
             tables = set(inspector.get_table_names())
 
-            expected_tables = {"users", "players", "matches", "club_settings", "audit_log", "alembic_version"}
+            expected_tables = {
+                "users",
+                "players",
+                "matches",
+                "club_settings",
+                "audit_log",
+                "alembic_version",
+            }
             assert expected_tables.issubset(tables), f"Missing tables: {expected_tables - tables}"
 
             # Verify matches table has all columns including statistics
             columns = {col["name"] for col in inspector.get_columns("matches")}
             expected_cols = {
-                "id", "date", "player_a_id", "player_b_id",
-                "winner_id", "loser_id",
-                "elo_before_a", "elo_before_b", "elo_after_a", "elo_after_b",
-                "elo_change_a", "elo_change_b",
-                "player1_score", "player2_score",
-                "player_a_180s", "player_b_180s",
-                "player_a_high_finishes", "player_b_high_finishes",
-                "player_a_low_darts", "player_b_low_darts",
-                "created_by", "created_at", "updated_at",
+                "id",
+                "date",
+                "player_a_id",
+                "player_b_id",
+                "winner_id",
+                "loser_id",
+                "elo_before_a",
+                "elo_before_b",
+                "elo_after_a",
+                "elo_after_b",
+                "elo_change_a",
+                "elo_change_b",
+                "player1_score",
+                "player2_score",
+                "player_a_180s",
+                "player_b_180s",
+                "player_a_high_finishes",
+                "player_b_high_finishes",
+                "player_a_low_darts",
+                "player_b_low_darts",
+                "created_by",
+                "created_at",
+                "updated_at",
             }
-            assert expected_cols.issubset(columns), f"Missing columns in matches: {expected_cols - columns}"
+            assert expected_cols.issubset(columns), (
+                f"Missing columns in matches: {expected_cols - columns}"
+            )
         finally:
             engine.dispose()
 
@@ -90,6 +113,7 @@ class TestMigrations:
         try:
             # Create tables without Alembic (simulating pre-Alembic database)
             from app.core.database import Base
+
             Base.metadata.create_all(bind=engine)
 
             inspector = inspect(engine)
@@ -168,6 +192,7 @@ class TestMigrations:
             assert "player_b_low_darts" in columns
         finally:
             engine.dispose()
+
     def test_init_db_raises_runtimeerror_when_upgrade_fails(self, tmp_path, monkeypatch):
         """Scenario 2 (tracked DB): a failed Alembic upgrade must abort startup (Fix M2).
 
@@ -181,14 +206,14 @@ class TestMigrations:
         from alembic import command as alembic_command
 
         db_path = tmp_path / "stale_tracked.db"
-        engine = create_engine(
-            f"sqlite:///{db_path}", connect_args={"check_same_thread": False}
-        )
+        engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
         try:
             # Pre-stage an Alembic-tracked database: only the alembic_version
             # table exists, which routes init_db() into scenario 2 (upgrade).
             with engine.begin() as conn:
-                conn.execute(text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)"))
+                conn.execute(
+                    text("CREATE TABLE alembic_version (version_num VARCHAR(32) NOT NULL)")
+                )
                 conn.execute(text("INSERT INTO alembic_version (version_num) VALUES ('base')"))
 
             def boom_upgrade(cfg, revision):
@@ -210,14 +235,14 @@ class TestMigrations:
         from alembic import command as alembic_command
 
         db_path = tmp_path / "pre_alembic.db"
-        engine = create_engine(
-            f"sqlite:///{db_path}", connect_args={"check_same_thread": False}
-        )
+        engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
         try:
             # Pre-Alembic database: tables exist but no alembic_version table,
             # which routes init_db() into scenario 3 (stamp then upgrade).
             with engine.begin() as conn:
-                conn.execute(text("CREATE TABLE users (id INTEGER PRIMARY KEY, username VARCHAR(50))"))
+                conn.execute(
+                    text("CREATE TABLE users (id INTEGER PRIMARY KEY, username VARCHAR(50))")
+                )
 
             def boom_stamp(cfg, revision):
                 raise RuntimeError("stamp boom")
@@ -229,4 +254,3 @@ class TestMigrations:
                 db_module.init_db()
         finally:
             engine.dispose()
-

@@ -380,8 +380,14 @@ class TestDatabaseSchema:
         columns = {col["name"] for col in inspector.get_columns("users")}
 
         expected = {
-            "id", "username", "password_hash", "role",
-            "active", "created_at", "updated_at", "last_login_at",
+            "id",
+            "username",
+            "password_hash",
+            "role",
+            "active",
+            "created_at",
+            "updated_at",
+            "last_login_at",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
 
@@ -391,8 +397,15 @@ class TestDatabaseSchema:
         columns = {col["name"] for col in inspector.get_columns("players")}
 
         expected = {
-            "id", "name", "start_elo", "current_elo", "active",
-            "disabled", "last_match_date", "created_at", "updated_at",
+            "id",
+            "name",
+            "start_elo",
+            "current_elo",
+            "active",
+            "disabled",
+            "last_match_date",
+            "created_at",
+            "updated_at",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
 
@@ -402,11 +415,21 @@ class TestDatabaseSchema:
         columns = {col["name"] for col in inspector.get_columns("matches")}
 
         expected = {
-            "id", "date", "player_a_id", "player_b_id",
-            "winner_id", "loser_id",
-            "elo_before_a", "elo_before_b", "elo_after_a", "elo_after_b",
-            "elo_change_a", "elo_change_b",
-            "created_by", "created_at", "updated_at",
+            "id",
+            "date",
+            "player_a_id",
+            "player_b_id",
+            "winner_id",
+            "loser_id",
+            "elo_before_a",
+            "elo_before_b",
+            "elo_after_a",
+            "elo_after_b",
+            "elo_change_a",
+            "elo_change_b",
+            "created_by",
+            "created_at",
+            "updated_at",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
 
@@ -416,8 +439,12 @@ class TestDatabaseSchema:
         columns = {col["name"] for col in inspector.get_columns("club_settings")}
 
         expected = {
-            "id", "club_name", "club_logo_path",
-            "club_logo_dark_path", "created_at", "updated_at",
+            "id",
+            "club_name",
+            "club_logo_path",
+            "club_logo_dark_path",
+            "created_at",
+            "updated_at",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
         # Dead Elo-knob columns were dropped: env/config wins.
@@ -431,9 +458,17 @@ class TestDatabaseSchema:
         columns = {col["name"] for col in inspector.get_columns("audit_log")}
 
         expected = {
-            "id", "timestamp", "user_id", "username", "action",
-            "entity_type", "entity_id", "old_value", "new_value",
-            "ip_address", "user_agent",
+            "id",
+            "timestamp",
+            "user_id",
+            "username",
+            "action",
+            "entity_type",
+            "entity_id",
+            "old_value",
+            "new_value",
+            "ip_address",
+            "user_agent",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
 

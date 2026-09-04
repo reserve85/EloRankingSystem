@@ -82,6 +82,7 @@ async def ui_http_exception_handler(request: Request, exc: FastAPIHTTPException)
 # current working directory (Fix M3).
 app.mount("/static", StaticFiles(directory=str(BASE_DIR / "app/static")), name="static")
 
+
 # Include API routers. Auth-gated functional routers also require the password
 # to have been changed (Fix H2) - a freshly-provisioned SYSTEM bootstrap (or a
 # just-reset password) is blocked until the user sets a real password. Auth,

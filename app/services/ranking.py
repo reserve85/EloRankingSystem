@@ -80,17 +80,19 @@ class RankingService:
                 high_finishes = sorted(rec["high_finishes"], reverse=True)
                 low_darts = sorted(rec["low_darts"])
 
-            entries.append({
-                "player_id": player.id,
-                "player_name": player.name,
-                "elo_rating": elo_at_end,
-                "elo_change": elo_at_end - elo_at_start,
-                "start_elo": elo_at_start,
-                "total_matches": total_matches,
-                "total_180s": total_180s,
-                "high_finishes": high_finishes,
-                "low_darts": low_darts,
-            })
+            entries.append(
+                {
+                    "player_id": player.id,
+                    "player_name": player.name,
+                    "elo_rating": elo_at_end,
+                    "elo_change": elo_at_end - elo_at_start,
+                    "start_elo": elo_at_start,
+                    "total_matches": total_matches,
+                    "total_180s": total_180s,
+                    "high_finishes": high_finishes,
+                    "low_darts": low_darts,
+                }
+            )
 
         # Sort by current Elo descending for end-of-period ranking
         entries.sort(key=lambda e: (-e["elo_rating"], e["player_name"]))
@@ -111,18 +113,20 @@ class RankingService:
             start_position = start_positions.get(entry["player_id"], end_position)
             position_change = start_position - end_position  # positive = moved up
 
-            ranking_entries.append(RankingEntry(
-                player_id=entry["player_id"],
-                player_name=entry["player_name"],
-                position=end_position,
-                elo_rating=entry["elo_rating"],
-                elo_change=entry["elo_change"],
-                position_change=position_change,
-                total_matches=entry["total_matches"],
-                total_180s=entry["total_180s"],
-                high_finishes=entry["high_finishes"],
-                low_darts=entry["low_darts"],
-            ))
+            ranking_entries.append(
+                RankingEntry(
+                    player_id=entry["player_id"],
+                    player_name=entry["player_name"],
+                    position=end_position,
+                    elo_rating=entry["elo_rating"],
+                    elo_change=entry["elo_change"],
+                    position_change=position_change,
+                    total_matches=entry["total_matches"],
+                    total_180s=entry["total_180s"],
+                    high_finishes=entry["high_finishes"],
+                    low_darts=entry["low_darts"],
+                )
+            )
 
         return RankingResponse(
             from_date=from_date,
@@ -132,7 +136,9 @@ class RankingService:
         )
 
     def _get_eligible_players(
-        self, include_inactive: bool, as_of_date: date,
+        self,
+        include_inactive: bool,
+        as_of_date: date,
         from_date: Optional[date] = None,
     ) -> list[Player]:
         """Get players eligible for ranking.
@@ -153,19 +159,20 @@ class RankingService:
         if not include_inactive:
             # Include players who have at least 1 match in the interval OR are active
             interval_start = from_date or as_of_date
-            active_player_ids = self.db.query(
-                Match.player_a_id
-            ).filter(
-                Match.date >= interval_start, Match.date <= as_of_date
-            ).union(
-                self.db.query(
-                    Match.player_b_id
-                ).filter(
-                    Match.date >= interval_start, Match.date <= as_of_date
+            active_player_ids = (
+                self.db.query(Match.player_a_id)
+                .filter(Match.date >= interval_start, Match.date <= as_of_date)
+                .union(
+                    self.db.query(Match.player_b_id).filter(
+                        Match.date >= interval_start, Match.date <= as_of_date
+                    )
                 )
-            ).distinct().subquery()
+                .distinct()
+                .subquery()
+            )
 
             from sqlalchemy import or_
+
             query = query.filter(
                 or_(Player.id.in_(active_player_ids.select()), Player.active.is_(True))
             )
@@ -212,14 +219,17 @@ class RankingService:
                 (m.player_a_id, m.elo_after_a),
                 (m.player_b_id, m.elo_after_b),
             ):
-                rec = records.setdefault(pid, {
-                    "elo_at_start": None,  # elo_after of last match before from_date
-                    "elo_at_end": None,    # elo_after of last match up to to_date
-                    "match_count": 0,
-                    "total_180s": 0,
-                    "high_finishes": [],
-                    "low_darts": [],
-                })
+                rec = records.setdefault(
+                    pid,
+                    {
+                        "elo_at_start": None,  # elo_after of last match before from_date
+                        "elo_at_end": None,  # elo_after of last match up to to_date
+                        "match_count": 0,
+                        "total_180s": 0,
+                        "high_finishes": [],
+                        "low_darts": [],
+                    },
+                )
                 rec["elo_at_end"] = elo_after
                 if m.date < from_date:
                     rec["elo_at_start"] = elo_after
@@ -259,15 +269,26 @@ class RankingService:
             Dict with 'period' and 'all_time' statistics.
         """
         # Get all matches for this player
-        all_matches = self.db.query(Match).filter(
-            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
-        ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
+        all_matches = (
+            self.db.query(Match)
+            .filter((Match.player_a_id == player_id) | (Match.player_b_id == player_id))
+            .order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc())
+            .all()
+        )
 
         if not all_matches:
-            empty = {"total_matches": 0, "wins": 0, "losses": 0,
-                     "legs_won": 0, "legs_lost": 0, "total_180s": 0,
-                     "high_finishes": [], "low_darts": [],
-                     "average": None, "average_count": 0}
+            empty = {
+                "total_matches": 0,
+                "wins": 0,
+                "losses": 0,
+                "legs_won": 0,
+                "legs_lost": 0,
+                "total_180s": 0,
+                "high_finishes": [],
+                "low_darts": [],
+                "average": None,
+                "average_count": 0,
+            }
             return {
                 "player_id": player_id,
                 "period": dict(empty),
@@ -340,7 +361,9 @@ class RankingService:
                 all_time_averages.append(avg)
             if len(all_time_averages) >= 100:
                 break
-        avg_last100 = round(sum(all_time_averages) / len(all_time_averages), 2) if all_time_averages else None
+        avg_last100 = (
+            round(sum(all_time_averages) / len(all_time_averages), 2) if all_time_averages else None
+        )
         all_time_result["average_last100"] = avg_last100
 
         return {
@@ -358,19 +381,24 @@ class RankingService:
         Returns:
             List of dicts with date, average, match_id.
         """
-        matches = self.db.query(Match).filter(
-            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
-        ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
+        matches = (
+            self.db.query(Match)
+            .filter((Match.player_a_id == player_id) | (Match.player_b_id == player_id))
+            .order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc())
+            .all()
+        )
 
         history = []
         for m in matches:
             avg = m.player_a_average if m.player_a_id == player_id else m.player_b_average
             if avg is not None:
-                history.append({
-                    "date": m.date.isoformat(),
-                    "average": avg,
-                    "match_id": m.id,
-                })
+                history.append(
+                    {
+                        "date": m.date.isoformat(),
+                        "average": avg,
+                        "match_id": m.id,
+                    }
+                )
         return history
 
     def get_elo_history(self, player_id: int) -> list[dict]:
@@ -382,18 +410,23 @@ class RankingService:
         Returns:
             List of dicts with date, elo, match_id.
         """
-        matches = self.db.query(Match).filter(
-            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
-        ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
+        matches = (
+            self.db.query(Match)
+            .filter((Match.player_a_id == player_id) | (Match.player_b_id == player_id))
+            .order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc())
+            .all()
+        )
 
         history = []
         for m in matches:
             elo = m.elo_after_a if m.player_a_id == player_id else m.elo_after_b
-            history.append({
-                "date": m.date.isoformat(),
-                "elo": elo,
-                "match_id": m.id,
-            })
+            history.append(
+                {
+                    "date": m.date.isoformat(),
+                    "elo": elo,
+                    "match_id": m.id,
+                }
+            )
         return history
 
     def get_all_time_high_elo(self, player_id: int) -> dict:
@@ -409,9 +442,12 @@ class RankingService:
         if player is None:
             return {"max_elo": 0, "date_reached": None}
 
-        matches = self.db.query(Match).filter(
-            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
-        ).order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
+        matches = (
+            self.db.query(Match)
+            .filter((Match.player_a_id == player_id) | (Match.player_b_id == player_id))
+            .order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc())
+            .all()
+        )
 
         if not matches:
             return {"max_elo": float(player.start_elo), "date_reached": None}
@@ -441,9 +477,11 @@ class RankingService:
         players = {p.id: p for p in self.db.query(Player).filter(Player.disabled.is_(False)).all()}
 
         # Load ALL matches in one query, sorted chronologically
-        all_matches = self.db.query(Match).order_by(
-            Match.date.asc(), Match.created_at.asc(), Match.id.asc()
-        ).all()
+        all_matches = (
+            self.db.query(Match)
+            .order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc())
+            .all()
+        )
 
         # Compute ATH Elo per player in memory
         player_ath: dict[int, dict] = {}  # pid -> {"max_elo": float, "date": str}
@@ -496,13 +534,15 @@ class RankingService:
                 continue
 
             ath = player_ath.get(pid, {"max_elo": float(p.start_elo), "date": None})
-            result.append({
-                "player_id": pid,
-                "player_name": p.name,
-                "max_elo": ath["max_elo"],
-                "date_reached": ath["date"],
-                "inactive": is_inactive,
-            })
+            result.append(
+                {
+                    "player_id": pid,
+                    "player_name": p.name,
+                    "max_elo": ath["max_elo"],
+                    "date_reached": ath["date"],
+                    "inactive": is_inactive,
+                }
+            )
 
         # Sort by max_elo descending
         result.sort(key=lambda x: (-x["max_elo"], x["player_name"]))
@@ -531,18 +571,18 @@ class RankingService:
             return {"best_rank": None, "date_reached": None}
 
         # Load all matches sorted chronologically
-        all_matches = self.db.query(Match).order_by(
-            Match.date.asc(), Match.created_at.asc(), Match.id.asc()
-        ).all()
+        all_matches = (
+            self.db.query(Match)
+            .order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc())
+            .all()
+        )
 
         if not all_matches:
             return {"best_rank": None, "date_reached": None}
 
         # Build Elo snapshots: at each match, track each player's running Elo
         # Initialize all players to their start_elo
-        current_elos: dict[int, float] = {
-            p.id: float(p.start_elo) for p in all_players
-        }
+        current_elos: dict[int, float] = {p.id: float(p.start_elo) for p in all_players}
 
         # Collect unique dates where the target player played
         target_match_dates: list[date] = []

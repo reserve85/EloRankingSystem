@@ -49,8 +49,10 @@ def list_audit_logs(
 
     # Convert timestamps to configured timezone and date format
     from datetime import datetime, timezone as dt_timezone
+
     try:
         from zoneinfo import ZoneInfo
+
         tz = ZoneInfo(settings.timezone)
     except (ImportError, KeyError, OSError):
         tz = None

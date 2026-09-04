@@ -79,8 +79,14 @@ def _safe_serialize(value: Any) -> Optional[str]:
 
 
 SENSITIVE_KEYS: list[str] = [
-    "password", "password_hash", "secret", "token",
-    "jwt_secret", "jwt", "access_token", "authorization",
+    "password",
+    "password_hash",
+    "secret",
+    "token",
+    "jwt_secret",
+    "jwt",
+    "access_token",
+    "authorization",
 ]
 
 

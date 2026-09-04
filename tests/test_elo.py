@@ -170,9 +170,7 @@ class TestCalculateMatchElo:
         result_k16 = calculate_match_elo(1200, 1200, winner="A", k_factor=16)
 
         # K=32 should produce double the change of K=16
-        assert result_k32.change_a == pytest.approx(
-            result_k16.change_a * 2, abs=1e-10
-        )
+        assert result_k32.change_a == pytest.approx(result_k16.change_a * 2, abs=1e-10)
 
     def test_default_k_factor_from_config(self, monkeypatch):
         """When no K factor specified, should use config default."""
@@ -227,12 +225,8 @@ class TestEloResult:
         monkeypatch.setattr("app.services.elo.settings.k_factor", 32)
         result = calculate_match_elo(1200, 1200, winner="A")
 
-        assert result.new_rating_a == pytest.approx(
-            1200 + result.change_a, abs=1e-10
-        )
-        assert result.new_rating_b == pytest.approx(
-            1200 + result.change_b, abs=1e-10
-        )
+        assert result.new_rating_a == pytest.approx(1200 + result.change_a, abs=1e-10)
+        assert result.new_rating_b == pytest.approx(1200 + result.change_b, abs=1e-10)
 
 
 class TestEloEdgeCases:

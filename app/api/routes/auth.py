@@ -30,10 +30,13 @@ def login(
 
     if user is None:
         log_event(
-            db, action="LOGIN_FAILED", entity_type="user",
+            db,
+            action="LOGIN_FAILED",
+            entity_type="user",
             username=form_data.username,
             new_value={"username": form_data.username},
-            ip_address=ip, user_agent=ua,
+            ip_address=ip,
+            user_agent=ua,
         )
         db.commit()
         return JSONResponse(
@@ -44,9 +47,13 @@ def login(
     login_data = create_login_response(user)
 
     log_event(
-        db, action="LOGIN", entity_type="user",
-        user_id=user.id, username=user.username,
-        ip_address=ip, user_agent=ua,
+        db,
+        action="LOGIN",
+        entity_type="user",
+        user_id=user.id,
+        username=user.username,
+        ip_address=ip,
+        user_agent=ua,
     )
     db.commit()
 
@@ -78,6 +85,7 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
         token = request.cookies.get(AUTH_COOKIE_NAME)
         if token:
             from app.auth.jwt import decode_access_token
+
             payload = decode_access_token(token)
             if payload:
                 # ``user_id`` must be None (not 0) when the JWT payload has no
@@ -90,10 +98,13 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
                     except (TypeError, ValueError):
                         sub = None
                 log_event(
-                    db, action="LOGOUT", entity_type="user",
+                    db,
+                    action="LOGOUT",
+                    entity_type="user",
                     user_id=sub,
                     username=payload.get("username"),
-                    ip_address=ip, user_agent=ua,
+                    ip_address=ip,
+                    user_agent=ua,
                 )
                 db.commit()
     except Exception:  # noqa: BLE001 - logout must always succeed
@@ -125,26 +136,34 @@ def auto_login(
 
     if user is None:
         log_event(
-            db, action="LOGIN_FAILED", entity_type="user",
+            db,
+            action="LOGIN_FAILED",
+            entity_type="user",
             username=u,
             new_value={"username": u, "source": "qr_code"},
-            ip_address=ip, user_agent=ua,
+            ip_address=ip,
+            user_agent=ua,
         )
         db.commit()
         return RedirectResponse(url="/ui/login", status_code=302)
 
     # Only USER role allowed via QR code auto-login
     from app.models.user import UserRole
+
     if user.role != UserRole.USER:
         return RedirectResponse(url="/ui/login", status_code=302)
 
     login_data = create_login_response(user)
 
     log_event(
-        db, action="LOGIN", entity_type="user",
-        user_id=user.id, username=user.username,
+        db,
+        action="LOGIN",
+        entity_type="user",
+        user_id=user.id,
+        username=user.username,
         new_value={"source": "qr_code"},
-        ip_address=ip, user_agent=ua,
+        ip_address=ip,
+        user_agent=ua,
     )
     db.commit()
 

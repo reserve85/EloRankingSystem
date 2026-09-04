@@ -38,5 +38,3 @@ async def health_check(response: Response):
         "status": "healthy",
         "timestamp": datetime.now(timezone.utc).isoformat(),
     }
-
-

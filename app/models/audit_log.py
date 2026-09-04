@@ -21,33 +21,18 @@ class AuditLog(Base):
         nullable=False,
         index=True,
     )
-    user_id: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True
-    )
-    username: Mapped[Optional[str]] = mapped_column(
-        String(100), nullable=True
-    )
-    action: Mapped[str] = mapped_column(
-        String(100), nullable=False, index=True
-    )
-    entity_type: Mapped[Optional[str]] = mapped_column(
-        String(50), nullable=True
-    )
-    entity_id: Mapped[Optional[int]] = mapped_column(
-        Integer, nullable=True
-    )
-    old_value: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True
-    )
-    new_value: Mapped[Optional[str]] = mapped_column(
-        Text, nullable=True
-    )
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    username: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    action: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    entity_type: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+    entity_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    old_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    new_value: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     ip_address: Mapped[Optional[str]] = mapped_column(
-        String(45), nullable=True  # IPv6 max length
+        String(45),
+        nullable=True,  # IPv6 max length
     )
-    user_agent: Mapped[Optional[str]] = mapped_column(
-        String(500), nullable=True
-    )
+    user_agent: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
 
     def __repr__(self) -> str:
         return (

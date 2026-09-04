@@ -12,6 +12,4 @@ templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 # Fix #9: hide the "API Docs" footer link when the OpenAPI surface is
 # disabled in production.
-templates.env.globals["api_docs_enabled"] = (
-    str(settings.app_env).strip().lower() != "production"
-)
+templates.env.globals["api_docs_enabled"] = str(settings.app_env).strip().lower() != "production"

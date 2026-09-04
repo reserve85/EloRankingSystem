@@ -16,7 +16,11 @@ router = APIRouter(prefix="/ui", tags=["ui"])
 
 
 @router.get("/login")
-def login_page(request: Request, current_user: User | None = Depends(get_optional_user), db: Session = Depends(get_db)):
+def login_page(
+    request: Request,
+    current_user: User | None = Depends(get_optional_user),
+    db: Session = Depends(get_db),
+):
     """Render the login page. Redirect to dashboard if already authenticated."""
     if current_user is not None:
         return RedirectResponse(url="/ui/dashboard", status_code=302)
@@ -37,7 +41,9 @@ def _get_club_name(db: Session) -> str:
 
 
 @router.get("/dashboard")
-def dashboard_page(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def dashboard_page(
+    request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """Render the user dashboard. All authenticated users."""
     # Force a required password change before the user can use the app (Fix H2).
     if current_user.must_change_password:
@@ -63,7 +69,9 @@ def dashboard_page(request: Request, current_user: User = Depends(get_current_us
 
 
 @router.get("/admin")
-def admin_page(request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+def admin_page(
+    request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)
+):
     """Render the admin dashboard. Requires ADMIN or SYSTEM role."""
     # Force a required password change before the user can use the app (Fix H2).
     if current_user.must_change_password:
@@ -89,7 +97,9 @@ def admin_page(request: Request, current_user: User = Depends(require_admin), db
 
 
 @router.get("/change-password")
-def change_password_page(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
+def change_password_page(
+    request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)
+):
     """Render the change password page. All authenticated users."""
     return templates.TemplateResponse(
         request,
@@ -123,13 +133,21 @@ def _legal_context(db: Session, current_user: User | None = None):
 
 
 @router.get("/impressum")
-def impressum_page(request: Request, db: Session = Depends(get_db), current_user: User | None = Depends(get_optional_user)):
+def impressum_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+):
     """Render the Impressum page. Publicly accessible; logged-in users see full navigation."""
     return templates.TemplateResponse(request, "impressum.html", _legal_context(db, current_user))
 
 
 @router.get("/privacy")
-def privacy_page(request: Request, db: Session = Depends(get_db), current_user: User | None = Depends(get_optional_user)):
+def privacy_page(
+    request: Request,
+    db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_user),
+):
     """Render the Privacy Policy page. Publicly accessible; logged-in users see full navigation."""
     return templates.TemplateResponse(request, "privacy.html", _legal_context(db, current_user))
 
@@ -139,6 +157,7 @@ def logout_redirect(request: Request):
     """Clear auth cookie and redirect to login."""
     from app.core.config import settings as app_settings
     from app.auth.dependencies import AUTH_COOKIE_NAME
+
     response = RedirectResponse(url="/ui/login", status_code=302)
     response.delete_cookie(
         key=AUTH_COOKIE_NAME,

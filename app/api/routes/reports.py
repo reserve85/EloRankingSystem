@@ -48,6 +48,7 @@ def export_ranking_pdf(
     )
 
     from app.api.routes.ui import _get_club_name
+
     club_settings = db.query(ClubSettings).first()
     club_name = _get_club_name(db)
     # Always use light mode logo for PDF export
@@ -63,10 +64,18 @@ def export_ranking_pdf(
 
     ip, ua = get_client_info(request)
     log_event(
-        db, action="PDF_EXPORTED", entity_type="report",
-        user_id=current_user.id, username=current_user.username,
-        new_value={"from_date": str(from_date), "to_date": str(to_date), "include_inactive": include_inactive},
-        ip_address=ip, user_agent=ua,
+        db,
+        action="PDF_EXPORTED",
+        entity_type="report",
+        user_id=current_user.id,
+        username=current_user.username,
+        new_value={
+            "from_date": str(from_date),
+            "to_date": str(to_date),
+            "include_inactive": include_inactive,
+        },
+        ip_address=ip,
+        user_agent=ua,
     )
     db.commit()
 

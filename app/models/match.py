@@ -37,19 +37,17 @@ class Match(Base):
     )
 
     # Match format (best of N legs, stored per match)
-    best_of_legs: Mapped[int] = mapped_column(Integer, default=5, server_default="5", nullable=False)
+    best_of_legs: Mapped[int] = mapped_column(
+        Integer, default=5, server_default="5", nullable=False
+    )
 
     # Scores
     player1_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     player2_score: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     # Result (computed from scores)
-    winner_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("players.id"), nullable=False
-    )
-    loser_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("players.id"), nullable=False
-    )
+    winner_id: Mapped[int] = mapped_column(Integer, ForeignKey("players.id"), nullable=False)
+    loser_id: Mapped[int] = mapped_column(Integer, ForeignKey("players.id"), nullable=False)
 
     # Elo tracking - snapshots before match
     elo_before_a: Mapped[float] = mapped_column(Float, nullable=False)
@@ -64,13 +62,23 @@ class Match(Base):
     elo_change_b: Mapped[float] = mapped_column(Float, nullable=False)
 
     # K-factor used for this match (snapshot from settings at creation time)
-    k_factor: Mapped[float] = mapped_column(Float, nullable=False, default=32.0, server_default="32.0")
+    k_factor: Mapped[float] = mapped_column(
+        Float, nullable=False, default=32.0, server_default="32.0"
+    )
 
     # Dart statistics - per player
-    player_a_180s: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
-    player_b_180s: Mapped[int] = mapped_column(Integer, default=0, server_default="0", nullable=False)
-    player_a_high_finishes: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
-    player_b_high_finishes: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
+    player_a_180s: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    player_b_180s: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    player_a_high_finishes: Mapped[Optional[list]] = mapped_column(
+        JSON, nullable=True, default=list
+    )
+    player_b_high_finishes: Mapped[Optional[list]] = mapped_column(
+        JSON, nullable=True, default=list
+    )
     player_a_low_darts: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
     player_b_low_darts: Mapped[Optional[list]] = mapped_column(JSON, nullable=True, default=list)
 

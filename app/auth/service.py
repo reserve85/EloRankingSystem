@@ -81,9 +81,7 @@ def provision_system_user(db: Session) -> User:
     # Import here to avoid circular imports
     from app.core.config import settings
 
-    existing = db.query(User).filter(
-        User.role == UserRole.SYSTEM
-    ).first()
+    existing = db.query(User).filter(User.role == UserRole.SYSTEM).first()
 
     if existing is not None:
         return existing

@@ -46,13 +46,16 @@ def _create_match(client, pa_id, pb_id, winner_id, match_date):
     """Create a match via API using Best-of-5 scores."""
     score_a = 3 if winner_id == pa_id else 0
     score_b = 3 if winner_id == pb_id else 0
-    return client.post("/matches/", json={
-        "date": match_date,
-        "player_a_id": pa_id,
-        "player_b_id": pb_id,
-        "player1_score": score_a,
-        "player2_score": score_b,
-    })
+    return client.post(
+        "/matches/",
+        json={
+            "date": match_date,
+            "player_a_id": pa_id,
+            "player_b_id": pb_id,
+            "player1_score": score_a,
+            "player2_score": score_b,
+        },
+    )
 
 
 def _get_ranking(client, from_date=None, to_date=None, include_inactive=False):
@@ -375,7 +378,8 @@ class TestInactivePlayers:
 
         resp = _get_ranking(
             client,
-            "2025-06-01", "2025-06-30",
+            "2025-06-01",
+            "2025-06-30",
             include_inactive=True,
         )
         entries = resp.json()["entries"]
@@ -445,7 +449,9 @@ class TestAllTimeEloChart:
         # Should be sorted by max_elo descending
         assert data[0]["max_elo"] >= data[1]["max_elo"]
 
-    def test_all_time_elo_includes_zero_game_players_when_inactive(self, client, db_session, monkeypatch):
+    def test_all_time_elo_includes_zero_game_players_when_inactive(
+        self, client, db_session, monkeypatch
+    ):
         """Players with 0 games should be included when include_inactive=True."""
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
@@ -591,10 +597,13 @@ class TestAllTimeHighRanking:
         # Create 20 inactive players with very high start_elo
         inactive_ids = []
         for i in range(20):
-            resp = client.post("/players/", json={
-                "name": f"Inactive_{i}",
-                "start_elo": 5000,
-            })
+            resp = client.post(
+                "/players/",
+                json={
+                    "name": f"Inactive_{i}",
+                    "start_elo": 5000,
+                },
+            )
             assert resp.status_code == 201
             pid = resp.json()["id"]
             # Mark as inactive (last_match far in the past)
@@ -604,28 +613,37 @@ class TestAllTimeHighRanking:
             inactive_ids.append(pid)
 
         # Create the new player with elo 2000 and an opponent
-        resp_new = client.post("/players/", json={
-            "name": "NewPlayer",
-            "start_elo": 2000,
-        })
+        resp_new = client.post(
+            "/players/",
+            json={
+                "name": "NewPlayer",
+                "start_elo": 2000,
+            },
+        )
         assert resp_new.status_code == 201
         new_player_id = resp_new.json()["id"]
 
-        resp_opp = client.post("/players/", json={
-            "name": "Opponent",
-            "start_elo": 1200,
-        })
+        resp_opp = client.post(
+            "/players/",
+            json={
+                "name": "Opponent",
+                "start_elo": 1200,
+            },
+        )
         assert resp_opp.status_code == 201
         opp_id = resp_opp.json()["id"]
 
         # NewPlayer plays their first match
-        resp_match = client.post("/matches/", json={
-            "date": "2026-07-20",
-            "player_a_id": new_player_id,
-            "player_b_id": opp_id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp_match = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-20",
+                "player_a_id": new_player_id,
+                "player_b_id": opp_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert resp_match.status_code == 201
 
         # Get best rank for NewPlayer
@@ -638,8 +656,7 @@ class TestAllTimeHighRanking:
         # So best rank should be #21, NOT #1
         assert best_rank is not None
         assert best_rank == 21, (
-            f"Expected best rank #21 (after 20 inactive players with elo 5000), "
-            f"got #{best_rank}"
+            f"Expected best rank #21 (after 20 inactive players with elo 5000), got #{best_rank}"
         )
 
     def test_best_rank_includes_zero_match_players_with_high_start_elo(
@@ -652,33 +669,45 @@ class TestAllTimeHighRanking:
 
         # Create 5 players with 0 matches and high start_elo
         for i in range(5):
-            resp = client.post("/players/", json={
-                "name": f"ZeroMatch_{i}",
-                "start_elo": 3000,
-            })
+            resp = client.post(
+                "/players/",
+                json={
+                    "name": f"ZeroMatch_{i}",
+                    "start_elo": 3000,
+                },
+            )
             assert resp.status_code == 201
 
         # Create a player with normal elo
-        resp_new = client.post("/players/", json={
-            "name": "NormalPlayer",
-            "start_elo": 1200,
-        })
+        resp_new = client.post(
+            "/players/",
+            json={
+                "name": "NormalPlayer",
+                "start_elo": 1200,
+            },
+        )
         new_id = resp_new.json()["id"]
 
-        resp_opp = client.post("/players/", json={
-            "name": "Opponent",
-            "start_elo": 1200,
-        })
+        resp_opp = client.post(
+            "/players/",
+            json={
+                "name": "Opponent",
+                "start_elo": 1200,
+            },
+        )
         opp_id = resp_opp.json()["id"]
 
         # NormalPlayer plays a match
-        client.post("/matches/", json={
-            "date": "2026-07-20",
-            "player_a_id": new_id,
-            "player_b_id": opp_id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-20",
+                "player_a_id": new_id,
+                "player_b_id": opp_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         # Get best rank
         resp = client.get(f"/rankings/player-stats/{new_id}/ath")
@@ -693,13 +722,10 @@ class TestAllTimeHighRanking:
         # So NormalPlayer is #6, Opponent is #7
         assert best_rank is not None
         assert best_rank >= 6, (
-            f"Expected best rank >= #6 (5 zero-match players with elo 3000 above), "
-            f"got #{best_rank}"
+            f"Expected best rank >= #6 (5 zero-match players with elo 3000 above), got #{best_rank}"
         )
 
-    def test_best_rank_disabled_players_excluded(
-        self, client, db_session, monkeypatch
-    ):
+    def test_best_rank_disabled_players_excluded(self, client, db_session, monkeypatch):
         """Disabled players should NOT affect best rank calculation."""
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
@@ -707,36 +733,48 @@ class TestAllTimeHighRanking:
 
         # Create 10 disabled players with high elo
         for i in range(10):
-            resp = client.post("/players/", json={
-                "name": f"Disabled_{i}",
-                "start_elo": 5000,
-            })
+            resp = client.post(
+                "/players/",
+                json={
+                    "name": f"Disabled_{i}",
+                    "start_elo": 5000,
+                },
+            )
             pid = resp.json()["id"]
             player = db_session.query(Player).filter(Player.id == pid).first()
             player.disabled = True
             db_session.commit()
 
         # Create active players
-        resp_new = client.post("/players/", json={
-            "name": "ActivePlayer",
-            "start_elo": 1200,
-        })
+        resp_new = client.post(
+            "/players/",
+            json={
+                "name": "ActivePlayer",
+                "start_elo": 1200,
+            },
+        )
         new_id = resp_new.json()["id"]
 
-        resp_opp = client.post("/players/", json={
-            "name": "Opponent",
-            "start_elo": 1200,
-        })
+        resp_opp = client.post(
+            "/players/",
+            json={
+                "name": "Opponent",
+                "start_elo": 1200,
+            },
+        )
         opp_id = resp_opp.json()["id"]
 
         # Play a match
-        client.post("/matches/", json={
-            "date": "2026-07-20",
-            "player_a_id": new_id,
-            "player_b_id": opp_id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-20",
+                "player_a_id": new_id,
+                "player_b_id": opp_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         # Get best rank
         resp = client.get(f"/rankings/player-stats/{new_id}/ath")
@@ -745,13 +783,9 @@ class TestAllTimeHighRanking:
 
         # Disabled players should not count, only 2 active players
         # ActivePlayer won -> #1
-        assert best_rank == 1, (
-            f"Disabled players should be excluded. Expected #1, got #{best_rank}"
-        )
+        assert best_rank == 1, f"Disabled players should be excluded. Expected #1, got #{best_rank}"
 
-    def test_best_rank_normal_scenario(
-        self, client, db_session, monkeypatch
-    ):
+    def test_best_rank_normal_scenario(self, client, db_session, monkeypatch):
         """Best rank works correctly in a normal scenario with active players."""
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
@@ -766,25 +800,40 @@ class TestAllTimeHighRanking:
         c_id = resp_c.json()["id"]
 
         # Alice wins against Bob -> Alice is #1
-        client.post("/matches/", json={
-            "date": "2026-07-10",
-            "player_a_id": a_id, "player_b_id": b_id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-10",
+                "player_a_id": a_id,
+                "player_b_id": b_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         # Alice wins against Charlie -> still #1
-        client.post("/matches/", json={
-            "date": "2026-07-15",
-            "player_a_id": a_id, "player_b_id": c_id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-15",
+                "player_a_id": a_id,
+                "player_b_id": c_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         # Alice loses to Bob -> drops to #2
-        client.post("/matches/", json={
-            "date": "2026-07-20",
-            "player_a_id": a_id, "player_b_id": b_id,
-            "player1_score": 0, "player2_score": 3,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-20",
+                "player_a_id": a_id,
+                "player_b_id": b_id,
+                "player1_score": 0,
+                "player2_score": 3,
+            },
+        )
 
         resp = client.get(f"/rankings/player-stats/{a_id}/ath")
         data = resp.json()
@@ -795,9 +844,7 @@ class TestAllTimeHighRanking:
         assert best_rank == 1
         assert date_reached == "2026-07-10"
 
-    def test_best_rank_player_with_no_matches(
-        self, client, db_session, monkeypatch
-    ):
+    def test_best_rank_player_with_no_matches(self, client, db_session, monkeypatch):
         """Player with no matches should have no best rank."""
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
@@ -860,13 +907,16 @@ class TestNewPlayerNotInRanking:
         pb_id = resp_b.json()["id"]
 
         # Create match
-        client.post("/matches/", json={
-            "date": str(date.today()),
-            "player_a_id": pa_id,
-            "player_b_id": pb_id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": str(date.today()),
+                "player_a_id": pa_id,
+                "player_b_id": pb_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         today_str = str(date.today())

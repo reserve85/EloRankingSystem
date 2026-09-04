@@ -5,6 +5,7 @@
 
 # ── Impressum Page ────────────────────────────────────────────────────
 
+
 class TestImpressumPage:
     """Tests for the Impressum page."""
 
@@ -42,6 +43,7 @@ class TestImpressumPage:
 
 # ── Privacy Policy Page ───────────────────────────────────────────────
 
+
 class TestPrivacyPage:
     """Tests for the Privacy Policy page."""
 
@@ -74,6 +76,7 @@ class TestPrivacyPage:
 
 
 # ── Cookie Consent Banner ────────────────────────────────────────────
+
 
 class TestCookieConsent:
     """Tests for cookie consent banner functionality."""
@@ -111,6 +114,7 @@ class TestCookieConsent:
 
 
 # ── Footer Links ─────────────────────────────────────────────────────
+
 
 class TestFooterLinks:
     """Tests for legal page links in the footer."""

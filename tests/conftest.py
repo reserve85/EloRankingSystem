@@ -88,6 +88,7 @@ def _set_test_sqlite_pragma(dbapi_connection, connection_record):
     cursor.execute("PRAGMA foreign_keys=ON")
     cursor.close()
 
+
 TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 
@@ -137,4 +138,3 @@ def client(db_session):
         app.dependency_overrides.clear()
         main_module.init_db = original_init_db
         main_module.provision_system_user = original_provision
-

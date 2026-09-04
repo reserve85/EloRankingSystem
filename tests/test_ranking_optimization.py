@@ -68,9 +68,9 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
     # Eligible players - mirrors the old _get_eligible_players.
     players = db_session.query(Player).filter(Player.disabled.is_(False)).all()
     if not include_inactive:
-        period_matches = db_session.query(Match).filter(
-            Match.date >= from_date, Match.date <= to_date
-        ).all()
+        period_matches = (
+            db_session.query(Match).filter(Match.date >= from_date, Match.date <= to_date).all()
+        )
         active_ids = set()
         for m in period_matches:
             active_ids.add(m.player_a_id)
@@ -81,22 +81,22 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
         query = db_session.query(Match).filter(
             (Match.player_a_id == player.id) | (Match.player_b_id == player.id)
         )
-        query = query.filter(
-            Match.date < target_date if before else Match.date <= target_date
-        )
-        match = query.order_by(
-            Match.date.desc(), Match.created_at.desc(), Match.id.desc()
-        ).first()
+        query = query.filter(Match.date < target_date if before else Match.date <= target_date)
+        match = query.order_by(Match.date.desc(), Match.created_at.desc(), Match.id.desc()).first()
         if match is None:
             return float(player.start_elo)
         return match.elo_after_a if match.player_a_id == player.id else match.elo_after_b
 
     def period_stats(pid):
-        matches = db_session.query(Match).filter(
-            ((Match.player_a_id == pid) | (Match.player_b_id == pid))
-            & (Match.date >= from_date)
-            & (Match.date <= to_date)
-        ).all()
+        matches = (
+            db_session.query(Match)
+            .filter(
+                ((Match.player_a_id == pid) | (Match.player_b_id == pid))
+                & (Match.date >= from_date)
+                & (Match.date <= to_date)
+            )
+            .all()
+        )
         total_180s = 0
         high_finishes = []
         low_darts = []
@@ -125,17 +125,19 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
         s = period_stats(player.id)
         start = elo_at(player, from_date, before=True)
         end = elo_at(player, to_date, before=False)
-        entries.append({
-            "player_id": player.id,
-            "player_name": player.name,
-            "elo_rating": end,
-            "elo_change": end - start,
-            "start_elo": start,
-            "total_matches": s["match_count"],
-            "total_180s": s["total_180s"],
-            "high_finishes": s["high_finishes"],
-            "low_darts": s["low_darts"],
-        })
+        entries.append(
+            {
+                "player_id": player.id,
+                "player_name": player.name,
+                "elo_rating": end,
+                "elo_change": end - start,
+                "start_elo": start,
+                "total_matches": s["match_count"],
+                "total_180s": s["total_180s"],
+                "high_finishes": s["high_finishes"],
+                "low_darts": s["low_darts"],
+            }
+        )
 
     entries.sort(key=lambda e: (-e["elo_rating"], e["player_name"]))
     start_entries = sorted(entries, key=lambda e: (-e["start_elo"], e["player_name"]))
@@ -143,41 +145,48 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
 
     result = []
     for i, e in enumerate(entries):
-        result.append({
-            "player_id": e["player_id"],
-            "position": i + 1,
-            "position_change": start_positions.get(e["player_id"], i + 1) - (i + 1),
-            "elo_rating": round(e["elo_rating"], 6),
-            "elo_change": round(e["elo_change"], 6),
-            "total_matches": e["total_matches"],
-            "total_180s": e["total_180s"],
-            "high_finishes": e["high_finishes"],
-            "low_darts": e["low_darts"],
-        })
+        result.append(
+            {
+                "player_id": e["player_id"],
+                "position": i + 1,
+                "position_change": start_positions.get(e["player_id"], i + 1) - (i + 1),
+                "elo_rating": round(e["elo_rating"], 6),
+                "elo_change": round(e["elo_change"], 6),
+                "total_matches": e["total_matches"],
+                "total_180s": e["total_180s"],
+                "high_finishes": e["high_finishes"],
+                "low_darts": e["low_darts"],
+            }
+        )
     return result
 
 
 def _api_entries(client, from_date, to_date, include_inactive):
     """Get the API ranking as a comparable list of dicts."""
-    resp = client.get("/rankings/", params={
-        "include_inactive": str(include_inactive).lower(),
-        "from_date": from_date,
-        "to_date": to_date,
-    })
+    resp = client.get(
+        "/rankings/",
+        params={
+            "include_inactive": str(include_inactive).lower(),
+            "from_date": from_date,
+            "to_date": to_date,
+        },
+    )
     assert resp.status_code == 200
     out = []
     for e in resp.json()["entries"]:
-        out.append({
-            "player_id": e["player_id"],
-            "position": e["position"],
-            "position_change": e["position_change"],
-            "elo_rating": round(e["elo_rating"], 6),
-            "elo_change": round(e["elo_change"], 6),
-            "total_matches": e["total_matches"],
-            "total_180s": e["total_180s"],
-            "high_finishes": e["high_finishes"],
-            "low_darts": e["low_darts"],
-        })
+        out.append(
+            {
+                "player_id": e["player_id"],
+                "position": e["position"],
+                "position_change": e["position_change"],
+                "elo_rating": round(e["elo_rating"], 6),
+                "elo_change": round(e["elo_change"], 6),
+                "total_matches": e["total_matches"],
+                "total_180s": e["total_180s"],
+                "high_finishes": e["high_finishes"],
+                "low_darts": e["low_darts"],
+            }
+        )
     return out
 
 
@@ -197,12 +206,20 @@ class TestBatchedRankingEquivalence:
         _create_match(client, eve.id, dan.id, eve.id, "2025-05-20")
 
         # Inside the period (dart stats included)
-        _create_match(client, alice.id, bob.id, alice.id, "2025-06-05",
-                      player_a_180s=2, player_a_high_finishes=[120],
-                      player_b_low_darts=[15])
+        _create_match(
+            client,
+            alice.id,
+            bob.id,
+            alice.id,
+            "2025-06-05",
+            player_a_180s=2,
+            player_a_high_finishes=[120],
+            player_b_low_darts=[15],
+        )
         # Two matches on the SAME day exercise the created_at/id tie-break.
-        _create_match(client, alice.id, bob.id, bob.id, "2025-06-06",
-                      player1_score=2, player2_score=3)
+        _create_match(
+            client, alice.id, bob.id, bob.id, "2025-06-06", player1_score=2, player2_score=3
+        )
         _create_match(client, dan.id, alice.id, dan.id, "2025-06-20")
 
         # After the period
@@ -220,18 +237,16 @@ class TestBatchedRankingEquivalence:
         self._seed(client, db_session)
 
         windows = [
-            (date(2025, 6, 1), date(2025, 6, 30)),   # the classic month window
+            (date(2025, 6, 1), date(2025, 6, 30)),  # the classic month window
             (date(2025, 1, 1), date(2025, 12, 31)),  # full history
-            (date(2025, 6, 1), date(2025, 6, 1)),    # single-day window
+            (date(2025, 6, 1), date(2025, 6, 1)),  # single-day window
         ]
         for include_inactive in (False, True):
             for from_date, to_date in windows:
                 api = _api_entries(
                     client, from_date.isoformat(), to_date.isoformat(), include_inactive
                 )
-                reference = _reference_ranking(
-                    db_session, from_date, to_date, include_inactive
-                )
+                reference = _reference_ranking(db_session, from_date, to_date, include_inactive)
                 assert api == reference, (
                     f"mismatch (include_inactive={include_inactive}, "
                     f"{from_date}..{to_date})\napi: {api}\nref: {reference}"

@@ -52,8 +52,7 @@ def determine_winner(score1: int, score2: int, best_of: int = 0) -> int:
             best_of = settings.best_of_legs
         wins = (best_of + 1) // 2
         raise ValueError(
-            f"Invalid score combination {score1}:{score2}. "
-            f"Best of {best_of}: first to {wins} wins."
+            f"Invalid score combination {score1}:{score2}. Best of {best_of}: first to {wins} wins."
         )
     return 1 if score1 > score2 else 2
 
@@ -63,12 +62,24 @@ class MatchStatisticsCreate(BaseModel):
 
     player_a_180s: int = Field(default=0, ge=0, description="Number of 180s for player A")
     player_b_180s: int = Field(default=0, ge=0, description="Number of 180s for player B")
-    player_a_high_finishes: list[int] = Field(default_factory=list, description="High finish scores for player A")
-    player_b_high_finishes: list[int] = Field(default_factory=list, description="High finish scores for player B")
-    player_a_low_darts: list[int] = Field(default_factory=list, description="Low dart counts for player A")
-    player_b_low_darts: list[int] = Field(default_factory=list, description="Low dart counts for player B")
-    player_a_average: Optional[float] = Field(default=None, ge=0, le=167, description="3-dart average for player A")
-    player_b_average: Optional[float] = Field(default=None, ge=0, le=167, description="3-dart average for player B")
+    player_a_high_finishes: list[int] = Field(
+        default_factory=list, description="High finish scores for player A"
+    )
+    player_b_high_finishes: list[int] = Field(
+        default_factory=list, description="High finish scores for player B"
+    )
+    player_a_low_darts: list[int] = Field(
+        default_factory=list, description="Low dart counts for player A"
+    )
+    player_b_low_darts: list[int] = Field(
+        default_factory=list, description="Low dart counts for player B"
+    )
+    player_a_average: Optional[float] = Field(
+        default=None, ge=0, le=167, description="3-dart average for player A"
+    )
+    player_b_average: Optional[float] = Field(
+        default=None, ge=0, le=167, description="3-dart average for player B"
+    )
 
     @model_validator(mode="after")
     def validate_statistics(self):
@@ -84,18 +95,14 @@ class MatchStatisticsCreate(BaseModel):
                     f"High finish value {val} is outside valid range [{hf_min}, {hf_max}]"
                 )
             if val in IMPOSSIBLE_HIGH_FINISHES:
-                raise ValueError(
-                    f"High finish value {val} is impossible with 3 darts"
-                )
+                raise ValueError(f"High finish value {val} is impossible with 3 darts")
         for val in self.player_b_high_finishes:
             if val < hf_min or val > hf_max:
                 raise ValueError(
                     f"High finish value {val} is outside valid range [{hf_min}, {hf_max}]"
                 )
             if val in IMPOSSIBLE_HIGH_FINISHES:
-                raise ValueError(
-                    f"High finish value {val} is impossible with 3 darts"
-                )
+                raise ValueError(f"High finish value {val} is impossible with 3 darts")
         for val in self.player_a_low_darts:
             if val < ld_min or val > ld_max:
                 raise ValueError(
@@ -143,14 +150,30 @@ class MatchCreate(MatchStatisticsCreate):
 class MatchStatisticsUpdate(BaseModel):
     """Schema for updating match statistics."""
 
-    player_a_180s: Optional[int] = Field(default=None, ge=0, description="Number of 180s for player A")
-    player_b_180s: Optional[int] = Field(default=None, ge=0, description="Number of 180s for player B")
-    player_a_high_finishes: Optional[list[int]] = Field(default=None, description="High finish scores for player A")
-    player_b_high_finishes: Optional[list[int]] = Field(default=None, description="High finish scores for player B")
-    player_a_low_darts: Optional[list[int]] = Field(default=None, description="Low dart counts for player A")
-    player_b_low_darts: Optional[list[int]] = Field(default=None, description="Low dart counts for player B")
-    player_a_average: Optional[float] = Field(default=None, ge=0, le=167, description="3-dart average for player A")
-    player_b_average: Optional[float] = Field(default=None, ge=0, le=167, description="3-dart average for player B")
+    player_a_180s: Optional[int] = Field(
+        default=None, ge=0, description="Number of 180s for player A"
+    )
+    player_b_180s: Optional[int] = Field(
+        default=None, ge=0, description="Number of 180s for player B"
+    )
+    player_a_high_finishes: Optional[list[int]] = Field(
+        default=None, description="High finish scores for player A"
+    )
+    player_b_high_finishes: Optional[list[int]] = Field(
+        default=None, description="High finish scores for player B"
+    )
+    player_a_low_darts: Optional[list[int]] = Field(
+        default=None, description="Low dart counts for player A"
+    )
+    player_b_low_darts: Optional[list[int]] = Field(
+        default=None, description="Low dart counts for player B"
+    )
+    player_a_average: Optional[float] = Field(
+        default=None, ge=0, le=167, description="3-dart average for player A"
+    )
+    player_b_average: Optional[float] = Field(
+        default=None, ge=0, le=167, description="3-dart average for player B"
+    )
 
     @model_validator(mode="after")
     def validate_statistics(self):
@@ -167,9 +190,7 @@ class MatchStatisticsUpdate(BaseModel):
                         f"High finish value {val} is outside valid range [{hf_min}, {hf_max}]"
                     )
                 if val in IMPOSSIBLE_HIGH_FINISHES:
-                    raise ValueError(
-                        f"High finish value {val} is impossible with 3 darts"
-                    )
+                    raise ValueError(f"High finish value {val} is impossible with 3 darts")
         if self.player_b_high_finishes is not None:
             for val in self.player_b_high_finishes:
                 if val < hf_min or val > hf_max:
@@ -177,9 +198,7 @@ class MatchStatisticsUpdate(BaseModel):
                         f"High finish value {val} is outside valid range [{hf_min}, {hf_max}]"
                     )
                 if val in IMPOSSIBLE_HIGH_FINISHES:
-                    raise ValueError(
-                        f"High finish value {val} is impossible with 3 darts"
-                    )
+                    raise ValueError(f"High finish value {val} is impossible with 3 darts")
         if self.player_a_low_darts is not None:
             for val in self.player_a_low_darts:
                 if val < ld_min or val > ld_max:
@@ -201,7 +220,9 @@ class MatchUpdate(MatchStatisticsUpdate):
     date: Optional[date_cls] = None
     player1_score: Optional[int] = Field(default=None, ge=0)
     player2_score: Optional[int] = Field(default=None, ge=0)
-    best_of_legs: Optional[int] = Field(default=None, ge=0, description="Best of N legs (None=keep original)")
+    best_of_legs: Optional[int] = Field(
+        default=None, ge=0, description="Best of N legs (None=keep original)"
+    )
 
     @model_validator(mode="after")
     def validate_scores(self):

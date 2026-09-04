@@ -37,3 +37,10 @@ exclude_lines = [
     "if __name__ == .__main__.",
     "if TYPE_CHECKING:",
 ]
+
+[tool.ruff]
+# Matches the single-worker SQLite runtime (see Dockerfile / CI). The formatter
+# uses line-length to decide wrapping; 100 keeps the existing style (E501 is
+# not enforced by the linter) while normalizing everything else (L3).
+line-length = 100
+target-version = "py311"

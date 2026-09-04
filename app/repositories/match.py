@@ -36,17 +36,13 @@ class MatchRepository:
             query = query.filter(Match.date >= from_date)
         if to_date is not None:
             query = query.filter(Match.date <= to_date)
-        return query.order_by(
-            Match.date.asc(), Match.created_at.asc(), Match.id.asc()
-        ).all()
+        return query.order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc()).all()
 
     def get_by_player(self, player_id: int) -> list[Match]:
         """Get all matches involving a specific player."""
         return (
             self.db.query(Match)
-            .filter(
-                (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
-            )
+            .filter((Match.player_a_id == player_id) | (Match.player_b_id == player_id))
             .order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc())
             .all()
         )
@@ -151,12 +147,21 @@ class MatchRepository:
             Match.date == match_date,
             and_(
                 # Same order + same scores
-                ((Match.player_a_id == player_a_id) & (Match.player_b_id == player_b_id) &
-                 (Match.player1_score == player1_score) & (Match.player2_score == player2_score)) |
+                (
+                    (Match.player_a_id == player_a_id)
+                    & (Match.player_b_id == player_b_id)
+                    & (Match.player1_score == player1_score)
+                    & (Match.player2_score == player2_score)
+                )
+                |
                 # Reversed order + reversed scores
-                ((Match.player_a_id == player_b_id) & (Match.player_b_id == player_a_id) &
-                 (Match.player1_score == player2_score) & (Match.player2_score == player1_score))
-            )
+                (
+                    (Match.player_a_id == player_b_id)
+                    & (Match.player_b_id == player_a_id)
+                    & (Match.player1_score == player2_score)
+                    & (Match.player2_score == player1_score)
+                )
+            ),
         )
         if exclude_match_id is not None:
             query = query.filter(Match.id != exclude_match_id)

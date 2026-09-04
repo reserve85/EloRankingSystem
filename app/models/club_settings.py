@@ -22,12 +22,8 @@ class ClubSettings(Base):
     __tablename__ = "club_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    club_name: Mapped[str] = mapped_column(
-        String(200), nullable=False, default="Dart Club"
-    )
-    club_logo_path: Mapped[Optional[str]] = mapped_column(
-        String(500), nullable=True, default=None
-    )
+    club_name: Mapped[str] = mapped_column(String(200), nullable=False, default="Dart Club")
+    club_logo_path: Mapped[Optional[str]] = mapped_column(String(500), nullable=True, default=None)
     club_logo_dark_path: Mapped[Optional[str]] = mapped_column(
         String(500), nullable=True, default=None
     )

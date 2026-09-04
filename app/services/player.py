@@ -128,6 +128,7 @@ class PlayerService:
         # Trigger full Elo recalculation if start_elo changed
         if start_elo_changed:
             from app.services.match import MatchService
+
             match_service = MatchService(self.repo.db)
             match_service._recalculate_elo_timeline({player_id})
 

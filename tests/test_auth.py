@@ -1,6 +1,5 @@
 """Tests for authentication and authorization."""
 
-
 from app.models.user import User, UserRole
 from app.auth.password import hash_password, verify_password, password_needs_rehash
 from app.auth.jwt import create_access_token, decode_access_token
@@ -256,12 +255,8 @@ class TestSystemUserProvisioning:
 
     def test_provision_creates_system_user(self, db_session, monkeypatch):
         """provision_system_user should create a new system user."""
-        monkeypatch.setattr(
-            "app.core.config.settings.system_user_username", "system"
-        )
-        monkeypatch.setattr(
-            "app.core.config.settings.system_user_password", "adminpass"
-        )
+        monkeypatch.setattr("app.core.config.settings.system_user_username", "system")
+        monkeypatch.setattr("app.core.config.settings.system_user_password", "adminpass")
 
         user = provision_system_user(db_session)
 
@@ -273,12 +268,8 @@ class TestSystemUserProvisioning:
 
     def test_provision_idempotent(self, db_session, monkeypatch):
         """Calling provision_system_user twice should not create duplicates."""
-        monkeypatch.setattr(
-            "app.core.config.settings.system_user_username", "system"
-        )
-        monkeypatch.setattr(
-            "app.core.config.settings.system_user_password", "adminpass"
-        )
+        monkeypatch.setattr("app.core.config.settings.system_user_username", "system")
+        monkeypatch.setattr("app.core.config.settings.system_user_password", "adminpass")
 
         user1 = provision_system_user(db_session)
         user2 = provision_system_user(db_session)
@@ -288,12 +279,8 @@ class TestSystemUserProvisioning:
 
     def test_provision_hashes_password(self, db_session, monkeypatch):
         """Provisioned system user should have hashed password, not plain text."""
-        monkeypatch.setattr(
-            "app.core.config.settings.system_user_username", "system"
-        )
-        monkeypatch.setattr(
-            "app.core.config.settings.system_user_password", "adminpass"
-        )
+        monkeypatch.setattr("app.core.config.settings.system_user_username", "system")
+        monkeypatch.setattr("app.core.config.settings.system_user_password", "adminpass")
 
         user = provision_system_user(db_session)
 
@@ -302,12 +289,8 @@ class TestSystemUserProvisioning:
 
     def test_provisioned_user_can_login(self, db_session, monkeypatch):
         """Provisioned system user should be able to log in with config password."""
-        monkeypatch.setattr(
-            "app.core.config.settings.system_user_username", "system"
-        )
-        monkeypatch.setattr(
-            "app.core.config.settings.system_user_password", "adminpass"
-        )
+        monkeypatch.setattr("app.core.config.settings.system_user_username", "system")
+        monkeypatch.setattr("app.core.config.settings.system_user_password", "adminpass")
 
         provision_system_user(db_session)
         result = authenticate_user(db_session, "system", "adminpass")
@@ -335,7 +318,9 @@ class TestRoleChecks:
         db_session.refresh(user)
 
         # require_system returns a dependency function that checks role
-        role_checker = require_system.__wrapped__ if hasattr(require_system, '__wrapped__') else None
+        role_checker = (
+            require_system.__wrapped__ if hasattr(require_system, "__wrapped__") else None
+        )
         if role_checker:
             result = role_checker(user)
             assert result == user
@@ -549,12 +534,8 @@ class TestMustChangePassword:
 
     def test_provisioned_system_user_must_change_password(self, db_session, monkeypatch):
         """provision_system_user should set must_change_password on creation."""
-        monkeypatch.setattr(
-            "app.core.config.settings.system_user_username", "system"
-        )
-        monkeypatch.setattr(
-            "app.core.config.settings.system_user_password", "adminpass"
-        )
+        monkeypatch.setattr("app.core.config.settings.system_user_username", "system")
+        monkeypatch.setattr("app.core.config.settings.system_user_password", "adminpass")
         user = provision_system_user(db_session)
         assert user.must_change_password is True
 
@@ -573,18 +554,14 @@ class TestMustChangePassword:
     def test_login_endpoint_reports_must_change_password(self, client, db_session):
         """POST /auth/login should include the must-change flag for the JS client."""
         _flagged_user(db_session)
-        resp = client.post(
-            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
-        )
+        resp = client.post("/auth/login", data={"username": "fresh", "password": "TempPass123!"})
         assert resp.status_code == 200
         assert resp.json()["must_change_password"] is True
 
     def test_me_reports_must_change_password(self, client, db_session):
         """GET /auth/me should include the must-change flag."""
         _flagged_user(db_session)
-        client.post(
-            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
-        )
+        client.post("/auth/login", data={"username": "fresh", "password": "TempPass123!"})
         resp = client.get("/auth/me")
         assert resp.status_code == 200
         assert resp.json()["must_change_password"] is True
@@ -592,18 +569,14 @@ class TestMustChangePassword:
     def test_gated_endpoint_blocked_until_password_change(self, client, db_session):
         """A user who must change their password is blocked from using the system."""
         _flagged_user(db_session)
-        client.post(
-            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
-        )
+        client.post("/auth/login", data={"username": "fresh", "password": "TempPass123!"})
         resp = client.get("/players/active")
         assert resp.status_code == 403
 
     def test_dashboard_redirects_to_change_password(self, client, db_session):
         """The dashboard redirects a forced-change user to the password page."""
         _flagged_user(db_session)
-        client.post(
-            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
-        )
+        client.post("/auth/login", data={"username": "fresh", "password": "TempPass123!"})
         resp = client.get("/ui/dashboard", follow_redirects=False)
         assert resp.status_code == 302
         assert "/ui/change-password" in resp.headers["location"]
@@ -611,9 +584,7 @@ class TestMustChangePassword:
     def test_change_password_page_remains_accessible(self, client, db_session):
         """The change-password page (not the gated surface) must stay reachable."""
         _flagged_user(db_session)
-        client.post(
-            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
-        )
+        client.post("/auth/login", data={"username": "fresh", "password": "TempPass123!"})
         resp = client.get("/ui/change-password")
         assert resp.status_code == 200
         assert "must set a new password" in resp.text
@@ -621,16 +592,17 @@ class TestMustChangePassword:
     def test_correct_change_unblocks_user(self, client, db_session):
         """Setting a new password clears the force flag and unblocks the user."""
         _flagged_user(db_session)
-        client.post(
-            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
-        )
+        client.post("/auth/login", data={"username": "fresh", "password": "TempPass123!"})
         assert client.get("/players/active").status_code == 403
 
-        resp = client.post("/password/change", json={
-            "current_password": "TempPass123!",
-            "new_password": "NewPass123!",
-            "confirm_new_password": "NewPass123!",
-        })
+        resp = client.post(
+            "/password/change",
+            json={
+                "current_password": "TempPass123!",
+                "new_password": "NewPass123!",
+                "confirm_new_password": "NewPass123!",
+            },
+        )
         assert resp.json()["success"] is True
 
         assert client.get("/players/active").status_code == 200

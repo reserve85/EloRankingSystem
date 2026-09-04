@@ -27,8 +27,11 @@ def _login_as(client, db_session, username, password, role):
 
 def _create_player(db_session, name="Player", elo=1200):
     player = Player(
-        name=name, start_elo=elo, current_elo=float(elo),
-        active=True, disabled=False,
+        name=name,
+        start_elo=elo,
+        current_elo=float(elo),
+        active=True,
+        disabled=False,
     )
     db_session.add(player)
     db_session.commit()
@@ -39,10 +42,16 @@ def _create_player(db_session, name="Player", elo=1200):
 def _create_match(client, pa_id, pb_id, winner_id, match_date):
     score_a = 3 if winner_id == pa_id else 0
     score_b = 3 if winner_id == pb_id else 0
-    return client.post("/matches/", json={
-        "date": match_date, "player_a_id": pa_id,
-        "player_b_id": pb_id, "player1_score": score_a, "player2_score": score_b,
-    })
+    return client.post(
+        "/matches/",
+        json={
+            "date": match_date,
+            "player_a_id": pa_id,
+            "player_b_id": pb_id,
+            "player1_score": score_a,
+            "player2_score": score_b,
+        },
+    )
 
 
 # ── PDF Generation Unit Tests ──────────────────────────────────────────
@@ -57,7 +66,9 @@ class TestPdfGeneration:
             from_date=date(2025, 6, 1),
             to_date=date(2025, 6, 30),
             entries=[],
-            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+            generated_at=__import__("datetime").datetime(
+                2025, 7, 1, tzinfo=__import__("datetime").timezone.utc
+            ),
         )
         pdf = generate_ranking_pdf(ranking, club_name="Test Club")
         assert isinstance(pdf, bytes)
@@ -71,15 +82,25 @@ class TestPdfGeneration:
             to_date=date(2025, 6, 30),
             entries=[
                 RankingEntry(
-                    player_id=1, player_name="Alice", position=1,
-                    elo_rating=1216.0, elo_change=16.0, position_change=0,
+                    player_id=1,
+                    player_name="Alice",
+                    position=1,
+                    elo_rating=1216.0,
+                    elo_change=16.0,
+                    position_change=0,
                 ),
                 RankingEntry(
-                    player_id=2, player_name="Bob", position=2,
-                    elo_rating=1184.0, elo_change=-16.0, position_change=0,
+                    player_id=2,
+                    player_name="Bob",
+                    position=2,
+                    elo_rating=1184.0,
+                    elo_change=-16.0,
+                    position_change=0,
                 ),
             ],
-            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+            generated_at=__import__("datetime").datetime(
+                2025, 7, 1, tzinfo=__import__("datetime").timezone.utc
+            ),
         )
         pdf = generate_ranking_pdf(ranking, club_name="Dart Club")
         assert pdf[:4] == b"%PDF"
@@ -88,6 +109,7 @@ class TestPdfGeneration:
     def test_generate_pdf_contains_entries(self):
         """PDF should be larger when it has entries than when empty."""
         from datetime import datetime as dt, timezone
+
         empty_ranking = RankingResponse(
             from_date=date(2025, 6, 1),
             to_date=date(2025, 6, 30),
@@ -101,8 +123,12 @@ class TestPdfGeneration:
             to_date=date(2025, 6, 30),
             entries=[
                 RankingEntry(
-                    player_id=1, player_name="TestPlayer", position=1,
-                    elo_rating=1200.0, elo_change=0.0, position_change=0,
+                    player_id=1,
+                    player_name="TestPlayer",
+                    position=1,
+                    elo_rating=1200.0,
+                    elo_change=0.0,
+                    position_change=0,
                 ),
             ],
             generated_at=dt(2025, 7, 1, tzinfo=timezone.utc),
@@ -117,19 +143,33 @@ class TestPdfGeneration:
             to_date=date(2025, 6, 30),
             entries=[
                 RankingEntry(
-                    player_id=1, player_name="Winner", position=1,
-                    elo_rating=1216.0, elo_change=16.0, position_change=1,
+                    player_id=1,
+                    player_name="Winner",
+                    position=1,
+                    elo_rating=1216.0,
+                    elo_change=16.0,
+                    position_change=1,
                 ),
                 RankingEntry(
-                    player_id=2, player_name="Loser", position=2,
-                    elo_rating=1184.0, elo_change=-16.0, position_change=-1,
+                    player_id=2,
+                    player_name="Loser",
+                    position=2,
+                    elo_rating=1184.0,
+                    elo_change=-16.0,
+                    position_change=-1,
                 ),
                 RankingEntry(
-                    player_id=3, player_name="Stable", position=3,
-                    elo_rating=1200.0, elo_change=0.0, position_change=0,
+                    player_id=3,
+                    player_name="Stable",
+                    position=3,
+                    elo_rating=1200.0,
+                    elo_change=0.0,
+                    position_change=0,
                 ),
             ],
-            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+            generated_at=__import__("datetime").datetime(
+                2025, 7, 1, tzinfo=__import__("datetime").timezone.utc
+            ),
         )
         pdf = generate_ranking_pdf(ranking)
         assert pdf[:4] == b"%PDF"
@@ -140,7 +180,9 @@ class TestPdfGeneration:
             from_date=date(2025, 6, 1),
             to_date=date(2025, 6, 30),
             entries=[],
-            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+            generated_at=__import__("datetime").datetime(
+                2025, 7, 1, tzinfo=__import__("datetime").timezone.utc
+            ),
         )
         pdf = generate_ranking_pdf(ranking, club_name="Empty Club")
         assert pdf[:4] == b"%PDF"
@@ -148,6 +190,7 @@ class TestPdfGeneration:
     def test_generate_pdf_date_range_in_header(self):
         """PDF should be generated successfully with date range."""
         from datetime import datetime as dt, timezone
+
         ranking = RankingResponse(
             from_date=date(2025, 3, 1),
             to_date=date(2025, 3, 31),
@@ -164,7 +207,9 @@ class TestPdfGeneration:
             from_date=date(2025, 6, 1),
             to_date=date(2025, 6, 30),
             entries=[],
-            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+            generated_at=__import__("datetime").datetime(
+                2025, 7, 1, tzinfo=__import__("datetime").timezone.utc
+            ),
         )
         pdf = generate_ranking_pdf(ranking, logo_path="/nonexistent/logo.png")
         assert pdf[:4] == b"%PDF"
@@ -239,7 +284,9 @@ class TestPdfExportRoute:
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
         _create_player(db_session, "Inactive", elo=1200)
 
-        resp = client.get("/reports/ranking/pdf?from_date=2025-06-01&to_date=2025-06-30&include_inactive=true")
+        resp = client.get(
+            "/reports/ranking/pdf?from_date=2025-06-01&to_date=2025-06-30&include_inactive=true"
+        )
         assert resp.status_code == 200
         assert resp.content[:4] == b"%PDF"
 
@@ -258,6 +305,7 @@ class TestPdfDateFormat:
     def test_pdf_uses_configured_date_format(self):
         """PDF should use the configured date format in period text."""
         from app.reports.pdf import _format_date
+
         d = date(2025, 7, 15)
         assert _format_date(d, "dd/MM/yyyy") == "15/07/2025"
         assert _format_date(d, "MM/dd/yyyy") == "07/15/2025"
@@ -267,6 +315,7 @@ class TestPdfDateFormat:
     def test_pdf_format_date_default_format(self):
         """_format_date should default to dd/MM/yyyy."""
         from app.reports.pdf import _format_date
+
         d = date(2025, 1, 5)
         assert _format_date(d) == "05/01/2025"
 
@@ -276,7 +325,9 @@ class TestPdfDateFormat:
             from_date=date(2025, 6, 1),
             to_date=date(2025, 6, 30),
             entries=[],
-            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+            generated_at=__import__("datetime").datetime(
+                2025, 7, 1, tzinfo=__import__("datetime").timezone.utc
+            ),
         )
         pdf = generate_ranking_pdf(ranking, club_name="My Custom Club")
         assert pdf[:4] == b"%PDF"
@@ -288,7 +339,9 @@ class TestPdfDateFormat:
             from_date=date(2025, 6, 1),
             to_date=date(2025, 6, 30),
             entries=[],
-            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+            generated_at=__import__("datetime").datetime(
+                2025, 7, 1, tzinfo=__import__("datetime").timezone.utc
+            ),
         )
         pdf1 = generate_ranking_pdf(ranking, club_name="Short")
         pdf2 = generate_ranking_pdf(ranking, club_name="A Much Longer Club Name Here")
@@ -301,7 +354,9 @@ class TestPdfDateFormat:
             from_date=date(2025, 6, 1),
             to_date=date(2025, 6, 30),
             entries=[],
-            generated_at=__import__("datetime").datetime(2025, 7, 1, tzinfo=__import__("datetime").timezone.utc),
+            generated_at=__import__("datetime").datetime(
+                2025, 7, 1, tzinfo=__import__("datetime").timezone.utc
+            ),
         )
         # Default parameter is "Dart Club" but the caller (route) should pass the actual club name
         pdf = generate_ranking_pdf(ranking)

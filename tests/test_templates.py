@@ -194,9 +194,9 @@ class TestUserManagementAPI:
     def test_admin_can_create_user(self, client, db_session):
         """ADMIN should be able to create a new user."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
-        resp = client.post("/users/", json={
-            "username": "newuser", "password": "Pass123!", "role": "USER"
-        })
+        resp = client.post(
+            "/users/", json={"username": "newuser", "password": "Pass123!", "role": "USER"}
+        )
         assert resp.status_code == 201
         assert resp.json()["username"] == "newuser"
         assert resp.json()["role"] == "USER"
@@ -204,9 +204,9 @@ class TestUserManagementAPI:
     def test_admin_cannot_create_system_user(self, client, db_session):
         """ADMIN should not be able to create SYSTEM users."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
-        resp = client.post("/users/", json={
-            "username": "hacker", "password": "pass", "role": "SYSTEM"
-        })
+        resp = client.post(
+            "/users/", json={"username": "hacker", "password": "pass", "role": "SYSTEM"}
+        )
         assert resp.status_code == 400
 
     def test_user_cannot_list_users(self, client, db_session):
@@ -219,9 +219,9 @@ class TestUserManagementAPI:
         """ADMIN should be able to update a user's role."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         # Create user first
-        create_resp = client.post("/users/", json={
-            "username": "updatee", "password": "Pass123!", "role": "USER"
-        })
+        create_resp = client.post(
+            "/users/", json={"username": "updatee", "password": "Pass123!", "role": "USER"}
+        )
         user_id = create_resp.json()["id"]
 
         resp = client.put(f"/users/{user_id}", json={"role": "ADMIN"})
@@ -693,6 +693,7 @@ class TestVersionInfo:
         """Version string should not have duplicated 'v' prefix."""
         with patch.dict(os.environ, {"APP_VERSION": "vv1.0.3"}):
             from app.core import version
+
             # Reload to pick up new env
             info = version.get_version_info()
             assert info["version"] == "1.0.3"
@@ -702,6 +703,7 @@ class TestVersionInfo:
         """Version string should strip a single leading 'v'."""
         with patch.dict(os.environ, {"APP_VERSION": "v2.5.0"}):
             from app.core import version
+
             info = version.get_version_info()
             assert info["version"] == "2.5.0"
 
@@ -709,6 +711,7 @@ class TestVersionInfo:
         """Only a leading 'v' prefix is removed, never interior 'v' characters."""
         with patch.dict(os.environ, {"APP_VERSION": "version"}):
             from app.core import version
+
             info = version.get_version_info()
             # Old lstrip("v") would have produced "ersion"
             assert info["version"] == "version"
@@ -718,12 +721,14 @@ class TestVersionInfo:
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("APP_VERSION", None)
             from app.core import version
+
             info = version.get_version_info()
             assert info["version"] == "0.1.0"
 
     def test_version_info_has_github_url(self, client, db_session):
         """Version info should contain GitHub project URL."""
         from app.core import version
+
         info = version.get_version_info()
         assert "github_url" in info
         assert "github.com/reserve85/EloRankingSystem" in info["github_url"]
@@ -731,6 +736,7 @@ class TestVersionInfo:
     def test_version_info_has_release_url(self, client, db_session):
         """Version info should contain release URL for current version."""
         from app.core import version
+
         info = version.get_version_info()
         assert "release_url" in info
         assert "/releases/tag/v" in info["release_url"]
@@ -738,6 +744,7 @@ class TestVersionInfo:
     def test_version_info_timezone_formatting(self, client, db_session):
         """Build date should be formatted using the given timezone."""
         from app.core import version
+
         with patch.dict(os.environ, {"BUILD_DATE": "2026-07-22T22:24:38+02:00"}):
             # Use UTC which is always available, even without tzdata package
             info = version.get_version_info("UTC")
@@ -748,6 +755,7 @@ class TestVersionInfo:
     def test_version_info_timezone_fallback_on_bad_tz(self, client, db_session):
         """Build date should return raw string if timezone is invalid."""
         from app.core import version
+
         with patch.dict(os.environ, {"BUILD_DATE": "2026-07-22T22:24:38+02:00"}):
             info = version.get_version_info("Invalid/Timezone")
             # Should fall back to the raw string
@@ -758,6 +766,7 @@ class TestVersionInfo:
         with patch.dict(os.environ, {}, clear=False):
             os.environ.pop("BUILD_DATE", None)
             from app.core import version
+
             info = version.get_version_info()
             assert info["build_date"] == "development"
 
@@ -924,7 +933,7 @@ class TestInactivePlayerCheckbox:
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
         assert 'id="ranking-include-inactive"' in resp.text
-        assert 'checked' in resp.text
+        assert "checked" in resp.text
 
     def test_ranking_checkbox_label_exists(self, client, db_session):
         """Ranking include inactive checkbox should have correct label."""
@@ -998,7 +1007,7 @@ class TestMobileLayout:
         # Should have user icon SVG in header
         assert "icon icon-sm" in resp.text
         # Should not have the old avatar with bg-primary
-        assert 'avatar avatar-sm rounded-circle bg-primary' not in resp.text
+        assert "avatar avatar-sm rounded-circle bg-primary" not in resp.text
 
     def test_user_button_has_username_text(self, client, db_session):
         """User button should show the username next to the icon."""
@@ -1185,14 +1194,14 @@ class TestMatchCreateLayout:
         """Format dropdown should be in the card header, not in the form body."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        assert 'card-header d-flex justify-content-between' in resp.text
+        assert "card-header d-flex justify-content-between" in resp.text
         assert 'id="best-of-select"' in resp.text
 
     def test_format_dropdown_is_select_sm(self, client, db_session):
         """Format dropdown in header should use form-select-sm for compact display."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        assert 'form-select form-select-sm' in resp.text
+        assert "form-select form-select-sm" in resp.text
         assert 'id="best-of-select"' in resp.text
 
     def test_score_labels_have_dynamic_ids(self, client, db_session):
@@ -1206,8 +1215,8 @@ class TestMatchCreateLayout:
         """Score labels should have default text Player 1 Score / Player 2 Score."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        assert 'Player 1 Score' in resp.text
-        assert 'Player 2 Score' in resp.text
+        assert "Player 1 Score" in resp.text
+        assert "Player 2 Score" in resp.text
 
     def test_auto_labeling_updates_score_labels(self, client, db_session):
         """updatePlayerLabels should update score labels with player names."""
@@ -1254,7 +1263,7 @@ class TestMatchCreateLayout:
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
         assert 'name="date"' in resp.text
-        assert 'jumpToToday' in resp.text
+        assert "jumpToToday" in resp.text
 
     def test_statistics_section_preserved(self, client, db_session):
         """Dart Statistics section should still be present and collapsible."""
@@ -1355,13 +1364,13 @@ class TestPeriodStatistics:
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
         # JS should format as '(Nx) value1, value2'
-        assert "(\' + p.high_finishes.length + \'x)" in resp.text
+        assert "(' + p.high_finishes.length + 'x)" in resp.text
 
     def test_period_stats_ld_shows_count_prefix(self, client, db_session):
         """Period stats LD should show count prefix like (2x) in JS."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        assert "(\' + p.low_darts.length + \'x)" in resp.text
+        assert "(' + p.low_darts.length + 'x)" in resp.text
 
     def test_player_stats_modal_exists(self, client, db_session):
         """Dashboard should have player statistics modal."""
@@ -1422,8 +1431,11 @@ class TestPlayerStatistics:
     def test_elo_history_returns_data(self, client, db_session):
         """Elo history endpoint should return history data for valid player."""
         from app.models.player import Player
+
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
-        player = Player(name="Test", start_elo=1200, current_elo=1200.0, active=True, disabled=False)
+        player = Player(
+            name="Test", start_elo=1200, current_elo=1200.0, active=True, disabled=False
+        )
         db_session.add(player)
         db_session.commit()
         db_session.refresh(player)
@@ -1436,8 +1448,11 @@ class TestPlayerStatistics:
     def test_ath_returns_data(self, client, db_session):
         """ATH endpoint should return ATH data for valid player."""
         from app.models.player import Player
+
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
-        player = Player(name="Test", start_elo=1200, current_elo=1200.0, active=True, disabled=False)
+        player = Player(
+            name="Test", start_elo=1200, current_elo=1200.0, active=True, disabled=False
+        )
         db_session.add(player)
         db_session.commit()
         db_session.refresh(player)
@@ -1835,9 +1850,9 @@ class TestUserDeletion:
         """ADMIN should be able to delete a USER account."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         # Create a user to delete
-        create_resp = client.post("/users/", json={
-            "username": "deleteme", "password": "Pass123!", "role": "USER"
-        })
+        create_resp = client.post(
+            "/users/", json={"username": "deleteme", "password": "Pass123!", "role": "USER"}
+        )
         assert create_resp.status_code == 201
         user_id = create_resp.json()["id"]
         resp = client.delete(f"/users/{user_id}")
@@ -1849,8 +1864,10 @@ class TestUserDeletion:
         _login_as(client, db_session, "sys1", "pass", UserRole.SYSTEM)
         # Create an admin to delete
         admin = User(
-            username="del_admin", password_hash=hash_password("Pass123!"),
-            role=UserRole.ADMIN, active=True
+            username="del_admin",
+            password_hash=hash_password("Pass123!"),
+            role=UserRole.ADMIN,
+            active=True,
         )
         db_session.add(admin)
         db_session.commit()
@@ -1863,8 +1880,10 @@ class TestUserDeletion:
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         # Create another admin
         admin2 = User(
-            username="admin2_del", password_hash=hash_password("Pass123!"),
-            role=UserRole.ADMIN, active=True
+            username="admin2_del",
+            password_hash=hash_password("Pass123!"),
+            role=UserRole.ADMIN,
+            active=True,
         )
         db_session.add(admin2)
         db_session.commit()
@@ -1894,15 +1913,14 @@ class TestUserDeletion:
     def test_user_deletion_creates_audit_log(self, client, db_session):
         """Deleting a user should create a USER_DELETED audit entry."""
         from app.models.audit_log import AuditLog
+
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
-        create_resp = client.post("/users/", json={
-            "username": "audit_del", "password": "Pass123!", "role": "USER"
-        })
+        create_resp = client.post(
+            "/users/", json={"username": "audit_del", "password": "Pass123!", "role": "USER"}
+        )
         user_id = create_resp.json()["id"]
         client.delete(f"/users/{user_id}")
-        logs = db_session.query(AuditLog).filter(
-            AuditLog.action == "USER_DELETED"
-        ).all()
+        logs = db_session.query(AuditLog).filter(AuditLog.action == "USER_DELETED").all()
         assert len(logs) >= 1
         assert logs[-1].entity_id == user_id
 
@@ -1921,9 +1939,9 @@ class TestUserDeletion:
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
 
         # Create a target USER account to delete.
-        create_resp = client.post("/users/", json={
-            "username": "author", "password": "Pass123!", "role": "USER"
-        })
+        create_resp = client.post(
+            "/users/", json={"username": "author", "password": "Pass123!", "role": "USER"}
+        )
         assert create_resp.status_code == 201
         author_id = create_resp.json()["id"]
 
@@ -1936,13 +1954,19 @@ class TestUserDeletion:
         db_session.refresh(pb)
         match = Match(
             date=date(2025, 6, 1),
-            player_a_id=pa.id, player_b_id=pb.id,
+            player_a_id=pa.id,
+            player_b_id=pb.id,
             best_of_legs=5,
-            player1_score=3, player2_score=0,
-            winner_id=pa.id, loser_id=pb.id,
-            elo_before_a=1200.0, elo_before_b=1200.0,
-            elo_after_a=1224.0, elo_after_b=1176.0,
-            elo_change_a=24.0, elo_change_b=-24.0,
+            player1_score=3,
+            player2_score=0,
+            winner_id=pa.id,
+            loser_id=pb.id,
+            elo_before_a=1200.0,
+            elo_before_b=1200.0,
+            elo_after_a=1224.0,
+            elo_after_b=1176.0,
+            elo_change_a=24.0,
+            elo_change_b=-24.0,
             k_factor=32.0,
             created_by=author_id,
         )
@@ -1956,9 +1980,7 @@ class TestUserDeletion:
 
         # User must not be deleted, and no USER_DELETED audit entry recorded.
         assert db_session.query(User).filter(User.id == author_id).count() == 1
-        del_logs = db_session.query(AuditLog).filter(
-            AuditLog.action == "USER_DELETED"
-        ).all()
+        del_logs = db_session.query(AuditLog).filter(AuditLog.action == "USER_DELETED").all()
         assert not any(log.entity_id == author_id for log in del_logs)
 
         # Sanity: after removing the authored matches, deletion succeeds,
@@ -2097,6 +2119,8 @@ class TestLoginLogoResponsiveScaling:
         resp = client.get("/ui/login")
         assert "theme-toggle-btn" in resp.text
         assert "loadLoginLogo" in resp.text
+
+
 class TestTemplateEscaping:
     """L1: database values are HTML-escaped before innerHTML interpolation."""
 

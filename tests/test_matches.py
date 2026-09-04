@@ -1,6 +1,5 @@
 """Tests for match management - service, routes, permissions, and Elo persistence."""
 
-
 import pytest
 
 from app.models.player import Player
@@ -47,13 +46,16 @@ def _create_match_via_api(client, player_a_id, player_b_id, winner_id, match_dat
     """Create a match via the API using Best-of-5 scores."""
     score_a = 3 if winner_id == player_a_id else 0
     score_b = 3 if winner_id == player_b_id else 0
-    return client.post("/matches/", json={
-        "date": match_date,
-        "player_a_id": player_a_id,
-        "player_b_id": player_b_id,
-        "player1_score": score_a,
-        "player2_score": score_b,
-    })
+    return client.post(
+        "/matches/",
+        json={
+            "date": match_date,
+            "player_a_id": player_a_id,
+            "player_b_id": player_b_id,
+            "player1_score": score_a,
+            "player2_score": score_b,
+        },
+    )
 
 
 # ── Match Creation Tests ────────────────────────────────────────────────
@@ -97,13 +99,16 @@ class TestMatchCreation:
 
     def test_create_match_unauthenticated(self, client, db_session):
         """Unauthenticated user should not be able to create a match."""
-        response = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": 1,
-            "player_b_id": 2,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        response = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": 1,
+                "player_b_id": 2,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert response.status_code == 401
 
 
@@ -164,13 +169,16 @@ class TestMatchValidation:
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
 
-        response = client.post("/matches/", json={
-            "date": "not-a-date",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        response = client.post(
+            "/matches/",
+            json={
+                "date": "not-a-date",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert response.status_code == 422
 
 
@@ -278,9 +286,7 @@ class TestMatchAuditLog:
 
         _create_match_via_api(client, pa.id, pb.id, pa.id)
 
-        logs = db_session.query(AuditLog).filter(
-            AuditLog.action == "MATCH_CREATED"
-        ).all()
+        logs = db_session.query(AuditLog).filter(AuditLog.action == "MATCH_CREATED").all()
         assert len(logs) >= 1
         log = logs[-1]
         assert log.entity_type == "match"
@@ -298,9 +304,7 @@ class TestMatchAuditLog:
 
         client.delete(f"/matches/{match_id}")
 
-        logs = db_session.query(AuditLog).filter(
-            AuditLog.action == "MATCH_DELETED"
-        ).all()
+        logs = db_session.query(AuditLog).filter(AuditLog.action == "MATCH_DELETED").all()
         assert len(logs) >= 1
         log = logs[-1]
         assert log.entity_type == "match"
@@ -320,24 +324,45 @@ class TestMixedFormatMatches:
         pb = _create_player(db_session, "Bob", elo=1200)
 
         # Best of 5 (3:2)
-        resp1 = client.post("/matches/", json={
-            "date": "2025-06-10", "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 2, "best_of_legs": 5
-        })
+        resp1 = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 2,
+                "best_of_legs": 5,
+            },
+        )
         assert resp1.status_code == 201
 
         # Best of 7 (4:1)
-        resp2 = client.post("/matches/", json={
-            "date": "2025-06-15", "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 4, "player2_score": 1, "best_of_legs": 7
-        })
+        resp2 = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-15",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 4,
+                "player2_score": 1,
+                "best_of_legs": 7,
+            },
+        )
         assert resp2.status_code == 201
 
         # Best of 13 (7:4)
-        resp3 = client.post("/matches/", json={
-            "date": "2025-06-20", "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 7, "player2_score": 4, "best_of_legs": 13
-        })
+        resp3 = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-20",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 7,
+                "player2_score": 4,
+                "best_of_legs": 13,
+            },
+        )
         assert resp3.status_code == 201
 
         # All three matches should exist with correct formats
@@ -352,10 +377,17 @@ class TestMixedFormatMatches:
         pa = _create_player(db_session, "Alice", elo=1200)
         pb = _create_player(db_session, "Bob", elo=1200)
 
-        resp = client.post("/matches/", json={
-            "date": "2025-06-10", "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 4, "player2_score": 1, "best_of_legs": 5
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 4,
+                "player2_score": 1,
+                "best_of_legs": 5,
+            },
+        )
         assert resp.status_code == 422
 
     def test_best_of_7_accepts_4_3(self, client, db_session):
@@ -364,10 +396,17 @@ class TestMixedFormatMatches:
         pa = _create_player(db_session, "Alice", elo=1200)
         pb = _create_player(db_session, "Bob", elo=1200)
 
-        resp = client.post("/matches/", json={
-            "date": "2025-06-10", "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 4, "player2_score": 3, "best_of_legs": 7
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 4,
+                "player2_score": 3,
+                "best_of_legs": 7,
+            },
+        )
         assert resp.status_code == 201
         assert resp.json()["best_of_legs"] == 7
 
@@ -377,14 +416,28 @@ class TestMixedFormatMatches:
         pa = _create_player(db_session, "Alice", elo=1200)
         pb = _create_player(db_session, "Bob", elo=1200)
 
-        client.post("/matches/", json={
-            "date": "2025-06-10", "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 1, "best_of_legs": 5
-        })
-        client.post("/matches/", json={
-            "date": "2025-06-15", "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 5, "player2_score": 3, "best_of_legs": 9
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 1,
+                "best_of_legs": 5,
+            },
+        )
+        client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-15",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 5,
+                "player2_score": 3,
+                "best_of_legs": 9,
+            },
+        )
 
         matches = client.get("/matches/?from_date=2025-06-01&to_date=2025-06-30").json()
         assert len(matches) == 2
@@ -398,12 +451,20 @@ class TestMixedFormatMatches:
         pa = _create_player(db_session, "Alice", elo=1200)
         pb = _create_player(db_session, "Bob", elo=1200)
 
-        resp = client.post("/matches/", json={
-            "date": "2025-06-10", "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0, "best_of_legs": 0
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "best_of_legs": 0,
+            },
+        )
         assert resp.status_code == 201
         assert resp.json()["best_of_legs"] == 5
+
 
 class TestMatchUpdateM5:
     """M5: update score validation uses the match's stored best_of_legs."""
@@ -414,11 +475,17 @@ class TestMatchUpdateM5:
         pa = _create_player(db_session, "Alice", elo=1200)
         pb = _create_player(db_session, "Bob", elo=1200)
 
-        create = client.post("/matches/", json={
-            "date": "2025-06-10",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 2, "player2_score": 1, "best_of_legs": 3,
-        })
+        create = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 2,
+                "player2_score": 1,
+                "best_of_legs": 3,
+            },
+        )
         assert create.status_code == 201
 
         match_id = create.json()["id"]
@@ -432,11 +499,17 @@ class TestMatchUpdateM5:
         pa = _create_player(db_session, "Alice", elo=1200)
         pb = _create_player(db_session, "Bob", elo=1200)
 
-        create = client.post("/matches/", json={
-            "date": "2025-06-10",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 2, "player2_score": 1, "best_of_legs": 3,
-        })
+        create = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 2,
+                "player2_score": 1,
+                "best_of_legs": 3,
+            },
+        )
         assert create.status_code == 201
 
         match_id = create.json()["id"]
@@ -449,11 +522,17 @@ class TestMatchUpdateM5:
         pa = _create_player(db_session, "Alice", elo=1200)
         pb = _create_player(db_session, "Bob", elo=1200)
 
-        create = client.post("/matches/", json={
-            "date": "2025-06-10",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 2, "player2_score": 1, "best_of_legs": 3,
-        })
+        create = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 2,
+                "player2_score": 1,
+                "best_of_legs": 3,
+            },
+        )
         assert create.status_code == 201
 
         match_id = create.json()["id"]
@@ -475,11 +554,17 @@ class TestMatchUpdateM5:
         pa = _create_player(db_session, "Alice", elo=1200)
         pb = _create_player(db_session, "Bob", elo=1200)
 
-        create = client.post("/matches/", json={
-            "date": "2025-06-10",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 2, "player2_score": 1, "best_of_legs": 3,
-        })
+        create = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 2,
+                "player2_score": 1,
+                "best_of_legs": 3,
+            },
+        )
         assert create.status_code == 201
         match_id = create.json()["id"]
 
@@ -487,6 +572,7 @@ class TestMatchUpdateM5:
         resp = client.put(f"/matches/{match_id}", json={"best_of_legs": 4})
         assert resp.status_code == 422
         assert "best_of_legs" in resp.json()["detail"].lower()
+
 
 # ── List and Get Tests ──────────────────────────────────────────────────
 
@@ -600,12 +686,21 @@ class TestMatchResponse:
         data = response.json()
 
         required_fields = [
-            "id", "date", "player_a_id", "player_b_id",
-            "winner_id", "loser_id",
-            "elo_before_a", "elo_before_b",
-            "elo_after_a", "elo_after_b",
-            "elo_change_a", "elo_change_b",
-            "created_by", "created_at", "updated_at",
+            "id",
+            "date",
+            "player_a_id",
+            "player_b_id",
+            "winner_id",
+            "loser_id",
+            "elo_before_a",
+            "elo_before_b",
+            "elo_after_a",
+            "elo_after_b",
+            "elo_change_a",
+            "elo_change_b",
+            "created_by",
+            "created_at",
+            "updated_at",
         ]
         for field in required_fields:
             assert field in data, f"Missing field: {field}"
@@ -705,13 +800,16 @@ class TestDuplicateMatchDetection:
         assert resp1.status_code == 201
 
         # Second match: player_a=Bob, player_b=Alice, Alice wins (reversed order, same result)
-        resp2 = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pb.id,
-            "player_b_id": pa.id,
-            "player1_score": 0,
-            "player2_score": 3,
-        })
+        resp2 = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pb.id,
+                "player_b_id": pa.id,
+                "player1_score": 0,
+                "player2_score": 3,
+            },
+        )
         assert resp2.status_code == 409
         assert "already exists" in resp2.json()["detail"].lower()
 
@@ -769,13 +867,16 @@ class TestDuplicateMatchDetection:
         assert resp1.status_code == 201
 
         # Second match with force=true -> should succeed
-        resp2 = client.post("/matches/?force=true", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp2 = client.post(
+            "/matches/?force=true",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert resp2.status_code == 201
 
     def test_different_score_same_winner_not_duplicate(self, client, db_session):
@@ -789,13 +890,16 @@ class TestDuplicateMatchDetection:
         assert resp1.status_code == 201
 
         # Second match: Alice wins 3:2 (different score) -> NOT duplicate
-        resp2 = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 2,
-        })
+        resp2 = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 2,
+            },
+        )
         assert resp2.status_code == 201
 
     def test_no_duplicate_when_different_winner_same_score(self, client, db_session):
@@ -833,25 +937,30 @@ class TestDuplicateMatchDetection:
         pb = _create_player(db_session, "Bob")
 
         # First match: Alice wins 3:1
-        resp1 = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 1,
-        })
+        resp1 = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 1,
+            },
+        )
         assert resp1.status_code == 201
 
         # Second match: Alice wins 3:0 -> NOT duplicate (different score)
-        resp2 = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp2 = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert resp2.status_code == 201
-
 
     def test_update_to_duplicate_returns_409(self, client, db_session):
         """Editing a match to collide with an existing identical match returns 409 (Fix M7).
@@ -991,10 +1100,12 @@ class TestRecalculateAll:
 
         # Corrupt a snapshot directly in the DB (simulates the pre-fix bug)
         m1_id = client.get("/matches/").json()[0]["id"]
-        db_session.query(Match).filter(Match.id == m1_id).update({
-            "elo_after_a": 1234.0,
-            "elo_after_b": 1177.0,
-        })
+        db_session.query(Match).filter(Match.id == m1_id).update(
+            {
+                "elo_after_a": 1234.0,
+                "elo_after_b": 1177.0,
+            }
+        )
         db_session.commit()
 
         resp = client.post("/matches/recalculate-all")
@@ -1035,9 +1146,7 @@ class TestRecalculateAll:
 
         client.post("/matches/recalculate-all")
 
-        logs = db_session.query(AuditLog).filter(
-            AuditLog.action == "RANKING_RECALCULATED"
-        ).all()
+        logs = db_session.query(AuditLog).filter(AuditLog.action == "RANKING_RECALCULATED").all()
         assert len(logs) >= 1
         assert '"matches_recalculated": 1' in logs[-1].new_value
 
@@ -1061,10 +1170,12 @@ class TestRecalculateAll:
         _create_match_via_api(client, pa.id, pb.id, pa.id, "2025-06-01")
 
         # Disable Alice directly in the DB (as an admin would in the UI)
-        db_session.query(Player).filter(Player.id == pa.id).update({
-            "disabled": True,
-            "active": False,
-        })
+        db_session.query(Player).filter(Player.id == pa.id).update(
+            {
+                "disabled": True,
+                "active": False,
+            }
+        )
         db_session.commit()
 
         resp = client.post("/matches/recalculate-all")

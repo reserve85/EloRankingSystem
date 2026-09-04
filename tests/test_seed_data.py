@@ -19,8 +19,9 @@ def _seed_db(db_session):
     """Seed 100 players and 500 matches into the test database."""
     players = []
     for i in range(1, 101):
-        p = Player(name=f"Player_{i:03d}", start_elo=1200, current_elo=1200.0,
-                    active=False, disabled=False)
+        p = Player(
+            name=f"Player_{i:03d}", start_elo=1200, current_elo=1200.0, active=False, disabled=False
+        )
         db_session.add(p)
         players.append(p)
     db_session.commit()
@@ -45,18 +46,29 @@ def _seed_db(db_session):
         else:
             p1s, p2s = w_score, l_score
 
-        elo_result = calculate_match_elo(player_elo[a.id], player_elo[b.id],
-                                          "A" if winner == a else "B")
+        elo_result = calculate_match_elo(
+            player_elo[a.id], player_elo[b.id], "A" if winner == a else "B"
+        )
         m = Match(
-            date=match_date, player_a_id=a.id, player_b_id=b.id,
-            winner_id=winner.id, loser_id=loser.id,
-            player1_score=p1s, player2_score=p2s,
-            elo_before_a=player_elo[a.id], elo_before_b=player_elo[b.id],
-            elo_after_a=elo_result.new_rating_a, elo_after_b=elo_result.new_rating_b,
-            elo_change_a=elo_result.change_a, elo_change_b=elo_result.change_b,
-            player_a_180s=rng.randint(0, 3), player_b_180s=rng.randint(0, 3),
-            player_a_high_finishes=[], player_b_high_finishes=[],
-            player_a_low_darts=[], player_b_low_darts=[],
+            date=match_date,
+            player_a_id=a.id,
+            player_b_id=b.id,
+            winner_id=winner.id,
+            loser_id=loser.id,
+            player1_score=p1s,
+            player2_score=p2s,
+            elo_before_a=player_elo[a.id],
+            elo_before_b=player_elo[b.id],
+            elo_after_a=elo_result.new_rating_a,
+            elo_after_b=elo_result.new_rating_b,
+            elo_change_a=elo_result.change_a,
+            elo_change_b=elo_result.change_b,
+            player_a_180s=rng.randint(0, 3),
+            player_b_180s=rng.randint(0, 3),
+            player_a_high_finishes=[],
+            player_b_high_finishes=[],
+            player_a_low_darts=[],
+            player_b_low_darts=[],
         )
         db_session.add(m)
         player_elo[a.id] = elo_result.new_rating_a
@@ -159,6 +171,7 @@ class TestSeedDataCounts:
         # For each player, sum all elo changes from matches they participated in
         # and verify it matches (current_elo - start_elo)
         from collections import defaultdict
+
         total_changes = defaultdict(float)
         for m in matches:
             total_changes[m.player_a_id] += m.elo_change_a
@@ -167,5 +180,6 @@ class TestSeedDataCounts:
         for pid, player in players.items():
             if pid in total_changes:
                 expected = player.start_elo + total_changes[pid]
-                assert abs(player.current_elo - expected) < 0.01, \
+                assert abs(player.current_elo - expected) < 0.01, (
                     f"Player {player.name}: current={player.current_elo}, expected={expected}"
+                )

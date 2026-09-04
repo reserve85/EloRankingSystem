@@ -1,6 +1,5 @@
 """Tests for audit logging."""
 
-
 import json
 from unittest.mock import patch
 
@@ -28,8 +27,11 @@ def _login_as(client, db_session, username, password, role):
 
 def _create_player(db_session, name="Player", elo=1200):
     player = Player(
-        name=name, start_elo=elo, current_elo=float(elo),
-        active=True, disabled=False,
+        name=name,
+        start_elo=elo,
+        current_elo=float(elo),
+        active=True,
+        disabled=False,
     )
     db_session.add(player)
     db_session.commit()
@@ -171,13 +173,16 @@ class TestMatchAudit:
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
 
-        client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         logs = _get_audit_logs(db_session, "MATCH_CREATED")
         assert len(logs) >= 1
@@ -188,13 +193,16 @@ class TestMatchAudit:
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
 
-        client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         logs = _get_audit_logs(db_session, "MATCH_CREATED")
         assert len(logs) >= 1
@@ -208,13 +216,16 @@ class TestMatchAudit:
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
 
-        resp = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
         client.delete(f"/matches/{match_id}")
 
@@ -228,13 +239,16 @@ class TestMatchAudit:
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
 
-        resp = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
         client.put(f"/matches/{match_id}", json={"player1_score": 0, "player2_score": 3})
@@ -248,13 +262,16 @@ class TestMatchAudit:
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
 
-        client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         logs = _get_audit_logs(db_session, "RANKING_RECALCULATED")
         assert len(logs) >= 1
@@ -265,13 +282,16 @@ class TestMatchAudit:
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
 
-        client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         logs = _get_audit_logs(db_session, "RANKING_RECALCULATED")
         assert len(logs) >= 1
@@ -285,13 +305,16 @@ class TestMatchAudit:
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
 
-        resp = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
         client.delete(f"/matches/{match_id}")
 
@@ -307,13 +330,16 @@ class TestMatchAudit:
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
 
-        resp = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
         # Simulate a failure during the Elo recalculation step. The TestClient
@@ -336,13 +362,16 @@ class TestMatchAudit:
         pa = _create_player(db_session, "Alice")
         pb = _create_player(db_session, "Bob")
 
-        resp = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
         client.put(f"/matches/{match_id}", json={"player1_score": 0, "player2_score": 3})
@@ -375,9 +404,7 @@ class TestUserAudit:
         """User creation should be logged."""
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
 
-        client.post("/users/", json={
-            "username": "newuser", "password": "Pass123!", "role": "USER"
-        })
+        client.post("/users/", json={"username": "newuser", "password": "Pass123!", "role": "USER"})
 
         logs = _get_audit_logs(db_session, "USER_CREATED")
         assert len(logs) >= 1
@@ -516,11 +543,17 @@ class TestAuditApi:
 
         log = logs[0]
         required_fields = [
-            "id", "timestamp", "action",
-            "user_id", "username",
-            "entity_type", "entity_id",
-            "old_value", "new_value",
-            "ip_address", "user_agent",
+            "id",
+            "timestamp",
+            "action",
+            "user_id",
+            "username",
+            "entity_type",
+            "entity_id",
+            "old_value",
+            "new_value",
+            "ip_address",
+            "user_agent",
         ]
         for field in required_fields:
             assert field in log, f"Missing field: {field}"
@@ -613,11 +646,7 @@ class TestSecretRedaction:
             new_value={"user": {"password": "hunter2", "name": "Bob"}},
         )
 
-        log = (
-            db_session.query(AuditLog)
-            .filter(AuditLog.action == "TEST_NESTED_REDACTION")
-            .first()
-        )
+        log = db_session.query(AuditLog).filter(AuditLog.action == "TEST_NESTED_REDACTION").first()
         assert log is not None
         new_value = json.loads(log.new_value)
         assert new_value["user"]["password"] == "[REDACTED]"

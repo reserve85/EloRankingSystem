@@ -136,9 +136,7 @@ class TestYamlToEnvDefaults:
 
     def test_elo_section_mapping(self):
         """Test elo section YAML → env var mapping."""
-        yaml_config = {
-            "elo": {"default_rating": 1500, "k_factor": 24}
-        }
+        yaml_config = {"elo": {"default_rating": 1500, "k_factor": 24}}
         result = _yaml_to_env_defaults(yaml_config)
         assert result["DEFAULT_ELO"] == "1500"
         assert result["K_FACTOR"] == "24"
@@ -151,9 +149,7 @@ class TestYamlToEnvDefaults:
 
     def test_system_user_section_mapping(self):
         """Test system_user section YAML → env var mapping."""
-        yaml_config = {
-            "system_user": {"username": "admin", "password": "secret"}
-        }
+        yaml_config = {"system_user": {"username": "admin", "password": "secret"}}
         result = _yaml_to_env_defaults(yaml_config)
         assert result["SYSTEM_USER_USERNAME"] == "admin"
         assert result["SYSTEM_USER_PASSWORD"] == "secret"
@@ -278,7 +274,7 @@ class TestSettings:
         monkeypatch.setenv("DATABASE_URL", "sqlite:///./data/database.db")
         s = Settings()
         assert s.database_url.startswith("sqlite:///")
-        db_path = s.database_url[len("sqlite:///"):]
+        db_path = s.database_url[len("sqlite:///") :]
         assert os.path.isabs(db_path)
         assert db_path.replace("\\", "/").endswith("data/database.db")
 
@@ -392,11 +388,23 @@ class TestGetSettings:
 
         # Clean all relevant env vars
         env_vars = [
-            "APP_NAME", "APP_ENV", "APP_DEBUG", "DEFAULT_ELO", "K_FACTOR",
-            "INACTIVITY_MONTHS", "SYSTEM_USER_USERNAME", "SYSTEM_USER_PASSWORD",
-            "JWT_SECRET", "JWT_ALGORITHM", "ACCESS_TOKEN_LIFETIME_MINUTES",
-            "COOKIE_SECURE", "COOKIE_HTTPONLY", "COOKIE_SAMESITE",
-            "DATA_DIR", "UPLOAD_DIR", "BACKUP_DIR",
+            "APP_NAME",
+            "APP_ENV",
+            "APP_DEBUG",
+            "DEFAULT_ELO",
+            "K_FACTOR",
+            "INACTIVITY_MONTHS",
+            "SYSTEM_USER_USERNAME",
+            "SYSTEM_USER_PASSWORD",
+            "JWT_SECRET",
+            "JWT_ALGORITHM",
+            "ACCESS_TOKEN_LIFETIME_MINUTES",
+            "COOKIE_SECURE",
+            "COOKIE_HTTPONLY",
+            "COOKIE_SAMESITE",
+            "DATA_DIR",
+            "UPLOAD_DIR",
+            "BACKUP_DIR",
         ]
         saved = {}
         for var in env_vars:

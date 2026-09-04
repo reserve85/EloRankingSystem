@@ -30,9 +30,7 @@ def rate_limiting_enabled():
 
 def _login_ok(client, username: str, password: str):
     """Helper: POST a valid login so the client stores the auth cookie."""
-    resp = client.post(
-        "/auth/login", data={"username": username, "password": password}
-    )
+    resp = client.post("/auth/login", data={"username": username, "password": password})
     assert resp.status_code == 200
 
 
@@ -41,14 +39,10 @@ class TestLoginRateLimit:
 
     def test_exceeded_after_20_attempts(self, client, db_session, rate_limiting_enabled):
         for _ in range(LOGIN_LIMIT):
-            resp = client.post(
-                "/auth/login", data={"username": "nobody", "password": "nope"}
-            )
+            resp = client.post("/auth/login", data={"username": "nobody", "password": "nope"})
             assert resp.status_code == 401  # route reached, no token burned on CSRF
 
-        resp = client.post(
-            "/auth/login", data={"username": "nobody", "password": "nope"}
-        )
+        resp = client.post("/auth/login", data={"username": "nobody", "password": "nope"})
         assert resp.status_code == 429
 
 
@@ -130,15 +124,11 @@ class TestRateLimitingToggle:
     def test_disabled_by_default_allows_requests(self, client, db_session):
         """Without the fixture, the limiter is disabled and login is not blocked."""
         assert limiter.enabled is False
-        resp = client.post(
-            "/auth/login", data={"username": "nobody", "password": "nope"}
-        )
+        resp = client.post("/auth/login", data={"username": "nobody", "password": "nope"})
         assert resp.status_code == 401
 
     def test_enabled_flag_controls_enforcement(self, client, db_session, rate_limiting_enabled):
         assert limiter.enabled is True
         # Just verify the flag is toggled; a single request is still within limits.
-        resp = client.post(
-            "/auth/login", data={"username": "nobody", "password": "nope"}
-        )
+        resp = client.post("/auth/login", data={"username": "nobody", "password": "nope"})
         assert resp.status_code == 401

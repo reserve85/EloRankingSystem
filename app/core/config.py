@@ -168,19 +168,13 @@ class Settings(BaseSettings):
     best_of_legs: int = Field(default=5, alias="BEST_OF_LEGS")
 
     # ── System User ──────────────────────────────────────
-    system_user_username: str = Field(
-        default="system", alias="SYSTEM_USER_USERNAME"
-    )
-    system_user_password: str = Field(
-        default="change_me", alias="SYSTEM_USER_PASSWORD"
-    )
+    system_user_username: str = Field(default="system", alias="SYSTEM_USER_USERNAME")
+    system_user_password: str = Field(default="change_me", alias="SYSTEM_USER_PASSWORD")
 
     # ── Security ─────────────────────────────────────────
     jwt_secret: str = Field(default="change_me", alias="JWT_SECRET")
     jwt_algorithm: str = Field(default="HS256", alias="JWT_ALGORITHM")
-    access_token_lifetime_minutes: int = Field(
-        default=480, alias="ACCESS_TOKEN_LIFETIME_MINUTES"
-    )
+    access_token_lifetime_minutes: int = Field(default=480, alias="ACCESS_TOKEN_LIFETIME_MINUTES")
     cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
     cookie_httponly: bool = Field(default=True, alias="COOKIE_HTTPONLY")
     cookie_samesite: str = Field(default="lax", alias="COOKIE_SAMESITE")
@@ -198,9 +192,7 @@ class Settings(BaseSettings):
 
     # ── Storage ──────────────────────────────────────────
     data_dir: str = Field(default=str(BASE_DIR / "data"), alias="DATA_DIR")
-    upload_dir: str = Field(
-        default=str(BASE_DIR / "uploads"), alias="UPLOAD_DIR"
-    )
+    upload_dir: str = Field(default=str(BASE_DIR / "uploads"), alias="UPLOAD_DIR")
 
     model_config = ConfigDict(
         env_file=".env",
@@ -224,7 +216,7 @@ class Settings(BaseSettings):
         """
         if not value.startswith("sqlite:///"):
             return value
-        db_path = value[len("sqlite:///"):]
+        db_path = value[len("sqlite:///") :]
         # ``startswith(("/", "\\"))`` treats a rooted path like
         # ``/data/database.db`` (Docker style) as absolute on Windows too,
         # where Path.is_absolute() alone would not.

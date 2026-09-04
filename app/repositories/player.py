@@ -40,12 +40,7 @@ class PlayerRepository:
         Returns both active and inactive (but not disabled) players,
         so inactive players can be selected for their first match.
         """
-        return (
-            self.db.query(Player)
-            .filter(Player.disabled.is_(False))
-            .order_by(Player.name)
-            .all()
-        )
+        return self.db.query(Player).filter(Player.disabled.is_(False)).order_by(Player.name).all()
 
     def get_by_name(self, name: str) -> Optional[Player]:
         """Get a player by exact name."""

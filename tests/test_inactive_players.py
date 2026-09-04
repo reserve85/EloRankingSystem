@@ -113,17 +113,25 @@ class TestInactivePlayerHiddenFromRanking:
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         pa = _create_player(db_session, "Active", elo=1200)
         opponent = _create_player(db_session, "Opponent", elo=1200)
-        _create_player(db_session, "Inactive", elo=1300, active=False,
-                                  last_match=date.today() - timedelta(days=120))
+        _create_player(
+            db_session,
+            "Inactive",
+            elo=1300,
+            active=False,
+            last_match=date.today() - timedelta(days=120),
+        )
 
         # Create a match for Active player within the interval (vs Opponent, not vs Inactive)
-        client.post("/matches/", json={
-            "date": str(date.today()),
-            "player_a_id": pa.id,
-            "player_b_id": opponent.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": str(date.today()),
+                "player_a_id": pa.id,
+                "player_b_id": opponent.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         resp = _get_ranking(
             client,
@@ -140,8 +148,9 @@ class TestInactivePlayerHiddenFromRanking:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        _create_player(db_session, "Inactive", elo=1300,
-                                  last_match=date.today() - timedelta(days=120))
+        _create_player(
+            db_session, "Inactive", elo=1300, last_match=date.today() - timedelta(days=120)
+        )
 
         resp = _get_ranking(
             client,
@@ -157,8 +166,9 @@ class TestInactivePlayerHiddenFromRanking:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        _create_player(db_session, "Inactive", elo=1350,
-                                  last_match=date.today() - timedelta(days=120))
+        _create_player(
+            db_session, "Inactive", elo=1350, last_match=date.today() - timedelta(days=120)
+        )
 
         resp = _get_ranking(
             client,
@@ -178,8 +188,9 @@ class TestInactivePlayerSelectable:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
-        _create_player(db_session, "Inactive", elo=1200,
-                                  last_match=date.today() - timedelta(days=120))
+        _create_player(
+            db_session, "Inactive", elo=1200, last_match=date.today() - timedelta(days=120)
+        )
 
         # get_all_players returns all non-disabled players
         resp = client.get("/players/")
@@ -191,8 +202,9 @@ class TestInactivePlayerSelectable:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
-        _create_player(db_session, "Inactive", elo=1200,
-                                  last_match=date.today() - timedelta(days=120))
+        _create_player(
+            db_session, "Inactive", elo=1200, last_match=date.today() - timedelta(days=120)
+        )
 
         # Active players list (not disabled)
         resp = client.get("/players/active")
@@ -204,18 +216,21 @@ class TestInactivePlayerSelectable:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        inactive = _create_player(db_session, "Inactive", elo=1200,
-                                  last_match=date.today() - timedelta(days=120))
-        opponent = _create_player(db_session, "Opponent", elo=1200,
-                                  last_match=date.today())
+        inactive = _create_player(
+            db_session, "Inactive", elo=1200, last_match=date.today() - timedelta(days=120)
+        )
+        opponent = _create_player(db_session, "Opponent", elo=1200, last_match=date.today())
 
-        resp = client.post("/matches/", json={
-            "date": str(date.today()),
-            "player_a_id": inactive.id,
-            "player_b_id": opponent.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": str(date.today()),
+                "player_a_id": inactive.id,
+                "player_b_id": opponent.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert resp.status_code == 201
 
 
@@ -227,8 +242,13 @@ class TestInactivePlayerReactivated:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        inactive = _create_player(db_session, "Returning", elo=1200, active=False,
-                                  last_match=date.today() - timedelta(days=120))
+        inactive = _create_player(
+            db_session,
+            "Returning",
+            elo=1200,
+            active=False,
+            last_match=date.today() - timedelta(days=120),
+        )
         opponent = _create_player(db_session, "Opponent", elo=1200)
 
         # Before match: not in active ranking (active=False, no matches in interval)
@@ -241,13 +261,16 @@ class TestInactivePlayerReactivated:
         assert "Returning" not in names
 
         # Play a match
-        client.post("/matches/", json={
-            "date": str(date.today()),
-            "player_a_id": inactive.id,
-            "player_b_id": opponent.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": str(date.today()),
+                "player_a_id": inactive.id,
+                "player_b_id": opponent.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         # After match: appears in active ranking
         resp = _get_ranking(
@@ -263,18 +286,20 @@ class TestInactivePlayerReactivated:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        inactive = _create_player(db_session, "Returning", elo=1200,
-                                  last_match=date(2024, 1, 1))
+        inactive = _create_player(db_session, "Returning", elo=1200, last_match=date(2024, 1, 1))
         opponent = _create_player(db_session, "Opponent", elo=1200)
 
         today_str = str(date.today())
-        client.post("/matches/", json={
-            "date": today_str,
-            "player_a_id": inactive.id,
-            "player_b_id": opponent.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": today_str,
+                "player_a_id": inactive.id,
+                "player_b_id": opponent.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         resp = client.get(f"/players/{inactive.id}")
         assert resp.json()["last_match_date"] == today_str
@@ -284,19 +309,20 @@ class TestInactivePlayerReactivated:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        inactive = _create_player(db_session, "Returning", elo=1350,
-                                  last_match=date(2024, 1, 1))
-        opponent = _create_player(db_session, "Opponent", elo=1200,
-                                  last_match=date.today())
+        inactive = _create_player(db_session, "Returning", elo=1350, last_match=date(2024, 1, 1))
+        opponent = _create_player(db_session, "Opponent", elo=1200, last_match=date.today())
 
         # Play a match - Elo should start from 1350, not default 1200
-        resp = client.post("/matches/", json={
-            "date": str(date.today()),
-            "player_a_id": inactive.id,
-            "player_b_id": opponent.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": str(date.today()),
+                "player_a_id": inactive.id,
+                "player_b_id": opponent.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_data = resp.json()
         assert match_data["elo_before_a"] == 1350.0
 
@@ -304,13 +330,14 @@ class TestInactivePlayerReactivated:
 class TestDisabledVsInactive:
     """Tests that disabled and inactive are different concepts."""
 
-    def test_disabled_player_not_in_ranking_even_with_include_inactive(self, client, db_session, monkeypatch):
+    def test_disabled_player_not_in_ranking_even_with_include_inactive(
+        self, client, db_session, monkeypatch
+    ):
         """Disabled player should NOT appear even with include_inactive=True."""
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        disabled = _create_player(db_session, "Disabled", elo=1200,
-                                  last_match=date.today())
+        disabled = _create_player(db_session, "Disabled", elo=1200, last_match=date.today())
         disabled.disabled = True
         db_session.commit()
 
@@ -323,13 +350,16 @@ class TestDisabledVsInactive:
         names = [e["player_name"] for e in resp.json()["entries"]]
         assert "Disabled" not in names
 
-    def test_inactive_player_in_ranking_with_include_inactive(self, client, db_session, monkeypatch):
+    def test_inactive_player_in_ranking_with_include_inactive(
+        self, client, db_session, monkeypatch
+    ):
         """Inactive player SHOULD appear with include_inactive=True."""
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        _create_player(db_session, "Inactive", elo=1200,
-                                  last_match=date.today() - timedelta(days=120))
+        _create_player(
+            db_session, "Inactive", elo=1200, last_match=date.today() - timedelta(days=120)
+        )
 
         resp = _get_ranking(
             client,
@@ -357,8 +387,9 @@ class TestDisabledVsInactive:
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
-        _create_player(db_session, "Inactive", elo=1200,
-                                  last_match=date.today() - timedelta(days=120))
+        _create_player(
+            db_session, "Inactive", elo=1200, last_match=date.today() - timedelta(days=120)
+        )
 
         resp = client.get("/players/active")
         names = [p["name"] for p in resp.json()]
@@ -382,8 +413,9 @@ class TestDisabledVsInactive:
         """Inactive player should have disabled=False."""
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
-        inactive = _create_player(db_session, "Inactive", elo=1200,
-                                  last_match=date.today() - timedelta(days=120))
+        inactive = _create_player(
+            db_session, "Inactive", elo=1200, last_match=date.today() - timedelta(days=120)
+        )
 
         assert inactive.disabled is False
         assert inactive.active is True
@@ -405,7 +437,6 @@ class TestDisabledVsInactive:
         assert resp.json()["active"] is True
 
         # Inactive player: becomes active automatically via match
-        inactive = _create_player(db_session, "Inactive", elo=1200,
-                                  last_match=date(2024, 1, 1))
+        inactive = _create_player(db_session, "Inactive", elo=1200, last_match=date(2024, 1, 1))
         assert inactive.disabled is False
         assert inactive.active is True  # Still "active" in DB sense

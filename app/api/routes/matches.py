@@ -28,7 +28,9 @@ def create_match(
     If force=true, skips the duplicate check and saves anyway.
     """
     service = MatchService(db)
-    return service.create_match(data, created_by=current_user.id, username=current_user.username, force=force)
+    return service.create_match(
+        data, created_by=current_user.id, username=current_user.username, force=force
+    )
 
 
 @router.get("/", response_model=list[MatchResponse])
@@ -91,7 +93,9 @@ def update_match(
 ):
     """Update a match. Requires ADMIN or SYSTEM role."""
     service = MatchService(db)
-    return service.update_match(match_id, data, updated_by=current_user.id, username=current_user.username)
+    return service.update_match(
+        match_id, data, updated_by=current_user.id, username=current_user.username
+    )
 
 
 @router.delete("/{match_id}", status_code=status.HTTP_200_OK)

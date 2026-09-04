@@ -16,7 +16,12 @@ router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.post("/", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
-def create_user(request: Request, data: UserCreate, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+def create_user(
+    request: Request,
+    data: UserCreate,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """Create a new user. Requires ADMIN or SYSTEM role."""
     existing = db.query(User).filter(User.username == data.username).first()
     if existing:
@@ -26,17 +31,27 @@ def create_user(request: Request, data: UserCreate, current_user: User = Depends
     strength_errors = validate_password_strength(data.password)
     if strength_errors:
         raise HTTPException(status_code=400, detail=strength_errors)
-    user = User(username=data.username, password_hash=hash_password(data.password), role=data.role, active=True)
+    user = User(
+        username=data.username,
+        password_hash=hash_password(data.password),
+        role=data.role,
+        active=True,
+    )
     db.add(user)
     # Flush so user.id is assigned before the audit references it. No commit
     # yet: the user and its audit entry are committed together below (Fix L7).
     db.flush()
     ip, ua = get_client_info(request)
     log_event(
-        db, action="USER_CREATED", entity_type="user",
-        entity_id=user.id, user_id=current_user.id, username=current_user.username,
+        db,
+        action="USER_CREATED",
+        entity_type="user",
+        entity_id=user.id,
+        user_id=current_user.id,
+        username=current_user.username,
         new_value={"username": user.username, "role": user.role.value},
-        ip_address=ip, user_agent=ua,
+        ip_address=ip,
+        user_agent=ua,
     )
     db.commit()
     return user
@@ -49,7 +64,9 @@ def list_users(current_user: User = Depends(require_admin), db: Session = Depend
 
 
 @router.get("/{user_id}", response_model=UserResponse)
-def get_user(user_id: int, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+def get_user(
+    user_id: int, current_user: User = Depends(require_admin), db: Session = Depends(get_db)
+):
     """Get a user by ID. Requires ADMIN or SYSTEM role."""
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
@@ -58,7 +75,12 @@ def get_user(user_id: int, current_user: User = Depends(require_admin), db: Sess
 
 
 @router.delete("/{user_id}")
-def delete_user(user_id: int, request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+def delete_user(
+    user_id: int,
+    request: Request,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """Delete a user account. Requires ADMIN or SYSTEM role.
 
     - SYSTEM users cannot be deleted.
@@ -80,7 +102,10 @@ def delete_user(user_id: int, request: Request, current_user: User = Depends(req
 
     # ADMIN can only delete USER accounts, SYSTEM can delete both ADMIN and USER
     if current_user.role == UserRole.ADMIN and user.role == UserRole.ADMIN:
-        raise HTTPException(status_code=403, detail="ADMIN cannot delete other ADMIN accounts. Only SYSTEM can delete ADMIN accounts.")
+        raise HTTPException(
+            status_code=403,
+            detail="ADMIN cannot delete other ADMIN accounts. Only SYSTEM can delete ADMIN accounts.",
+        )
 
     # Cannot delete a user who authored matches: ``matches.created_by`` is a
     # FK to users.id (NOT NULL), so deleting the user would raise an unhandled
@@ -103,10 +128,15 @@ def delete_user(user_id: int, request: Request, current_user: User = Depends(req
 
     ip, ua = get_client_info(request)
     log_event(
-        db, action="USER_DELETED", entity_type="user",
-        entity_id=user_id, user_id=current_user.id, username=current_user.username,
+        db,
+        action="USER_DELETED",
+        entity_type="user",
+        entity_id=user_id,
+        user_id=current_user.id,
+        username=current_user.username,
         old_value=old_value,
-        ip_address=ip, user_agent=ua,
+        ip_address=ip,
+        user_agent=ua,
     )
     db.commit()
 
@@ -114,7 +144,13 @@ def delete_user(user_id: int, request: Request, current_user: User = Depends(req
 
 
 @router.put("/{user_id}", response_model=UserResponse)
-def update_user(user_id: int, request: Request, data: UserUpdate, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
+def update_user(
+    user_id: int,
+    request: Request,
+    data: UserUpdate,
+    current_user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+):
     """Update a user. Requires ADMIN or SYSTEM role.
 
     Authorization model (mirrors ``delete_user``):
@@ -192,10 +228,16 @@ def update_user(user_id: int, request: Request, data: UserUpdate, current_user: 
 
     ip, ua = get_client_info(request)
     log_event(
-        db, action=action, entity_type="user",
-        entity_id=user.id, user_id=current_user.id, username=current_user.username,
-        old_value=old, new_value=new,
-        ip_address=ip, user_agent=ua,
+        db,
+        action=action,
+        entity_type="user",
+        entity_id=user.id,
+        user_id=current_user.id,
+        username=current_user.username,
+        old_value=old,
+        new_value=new,
+        ip_address=ip,
+        user_agent=ua,
     )
     # Single commit: the mutation and its audit entry are written together (Fix L7).
     db.commit()

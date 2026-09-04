@@ -25,11 +25,15 @@ def create_player(
     player = service.create_player(data)
     ip, ua = get_client_info(request)
     log_event(
-        db, action="PLAYER_CREATED", entity_type="player",
-        entity_id=player.id, user_id=current_user.id,
+        db,
+        action="PLAYER_CREATED",
+        entity_type="player",
+        entity_id=player.id,
+        user_id=current_user.id,
         username=current_user.username,
         new_value={"name": player.name, "start_elo": player.start_elo},
-        ip_address=ip, user_agent=ua,
+        ip_address=ip,
+        user_agent=ua,
     )
     db.commit()
     return player
@@ -82,12 +86,16 @@ def update_player(
     player = service.update_player(player_id, data)
     ip, ua = get_client_info(request)
     log_event(
-        db, action="PLAYER_UPDATED", entity_type="player",
-        entity_id=player.id, user_id=current_user.id,
+        db,
+        action="PLAYER_UPDATED",
+        entity_type="player",
+        entity_id=player.id,
+        user_id=current_user.id,
         username=current_user.username,
         old_value=old,
         new_value={"name": player.name, "start_elo": player.start_elo},
-        ip_address=ip, user_agent=ua,
+        ip_address=ip,
+        user_agent=ua,
     )
     db.commit()
     return player
@@ -105,10 +113,14 @@ def disable_player(
     player = service.disable_player(player_id)
     ip, ua = get_client_info(request)
     log_event(
-        db, action="PLAYER_DISABLED", entity_type="player",
-        entity_id=player.id, user_id=current_user.id,
+        db,
+        action="PLAYER_DISABLED",
+        entity_type="player",
+        entity_id=player.id,
+        user_id=current_user.id,
         username=current_user.username,
-        ip_address=ip, user_agent=ua,
+        ip_address=ip,
+        user_agent=ua,
     )
     db.commit()
     return player
@@ -126,10 +138,14 @@ def reactivate_player(
     player = service.reactivate_player(player_id)
     ip, ua = get_client_info(request)
     log_event(
-        db, action="PLAYER_REACTIVATED", entity_type="player",
-        entity_id=player.id, user_id=current_user.id,
+        db,
+        action="PLAYER_REACTIVATED",
+        entity_type="player",
+        entity_id=player.id,
+        user_id=current_user.id,
         username=current_user.username,
-        ip_address=ip, user_agent=ua,
+        ip_address=ip,
+        user_agent=ua,
     )
     db.commit()
     return player

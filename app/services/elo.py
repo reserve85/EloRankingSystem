@@ -38,7 +38,7 @@ def calculate_expected_score(rating_a: float, rating_b: float) -> float:
         Expected score for player A (between 0 and 1).
     """
     exponent = (rating_b - rating_a) / 400.0
-    return 1.0 / (1.0 + 10.0 ** exponent)
+    return 1.0 / (1.0 + 10.0**exponent)
 
 
 def calculate_new_rating(

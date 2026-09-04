@@ -33,8 +33,8 @@ router = APIRouter(prefix="/settings", tags=["settings"])
 MAX_LOGO_SIZE = 2 * 1024 * 1024
 _UPLOAD_READ_CHUNK = 1024 * 1024
 
-class SettingsResponse(BaseModel):
 
+class SettingsResponse(BaseModel):
     id: int
 
     club_name: str
@@ -45,8 +45,8 @@ class SettingsResponse(BaseModel):
 
     model_config = {"from_attributes": True}
 
-def _validate_logo_upload(file: UploadFile, content: bytes) -> None:
 
+def _validate_logo_upload(file: UploadFile, content: bytes) -> None:
     """Validate logo file extension, MIME type, and size."""
 
     allowed_extensions = {".png", ".jpg", ".jpeg"}
@@ -54,18 +54,21 @@ def _validate_logo_upload(file: UploadFile, content: bytes) -> None:
     ext = os.path.splitext(file.filename or "")[1].lower()
 
     if ext not in allowed_extensions:
-
-        raise HTTPException(status_code=400, detail=f"Invalid file type '{ext}'. Allowed: {', '.join(allowed_extensions)}")
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type '{ext}'. Allowed: {', '.join(allowed_extensions)}",
+        )
 
     allowed_mimes = {"image/png", "image/jpeg", "image/jpg"}
 
     if file.content_type not in allowed_mimes:
-
         raise HTTPException(status_code=400, detail=f"Invalid content type '{file.content_type}'")
 
     if len(content) > MAX_LOGO_SIZE:
-
-        raise HTTPException(status_code=400, detail=f"File too large. Maximum size: {MAX_LOGO_SIZE // (1024 * 1024)}MB")
+        raise HTTPException(
+            status_code=400,
+            detail=f"File too large. Maximum size: {MAX_LOGO_SIZE // (1024 * 1024)}MB",
+        )
 
 
 async def _read_upload_limited(file: UploadFile) -> bytes:
@@ -84,12 +87,15 @@ async def _read_upload_limited(file: UploadFile) -> bytes:
             break
         total += len(chunk)
         if total > MAX_LOGO_SIZE:
-            raise HTTPException(status_code=400, detail=f"File too large. Maximum size: {MAX_LOGO_SIZE // (1024 * 1024)}MB")
+            raise HTTPException(
+                status_code=400,
+                detail=f"File too large. Maximum size: {MAX_LOGO_SIZE // (1024 * 1024)}MB",
+            )
         chunks.append(chunk)
     return b"".join(chunks)
 
-def _save_logo_file(file: UploadFile, content: bytes, prefix: str, upload_dir: str) -> str:
 
+def _save_logo_file(file: UploadFile, content: bytes, prefix: str, upload_dir: str) -> str:
     """Save logo file and return the file path."""
 
     os.makedirs(upload_dir, exist_ok=True)
@@ -101,19 +107,17 @@ def _save_logo_file(file: UploadFile, content: bytes, prefix: str, upload_dir: s
     file_path = os.path.join(upload_dir, safe_name)
 
     with open(file_path, "wb") as f:
-
         f.write(content)
 
     return file_path
 
-def _get_or_create_settings(db: Session) -> ClubSettings:
 
+def _get_or_create_settings(db: Session) -> ClubSettings:
     """Get or create the club settings row."""
 
     cs = db.query(ClubSettings).first()
 
     if cs is None:
-
         cs = ClubSettings()
 
         db.add(cs)
@@ -124,24 +128,20 @@ def _get_or_create_settings(db: Session) -> ClubSettings:
 
     return cs
 
-def _delete_logo_file(path: str) -> None:
 
+def _delete_logo_file(path: str) -> None:
     """Safely delete a logo file."""
 
     if path and os.path.exists(path):
-
         try:
-
             os.remove(path)
 
         except OSError:
-
             pass
 
+
 @router.get("/", response_model=SettingsResponse)
-
 def get_settings(db: Session = Depends(get_db), current_user: User = Depends(require_admin)):
-
     """Get club settings. Requires ADMIN or SYSTEM role."""
 
     cs = _get_or_create_settings(db)
@@ -152,22 +152,15 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(req
 
     return cs
 
+
 @router.post("/logo", response_model=SettingsResponse)
-
 async def upload_logo(
-
     request: Request,
-
     file: UploadFile = File(...),
-
     mode: str = Query(default="light", pattern="^(light|dark)$"),
-
     current_user: User = Depends(require_admin),
-
     db: Session = Depends(get_db),
-
 ):
-
     """Upload club logo for normal (light) or dark mode. Requires ADMIN or SYSTEM role.
 
     Args:
@@ -198,11 +191,16 @@ async def upload_logo(
 
     try:
         log_event(
-            db, action="CLUB_LOGO_UPLOADED", entity_type="club_settings",
-            entity_id=cs.id, user_id=current_user.id, username=current_user.username,
+            db,
+            action="CLUB_LOGO_UPLOADED",
+            entity_type="club_settings",
+            entity_id=cs.id,
+            user_id=current_user.id,
+            username=current_user.username,
             old_value={f"club_logo_{mode}_path": old_path},
             new_value={f"club_logo_{mode}_path": file_path},
-            ip_address=ip, user_agent=ua,
+            ip_address=ip,
+            user_agent=ua,
         )
         # Single commit: the settings update and its audit entry are atomic
         # (no more double commit that could orphan files / write partial state).
@@ -221,26 +219,20 @@ async def upload_logo(
 
     return cs
 
-class QRCodeRequest(BaseModel):
 
+class QRCodeRequest(BaseModel):
     username: str
 
     password: str
 
+
 @router.post("/qrcode")
-
 def generate_qrcode(
-
     request: Request,
-
     data: QRCodeRequest,
-
     current_user: User = Depends(require_admin),
-
     db: Session = Depends(get_db),
-
 ):
-
     """Generate QR code for auto-login URL. Only USER role accounts allowed."""
 
     import io
@@ -254,23 +246,22 @@ def generate_qrcode(
     target_user = db.query(User).filter(User.username == data.username).first()
 
     if target_user is None:
-
         raise HTTPException(status_code=404, detail="User not found")
 
     # Only USER role allowed for QR code
 
     if target_user.role != UserRole.USER:
-
-        raise HTTPException(status_code=403, detail="QR code can only be generated for USER role accounts, not ADMIN or SYSTEM")
+        raise HTTPException(
+            status_code=403,
+            detail="QR code can only be generated for USER role accounts, not ADMIN or SYSTEM",
+        )
 
     if not target_user.active:
-
         raise HTTPException(status_code=400, detail="User account is disabled")
 
     # Verify password
 
     if not verify_password(target_user.password_hash, data.password):
-
         raise HTTPException(status_code=401, detail="Invalid password")
 
     # Generate QR code
@@ -278,16 +269,16 @@ def generate_qrcode(
     import qrcode
 
     if settings.app_base_url:
-
         base_url = settings.app_base_url.rstrip("/")
 
     else:
-
         # Respect reverse proxy headers (X-Forwarded-Proto, X-Forwarded-Host)
 
         scheme = request.headers.get("x-forwarded-proto", request.url.scheme)
 
-        host = request.headers.get("x-forwarded-host", request.headers.get("host", str(request.base_url).rstrip("/")))
+        host = request.headers.get(
+            "x-forwarded-host", request.headers.get("host", str(request.base_url).rstrip("/"))
+        )
 
         base_url = f"{scheme}://{host}".rstrip("/")
 
@@ -295,7 +286,9 @@ def generate_qrcode(
 
     # 10x10cm at 72 DPI ≈ 283px, use box_size=10, border=2 for clean output
 
-    qr = qrcode.QRCode(version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=2)
+    qr = qrcode.QRCode(
+        version=None, error_correction=qrcode.constants.ERROR_CORRECT_M, box_size=10, border=2
+    )
 
     qr.add_data(url)
 
@@ -311,51 +304,40 @@ def generate_qrcode(
 
     return StreamingResponse(buf, media_type="image/png")
 
-def _get_media_type(file_path: str) -> str:
 
+def _get_media_type(file_path: str) -> str:
     """Determine the correct media type from file extension."""
 
     ext = os.path.splitext(file_path)[1].lower()
 
     mime_map = {
-
         ".png": "image/png",
-
         ".jpg": "image/jpeg",
-
         ".jpeg": "image/jpeg",
-
     }
 
     return mime_map.get(ext, "image/png")
 
+
 @router.get("/logo")
-
 def get_logo(
-
     mode: str = Query(default="light", pattern="^(light|dark)$"),
-
     current_user: User | None = Depends(get_optional_user),
-
     db: Session = Depends(get_db),
-
 ):
-
     """Download the club logo. Publicly accessible. Supports mode=light|dark."""
 
     cs = db.query(ClubSettings).first()
 
     if cs is None:
-
         raise HTTPException(status_code=404, detail="No logo uploaded")
 
     if mode == "dark" and cs.club_logo_dark_path and os.path.exists(cs.club_logo_dark_path):
-
-        return FileResponse(cs.club_logo_dark_path, media_type=_get_media_type(cs.club_logo_dark_path))
+        return FileResponse(
+            cs.club_logo_dark_path, media_type=_get_media_type(cs.club_logo_dark_path)
+        )
 
     if cs.club_logo_path and os.path.exists(cs.club_logo_path):
-
         return FileResponse(cs.club_logo_path, media_type=_get_media_type(cs.club_logo_path))
 
     raise HTTPException(status_code=404, detail="No logo uploaded")
-

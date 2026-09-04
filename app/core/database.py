@@ -20,9 +20,7 @@ if "sqlite" in settings.database_url:
 
 # ``check_same_thread`` is SQLite-specific and must only be passed for SQLite.
 # PostgreSQL/MySQL drivers reject unknown connect args (Fix #8).
-connect_args = (
-    {"check_same_thread": False} if "sqlite" in settings.database_url else {}
-)
+connect_args = {"check_same_thread": False} if "sqlite" in settings.database_url else {}
 
 engine = create_engine(
     settings.database_url,
@@ -49,6 +47,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 class Base(DeclarativeBase):
     """Base class for all SQLAlchemy ORM models."""
+
     pass
 
 
@@ -106,7 +105,9 @@ def init_db() -> None:
 
     else:
         # Scenario 3: Pre-Alembic database — stamp and upgrade
-        logger.info("Pre-Alembic database found. Stamping to head and checking for new migrations...")
+        logger.info(
+            "Pre-Alembic database found. Stamping to head and checking for new migrations..."
+        )
         try:
             command.stamp(alembic_cfg, "head")
             command.upgrade(alembic_cfg, "head")

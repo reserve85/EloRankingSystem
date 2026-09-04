@@ -4,7 +4,6 @@ When a match is added, edited, or deleted, the complete affected timeline
 must be recalculated chronologically.
 """
 
-
 import pytest
 
 from app.models.player import Player
@@ -50,13 +49,16 @@ def _create_match_api(client, pa_id, pb_id, winner_id, match_date="2025-06-01"):
     """Create a match via API and return JSON."""
     score_a = 3 if winner_id == pa_id else 0
     score_b = 3 if winner_id == pb_id else 0
-    resp = client.post("/matches/", json={
-        "date": match_date,
-        "player_a_id": pa_id,
-        "player_b_id": pb_id,
-        "player1_score": score_a,
-        "player2_score": score_b,
-    })
+    resp = client.post(
+        "/matches/",
+        json={
+            "date": match_date,
+            "player_a_id": pa_id,
+            "player_b_id": pb_id,
+            "player1_score": score_a,
+            "player2_score": score_b,
+        },
+    )
     return resp
 
 
@@ -330,9 +332,7 @@ class TestRecalculationAuditLog:
 
         _create_match_api(client, pa.id, pb.id, pa.id, "2025-06-01")
 
-        logs = db_session.query(AuditLog).filter(
-            AuditLog.action == "RANKING_RECALCULATED"
-        ).all()
+        logs = db_session.query(AuditLog).filter(AuditLog.action == "RANKING_RECALCULATED").all()
         assert len(logs) >= 1
         log = logs[-1]
         assert "affected_players" in log.new_value
@@ -347,9 +347,7 @@ class TestRecalculationAuditLog:
         resp = _create_match_api(client, pa.id, pb.id, pa.id, "2025-06-01")
         client.delete(f"/matches/{resp.json()['id']}")
 
-        logs = db_session.query(AuditLog).filter(
-            AuditLog.action == "RANKING_RECALCULATED"
-        ).all()
+        logs = db_session.query(AuditLog).filter(AuditLog.action == "RANKING_RECALCULATED").all()
         assert len(logs) >= 1
 
 
@@ -414,6 +412,8 @@ class TestRecalculationEdgeCases:
         elo_a_two_wins = _get_player_elo(client, pa.id)
         assert elo_a_two_wins < elo_a_three_wins
         assert elo_a_two_wins > 1200.0
+
+
 class TestBoundaryInitialization:
     """Fix #12 - boundary initialization of ``_recalculate_elo_timeline``.
 
@@ -462,9 +462,7 @@ class TestBoundaryInitialization:
         # Jun 1: Alice beats Charlie (this match will be deleted)
         _create_match_api(client, alice.id, charlie.id, alice.id, "2025-06-01")
         # Jun 2: Charlie beats Frank
-        m3 = _create_match_api(
-            client, charlie.id, frank.id, charlie.id, "2025-06-02"
-        ).json()
+        m3 = _create_match_api(client, charlie.id, frank.id, charlie.id, "2025-06-02").json()
 
         # Sanity: Frank lost his first match
         assert _get_player_elo(client, frank.id) < 1200.0
@@ -712,6 +710,8 @@ class TestBoundedTimeline:
 
         rows = repo.get_from_match(earliest)
         assert [m.id for m in rows] == [m2["id"], m3["id"]]
+
+
 class TestDisabledPlayerRecalculation:
     """Disabled players must stay inactive when recalculation touches their timeline."""
 
@@ -726,10 +726,12 @@ class TestDisabledPlayerRecalculation:
         m_id = resp.json()["id"]
 
         # Disable Alice directly in the DB (as an admin would in the UI)
-        db_session.query(Player).filter(Player.id == pa.id).update({
-            "disabled": True,
-            "active": False,
-        })
+        db_session.query(Player).filter(Player.id == pa.id).update(
+            {
+                "disabled": True,
+                "active": False,
+            }
+        )
         db_session.commit()
 
         # Editing the match triggers a timeline recalculation that includes Alice

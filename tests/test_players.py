@@ -538,13 +538,17 @@ class TestPlayerInactiveByDefault:
 
         # Play a match
         from datetime import date
-        match_resp = client.post("/matches/", json={
-            "date": str(date.today()),
-            "player_a_id": pa_id,
-            "player_b_id": pb_id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+
+        match_resp = client.post(
+            "/matches/",
+            json={
+                "date": str(date.today()),
+                "player_a_id": pa_id,
+                "player_b_id": pb_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert match_resp.status_code == 200 or match_resp.status_code == 201
 
         # Both players should now be active
@@ -568,13 +572,16 @@ class TestPlayerStartEloRecalculation:
         pb_id = resp_b.json()["id"]
 
         # Play a match - Player A wins
-        match_resp = client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa_id,
-            "player_b_id": pb_id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        match_resp = client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa_id,
+                "player_b_id": pb_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert match_resp.status_code in (200, 201)
 
         # Get Elo values after first calculation
@@ -588,11 +595,14 @@ class TestPlayerStartEloRecalculation:
 
         # Refresh match data
         from app.models.match import Match
+
         db_session.expire_all()
         match = db_session.query(Match).filter(Match.id == match_data["id"]).first()
 
         # Elo values should have changed due to recalculation
-        assert match.elo_before_a != original_elo_after_a or match.elo_after_a != original_elo_after_a
+        assert (
+            match.elo_before_a != original_elo_after_a or match.elo_after_a != original_elo_after_a
+        )
         # With higher start_elo, player A should have different Elo trajectory
         assert match.elo_before_a == 1500.0
 
@@ -607,13 +617,16 @@ class TestPlayerStartEloRecalculation:
         pb_id = resp_b.json()["id"]
 
         # Play a match
-        client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa_id,
-            "player_b_id": pb_id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa_id,
+                "player_b_id": pb_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         # Get current Elo before start_elo change
         pa_before = client.get(f"/players/{pa_id}").json()
@@ -636,13 +649,16 @@ class TestPlayerStartEloRecalculation:
         pa_id = resp_a.json()["id"]
         pb_id = resp_b.json()["id"]
 
-        client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa_id,
-            "player_b_id": pb_id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa_id,
+                "player_b_id": pb_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         # Change start_elo twice to same value
         client.put(f"/players/{pa_id}", json={"start_elo": 1300})
@@ -657,6 +673,7 @@ class TestPlayerStartEloRecalculation:
     def test_audit_log_created_on_start_elo_change(self, client, db_session):
         """Changing start_elo should create RANKING_RECALCULATED audit entry."""
         from app.models.audit_log import AuditLog
+
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
 
         resp_a = client.post("/players/", json={"name": "Audit A", "start_elo": 1200})
@@ -665,43 +682,45 @@ class TestPlayerStartEloRecalculation:
         pb_id = resp_b.json()["id"]
 
         # Create a match so recalculation has work to do
-        client.post("/matches/", json={
-            "date": "2025-06-01",
-            "player_a_id": pa_id,
-            "player_b_id": pb_id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2025-06-01",
+                "player_a_id": pa_id,
+                "player_b_id": pb_id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         # Change start_elo
         client.put(f"/players/{pa_id}", json={"start_elo": 1500})
 
         # Check for RANKING_RECALCULATED audit entry
-        logs = db_session.query(AuditLog).filter(
-            AuditLog.action == "RANKING_RECALCULATED"
-        ).all()
+        logs = db_session.query(AuditLog).filter(AuditLog.action == "RANKING_RECALCULATED").all()
         assert len(logs) >= 1
 
     def test_no_recalculation_when_start_elo_unchanged(self, client, db_session):
         """Updating name without changing start_elo should NOT trigger recalculation."""
         from app.models.audit_log import AuditLog
+
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
 
         resp = client.post("/players/", json={"name": "NameOnly", "start_elo": 1200})
         player_id = resp.json()["id"]
 
         # Count recalculation logs before
-        logs_before = db_session.query(AuditLog).filter(
-            AuditLog.action == "RANKING_RECALCULATED"
-        ).count()
+        logs_before = (
+            db_session.query(AuditLog).filter(AuditLog.action == "RANKING_RECALCULATED").count()
+        )
 
         # Update name only
         client.put(f"/players/{player_id}", json={"name": "NewName"})
 
         # Count recalculation logs after
-        logs_after = db_session.query(AuditLog).filter(
-            AuditLog.action == "RANKING_RECALCULATED"
-        ).count()
+        logs_after = (
+            db_session.query(AuditLog).filter(AuditLog.action == "RANKING_RECALCULATED").count()
+        )
 
         # Should be same count (no new recalculation)
         assert logs_after == logs_before

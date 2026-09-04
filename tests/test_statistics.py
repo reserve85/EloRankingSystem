@@ -10,7 +10,9 @@ from app.auth.password import hash_password
 
 
 def _create_user(db_session, username="admin", role="ADMIN"):
-    user = User(username=username, password_hash=hash_password("AdminPass123"), role=role, active=True)
+    user = User(
+        username=username, password_hash=hash_password("AdminPass123"), role=role, active=True
+    )
     db_session.add(user)
     db_session.commit()
     db_session.refresh(user)
@@ -18,8 +20,12 @@ def _create_user(db_session, username="admin", role="ADMIN"):
 
 
 def _create_players(db_session):
-    player_a = Player(name="Player A", start_elo=1200, current_elo=1200, active=True, disabled=False)
-    player_b = Player(name="Player B", start_elo=1200, current_elo=1200, active=True, disabled=False)
+    player_a = Player(
+        name="Player A", start_elo=1200, current_elo=1200, active=True, disabled=False
+    )
+    player_b = Player(
+        name="Player B", start_elo=1200, current_elo=1200, active=True, disabled=False
+    )
     db_session.add_all([player_a, player_b])
     db_session.commit()
     db_session.refresh(player_a)
@@ -49,6 +55,7 @@ def _login_as(client, db_session, username, password, role):
 
 # ── High Finish Validation ─────────────────────────────────────────────
 
+
 class TestHighFinishValidation:
     """Test high finish values are validated against configured range."""
 
@@ -58,15 +65,18 @@ class TestHighFinishValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_high_finishes": [100, 170],
-            "player_b_high_finishes": [120],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_high_finishes": [100, 170],
+                "player_b_high_finishes": [120],
+            },
+        )
         assert resp.status_code == 201
 
     def test_high_finish_below_min_rejected(self, client, db_session):
@@ -75,14 +85,17 @@ class TestHighFinishValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_high_finishes": [99],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_high_finishes": [99],
+            },
+        )
         assert resp.status_code == 422
 
     def test_high_finish_above_max_rejected(self, client, db_session):
@@ -91,14 +104,17 @@ class TestHighFinishValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_high_finishes": [171],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_high_finishes": [171],
+            },
+        )
         assert resp.status_code == 422
 
     def test_high_finish_boundaries_accepted(self, client, db_session):
@@ -107,15 +123,18 @@ class TestHighFinishValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_high_finishes": [100],
-            "player_b_high_finishes": [170],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_high_finishes": [100],
+                "player_b_high_finishes": [170],
+            },
+        )
         assert resp.status_code == 201
 
     def test_player_b_high_finish_validated(self, client, db_session):
@@ -124,14 +143,17 @@ class TestHighFinishValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_b_high_finishes": [50],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_b_high_finishes": [50],
+            },
+        )
         assert resp.status_code == 422
 
     def test_high_finish_validation_on_update(self, client, db_session):
@@ -141,19 +163,25 @@ class TestHighFinishValidation:
         pa, pb = _create_players(db_session)
 
         # Create valid match
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
         # Try invalid update
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_high_finishes": [99],
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_high_finishes": [99],
+            },
+        )
         assert resp.status_code == 422
 
     def test_empty_high_finishes_accepted(self, client, db_session):
@@ -162,19 +190,23 @@ class TestHighFinishValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_high_finishes": [],
-            "player_b_high_finishes": [],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_high_finishes": [],
+                "player_b_high_finishes": [],
+            },
+        )
         assert resp.status_code == 201
 
 
 # ── Low Darts Validation ──────────────────────────────────────────────
+
 
 class TestLowDartsValidation:
     """Test low darts values are validated against configured range."""
@@ -185,14 +217,17 @@ class TestLowDartsValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_low_darts": [9, 15, 21],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_low_darts": [9, 15, 21],
+            },
+        )
         assert resp.status_code == 201
 
     def test_low_darts_below_min_rejected(self, client, db_session):
@@ -201,14 +236,17 @@ class TestLowDartsValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_low_darts": [8],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_low_darts": [8],
+            },
+        )
         assert resp.status_code == 422
 
     def test_low_darts_above_max_rejected(self, client, db_session):
@@ -217,14 +255,17 @@ class TestLowDartsValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_b_low_darts": [22],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_b_low_darts": [22],
+            },
+        )
         assert resp.status_code == 422
 
     def test_low_darts_boundaries_accepted(self, client, db_session):
@@ -233,19 +274,23 @@ class TestLowDartsValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_low_darts": [9],
-            "player_b_low_darts": [21],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_low_darts": [9],
+                "player_b_low_darts": [21],
+            },
+        )
         assert resp.status_code == 201
 
 
 # ── 180s Statistics ────────────────────────────────────────────────────
+
 
 class Test180sStatistics:
     """Test 180s count storage and retrieval."""
@@ -256,13 +301,16 @@ class Test180sStatistics:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["player_a_180s"] == 0
@@ -274,15 +322,18 @@ class Test180sStatistics:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 1,
-            "player_a_180s": 3,
-            "player_b_180s": 1,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 1,
+                "player_a_180s": 3,
+                "player_b_180s": 1,
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["player_a_180s"] == 3
@@ -294,15 +345,18 @@ class Test180sStatistics:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_180s": 5,
-            "player_b_180s": 2,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 5,
+                "player_b_180s": 2,
+            },
+        )
         match_id = resp.json()["id"]
 
         resp = client.get(f"/matches/{match_id}")
@@ -317,15 +371,18 @@ class Test180sStatistics:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_180s": 4,
-            "player_b_180s": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 4,
+                "player_b_180s": 0,
+            },
+        )
 
         resp = client.get("/matches/")
         assert resp.status_code == 200
@@ -340,14 +397,17 @@ class Test180sStatistics:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_180s": -1,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": -1,
+            },
+        )
         assert resp.status_code == 422
 
     def test_180s_update(self, client, db_session):
@@ -356,24 +416,31 @@ class Test180sStatistics:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_180s": 1,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 1,
+            },
+        )
         match_id = resp.json()["id"]
 
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_180s": 5,
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_180s": 5,
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["player_a_180s"] == 5
 
 
 # ── High Finishes Storage and Retrieval ────────────────────────────────
+
 
 class TestHighFinishesStorage:
     """Test high finishes stored and retrieved correctly."""
@@ -384,15 +451,18 @@ class TestHighFinishesStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 1,
-            "player_a_high_finishes": [120, 140, 170],
-            "player_b_high_finishes": [100],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 1,
+                "player_a_high_finishes": [120, 140, 170],
+                "player_b_high_finishes": [100],
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["player_a_high_finishes"] == [120, 140, 170]
@@ -404,14 +474,17 @@ class TestHighFinishesStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_high_finishes": [105, 130],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_high_finishes": [105, 130],
+            },
+        )
         match_id = resp.json()["id"]
 
         resp = client.get(f"/matches/{match_id}")
@@ -424,13 +497,16 @@ class TestHighFinishesStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["player_a_high_finishes"] is None or data["player_a_high_finishes"] == []
@@ -442,18 +518,24 @@ class TestHighFinishesStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_high_finishes": [110, 150],
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_high_finishes": [110, 150],
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["player_a_high_finishes"] == [110, 150]
 
@@ -463,14 +545,17 @@ class TestHighFinishesStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_high_finishes": [100],
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_high_finishes": [100],
+            },
+        )
 
         resp = client.get("/matches/")
         assert resp.status_code == 200
@@ -478,6 +563,7 @@ class TestHighFinishesStorage:
 
 
 # ── Low Darts Storage and Retrieval ────────────────────────────────────
+
 
 class TestLowDartsStorage:
     """Test low darts stored and retrieved correctly."""
@@ -488,15 +574,18 @@ class TestLowDartsStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 2,
-            "player_a_low_darts": [12, 15, 18],
-            "player_b_low_darts": [9, 21],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 2,
+                "player_a_low_darts": [12, 15, 18],
+                "player_b_low_darts": [9, 21],
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["player_a_low_darts"] == [12, 15, 18]
@@ -508,14 +597,17 @@ class TestLowDartsStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_low_darts": [9],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_low_darts": [9],
+            },
+        )
         match_id = resp.json()["id"]
 
         resp = client.get(f"/matches/{match_id}")
@@ -528,13 +620,16 @@ class TestLowDartsStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["player_a_low_darts"] is None or data["player_a_low_darts"] == []
@@ -546,61 +641,72 @@ class TestLowDartsStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_b_low_darts": [10, 14],
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_b_low_darts": [10, 14],
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["player_b_low_darts"] == [10, 14]
 
 
 # ── Statistics and Elo Recalculation ───────────────────────────────────
 
+
 class TestStatisticsPreservedDuringRecalculation:
     """Test that historical Elo recalculation does NOT overwrite statistics."""
 
-    def test_statistics_preserved_after_new_match_triggers_recalculation(
-        self, client, db_session
-    ):
+    def test_statistics_preserved_after_new_match_triggers_recalculation(self, client, db_session):
         """Adding a new match that triggers recalc preserves existing stats."""
         _create_user(db_session)
         _login(client)
         pa, pb = _create_players(db_session)
 
         # Create first match with statistics
-        resp = client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_180s": 2,
-            "player_b_180s": 1,
-            "player_a_high_finishes": [120],
-            "player_b_high_finishes": [100],
-            "player_a_low_darts": [9],
-            "player_b_low_darts": [15],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 2,
+                "player_b_180s": 1,
+                "player_a_high_finishes": [120],
+                "player_b_high_finishes": [100],
+                "player_a_low_darts": [9],
+                "player_b_low_darts": [15],
+            },
+        )
         match1_id = resp.json()["id"]
 
         # Create second match (triggers recalculation of timeline)
-        resp = client.post("/matches/", json={
-            "date": "2026-07-15",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 0,
-            "player2_score": 3,
-            "player_a_180s": 0,
-            "player_b_180s": 3,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-15",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 0,
+                "player2_score": 3,
+                "player_a_180s": 0,
+                "player_b_180s": 3,
+            },
+        )
         assert resp.status_code == 201
 
         # Verify first match's statistics are preserved
@@ -614,44 +720,51 @@ class TestStatisticsPreservedDuringRecalculation:
         assert data["player_a_low_darts"] == [9]
         assert data["player_b_low_darts"] == [15]
 
-    def test_statistics_preserved_after_match_edit_triggers_recalculation(
-        self, client, db_session
-    ):
+    def test_statistics_preserved_after_match_edit_triggers_recalculation(self, client, db_session):
         """Editing a match triggers recalc but preserves stats on other matches."""
         _create_user(db_session)
         _login(client)
         pa, pb = _create_players(db_session)
 
         # Create two matches
-        resp1 = client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_180s": 5,
-            "player_a_high_finishes": [140],
-            "player_a_low_darts": [12],
-        })
+        resp1 = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 5,
+                "player_a_high_finishes": [140],
+                "player_a_low_darts": [12],
+            },
+        )
         match1_id = resp1.json()["id"]
 
-        resp2 = client.post("/matches/", json={
-            "date": "2026-07-15",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 2,
-            "player_b_180s": 4,
-            "player_b_high_finishes": [150],
-            "player_b_low_darts": [10],
-        })
+        resp2 = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-15",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 2,
+                "player_b_180s": 4,
+                "player_b_high_finishes": [150],
+                "player_b_low_darts": [10],
+            },
+        )
         match2_id = resp2.json()["id"]
 
         # Edit first match score (triggers full recalculation)
-        client.put(f"/matches/{match1_id}", json={
-            "player1_score": 3,
-            "player2_score": 1,
-        })
+        client.put(
+            f"/matches/{match1_id}",
+            json={
+                "player1_score": 3,
+                "player2_score": 1,
+            },
+        )
 
         # Verify second match's statistics are preserved
         resp = client.get(f"/matches/{match2_id}")
@@ -664,6 +777,7 @@ class TestStatisticsPreservedDuringRecalculation:
 
 # ── Statistics Deleted with Match ──────────────────────────────────────
 
+
 class TestStatisticsDeletedWithMatch:
     """Test that deleting a match removes its statistics."""
 
@@ -673,16 +787,19 @@ class TestStatisticsDeletedWithMatch:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_180s": 3,
-            "player_a_high_finishes": [120, 140],
-            "player_a_low_darts": [9, 12],
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 3,
+                "player_a_high_finishes": [120, 140],
+                "player_a_low_darts": [9, 12],
+            },
+        )
         match_id = resp.json()["id"]
 
         # Verify statistics exist
@@ -700,6 +817,7 @@ class TestStatisticsDeletedWithMatch:
 
 # ── Audit Logging for Statistics ───────────────────────────────────────
 
+
 class TestStatisticsAuditLog:
     """Test that statistics changes appear in audit logs."""
 
@@ -709,20 +827,21 @@ class TestStatisticsAuditLog:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_180s": 2,
-            "player_a_high_finishes": [100],
-            "player_a_low_darts": [9],
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 2,
+                "player_a_high_finishes": [100],
+                "player_a_low_darts": [9],
+            },
+        )
 
-        audit = db_session.query(AuditLog).filter(
-            AuditLog.action == "MATCH_CREATED"
-        ).first()
+        audit = db_session.query(AuditLog).filter(AuditLog.action == "MATCH_CREATED").first()
         assert audit is not None
         assert "180s_a" in audit.new_value
         assert "high_finishes_a" in audit.new_value
@@ -734,30 +853,35 @@ class TestStatisticsAuditLog:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_180s": 1,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 1,
+            },
+        )
         match_id = resp.json()["id"]
 
-        client.put(f"/matches/{match_id}", json={
-            "player_a_180s": 5,
-            "player_a_high_finishes": [150],
-        })
+        client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_180s": 5,
+                "player_a_high_finishes": [150],
+            },
+        )
 
-        audit = db_session.query(AuditLog).filter(
-            AuditLog.action == "MATCH_UPDATED"
-        ).first()
+        audit = db_session.query(AuditLog).filter(AuditLog.action == "MATCH_UPDATED").first()
         assert audit is not None
         assert "statistics" in audit.old_value
         assert "statistics" in audit.new_value
 
 
 # ── Migration Test ─────────────────────────────────────────────────────
+
 
 class TestMigration:
     """Test that the migration runs cleanly on an existing database."""
@@ -811,6 +935,7 @@ class TestMigration:
 
 # ── Player Statistics Aggregation ─────────────────────────────────────
 
+
 class TestPlayerStatisticsEndpoint:
     """Test the player statistics API endpoint."""
 
@@ -850,23 +975,33 @@ class TestPlayerStatisticsEndpoint:
         pa, pb = _create_players(db_session)
 
         # Match 1
-        client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_180s": 2,
-            "player_a_high_finishes": [120, 140],
-            "player_a_low_darts": [9, 12],
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 2,
+                "player_a_high_finishes": [120, 140],
+                "player_a_low_darts": [9, 12],
+            },
+        )
         # Match 2
-        client.post("/matches/", json={
-            "date": "2026-07-15",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 1,
-            "player_a_180s": 1,
-            "player_a_high_finishes": [100],
-            "player_a_low_darts": [15],
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-15",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 1,
+                "player_a_180s": 1,
+                "player_a_high_finishes": [100],
+                "player_a_low_darts": [15],
+            },
+        )
 
         resp = client.get(f"/rankings/player-stats/{pa.id}")
         assert resp.status_code == 200
@@ -882,26 +1017,34 @@ class TestPlayerStatisticsEndpoint:
         pa, pb = _create_players(db_session)
 
         # Match in period
-        client.post("/matches/", json={
-            "date": "2026-07-10",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_180s": 2,
-            "player_a_high_finishes": [150],
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 2,
+                "player_a_high_finishes": [150],
+            },
+        )
         # Match outside period
-        client.post("/matches/", json={
-            "date": "2026-06-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_180s": 5,
-            "player_a_high_finishes": [170],
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 5,
+                "player_a_high_finishes": [170],
+            },
+        )
 
         # Query with period filter
-        resp = client.get(
-            f"/rankings/player-stats/{pa.id}?from_date=2026-07-01&to_date=2026-07-31"
-        )
+        resp = client.get(f"/rankings/player-stats/{pa.id}?from_date=2026-07-01&to_date=2026-07-31")
         assert resp.status_code == 200
         data = resp.json()
         # Period should only include July match
@@ -917,14 +1060,19 @@ class TestPlayerStatisticsEndpoint:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 0, "player2_score": 3,
-            "player_b_180s": 3,
-            "player_b_high_finishes": [130, 160],
-            "player_b_low_darts": [10, 11],
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 0,
+                "player2_score": 3,
+                "player_b_180s": 3,
+                "player_b_high_finishes": [130, 160],
+                "player_b_low_darts": [10, 11],
+            },
+        )
 
         resp = client.get(f"/rankings/player-stats/{pb.id}")
         assert resp.status_code == 200
@@ -949,6 +1097,7 @@ class TestPlayerStatisticsEndpoint:
 
 
 # ── Player Statistics UI Rendering ────────────────────────────────────
+
 
 class TestPlayerStatsRendering:
     """Tests for player statistics modal in the UI."""
@@ -981,6 +1130,7 @@ class TestPlayerStatsRendering:
 
 # ── Admin Statistics Editing ──────────────────────────────────────────
 
+
 class TestAdminStatisticsEditing:
     """Test admin editing of match statistics via API."""
 
@@ -990,18 +1140,26 @@ class TestAdminStatisticsEditing:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_180s": 1,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 1,
+            },
+        )
         match_id = resp.json()["id"]
 
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_180s": 5,
-            "player_b_180s": 2,
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_180s": 5,
+                "player_b_180s": 2,
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["player_a_180s"] == 5
@@ -1013,17 +1171,25 @@ class TestAdminStatisticsEditing:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_high_finishes": [120, 150],
-            "player_b_high_finishes": [100],
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_high_finishes": [120, 150],
+                "player_b_high_finishes": [100],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["player_a_high_finishes"] == [120, 150]
@@ -1035,16 +1201,24 @@ class TestAdminStatisticsEditing:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_low_darts": [9, 12, 15],
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_low_darts": [9, 12, 15],
+            },
+        )
         assert resp.status_code == 200
         data = resp.json()
         assert data["player_a_low_darts"] == [9, 12, 15]
@@ -1055,23 +1229,34 @@ class TestAdminStatisticsEditing:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
         # Below min
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_high_finishes": [99],
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_high_finishes": [99],
+            },
+        )
         assert resp.status_code == 422
 
         # Above max
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_high_finishes": [171],
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_high_finishes": [171],
+            },
+        )
         assert resp.status_code == 422
 
     def test_admin_edit_validates_low_darts_range(self, client, db_session):
@@ -1080,16 +1265,24 @@ class TestAdminStatisticsEditing:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_low_darts": [8],
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_low_darts": [8],
+            },
+        )
         assert resp.status_code == 422
 
     def test_admin_edit_preserves_existing_elo_data(self, client, db_session):
@@ -1098,17 +1291,25 @@ class TestAdminStatisticsEditing:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
         original_elo = resp.json()["elo_after_a"]
 
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_180s": 10,
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_180s": 10,
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["elo_after_a"] == original_elo
 
@@ -1118,45 +1319,63 @@ class TestAdminStatisticsEditing:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_180s": 1,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 1,
+            },
+        )
         match_id = resp.json()["id"]
 
-        client.put(f"/matches/{match_id}", json={
-            "player_a_180s": 5,
-            "player_a_high_finishes": [150],
-        })
+        client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_180s": 5,
+                "player_a_high_finishes": [150],
+            },
+        )
 
-        audit = db_session.query(AuditLog).filter(
-            AuditLog.action == "MATCH_UPDATED"
-        ).first()
+        audit = db_session.query(AuditLog).filter(AuditLog.action == "MATCH_UPDATED").first()
         assert audit is not None
         assert "statistics" in audit.old_value
         assert "statistics" in audit.new_value
 
     def test_system_can_edit_statistics(self, client, db_session):
         """SYSTEM user can edit match statistics."""
-        user = User(username="sys", password_hash=hash_password("SysPass123"),
-                     role=UserRole.SYSTEM, active=True)
+        user = User(
+            username="sys",
+            password_hash=hash_password("SysPass123"),
+            role=UserRole.SYSTEM,
+            active=True,
+        )
         db_session.add(user)
         db_session.commit()
         client.post("/auth/login", data={"username": "sys", "password": "SysPass123"})
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_180s": 3,
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_180s": 3,
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["player_a_180s"] == 3
 
@@ -1167,53 +1386,85 @@ class TestStatisticsPermissionEnforcement:
     def test_user_cannot_edit_match_statistics(self, client, db_session):
         """USER role gets 403 when trying to update match statistics."""
         # Create admin and user
-        admin = User(username="admin2", password_hash=hash_password("AdminPass123"),
-                     role=UserRole.ADMIN, active=True)
-        user = User(username="user2", password_hash=hash_password("UserPass123"),
-                    role=UserRole.USER, active=True)
+        admin = User(
+            username="admin2",
+            password_hash=hash_password("AdminPass123"),
+            role=UserRole.ADMIN,
+            active=True,
+        )
+        user = User(
+            username="user2",
+            password_hash=hash_password("UserPass123"),
+            role=UserRole.USER,
+            active=True,
+        )
         db_session.add_all([admin, user])
         db_session.commit()
         pa, pb = _create_players(db_session)
 
         # Create match as admin
         client.post("/auth/login", data={"username": "admin2", "password": "AdminPass123"})
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_180s": 1,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_180s": 1,
+            },
+        )
         match_id = resp.json()["id"]
 
         # Try to edit as user
         client.post("/auth/login", data={"username": "user2", "password": "UserPass123"})
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_180s": 10,
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_180s": 10,
+            },
+        )
         assert resp.status_code == 403
 
     def test_user_cannot_edit_high_finishes(self, client, db_session):
         """USER role gets 403 when trying to update high finishes."""
-        admin = User(username="admin3", password_hash=hash_password("AdminPass123"),
-                     role=UserRole.ADMIN, active=True)
-        user = User(username="user3", password_hash=hash_password("UserPass123"),
-                    role=UserRole.USER, active=True)
+        admin = User(
+            username="admin3",
+            password_hash=hash_password("AdminPass123"),
+            role=UserRole.ADMIN,
+            active=True,
+        )
+        user = User(
+            username="user3",
+            password_hash=hash_password("UserPass123"),
+            role=UserRole.USER,
+            active=True,
+        )
         db_session.add_all([admin, user])
         db_session.commit()
         pa, pb = _create_players(db_session)
 
         client.post("/auth/login", data={"username": "admin3", "password": "AdminPass123"})
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         match_id = resp.json()["id"]
 
         client.post("/auth/login", data={"username": "user3", "password": "UserPass123"})
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_high_finishes": [120],
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_high_finishes": [120],
+            },
+        )
         assert resp.status_code == 403
 
     def test_unauthenticated_cannot_edit_statistics(self, client, db_session):
@@ -1264,6 +1515,7 @@ class TestAdminStatsEditingUI:
 
 # ── Average Validation ──────────────────────────────────────────────
 
+
 class TestAverageValidation:
     """Test average values are validated."""
 
@@ -1273,15 +1525,18 @@ class TestAverageValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_average": 65.50,
-            "player_b_average": 58.25,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 65.50,
+                "player_b_average": 58.25,
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["player_a_average"] == 65.50
@@ -1293,13 +1548,16 @@ class TestAverageValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["player_a_average"] is None
@@ -1311,14 +1569,17 @@ class TestAverageValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_average": -1.0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": -1.0,
+            },
+        )
         assert resp.status_code == 422
 
     def test_average_over_167_rejected(self, client, db_session):
@@ -1327,14 +1588,17 @@ class TestAverageValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_average": 168.0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 168.0,
+            },
+        )
         assert resp.status_code == 422
 
     def test_average_boundary_167_accepted(self, client, db_session):
@@ -1343,14 +1607,17 @@ class TestAverageValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_average": 167.0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 167.0,
+            },
+        )
         assert resp.status_code == 201
 
     def test_average_zero_is_ignored(self, client, db_session):
@@ -1359,18 +1626,22 @@ class TestAverageValidation:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id,
-            "player_b_id": pb.id,
-            "player1_score": 3,
-            "player2_score": 0,
-            "player_a_average": 0,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 0,
+            },
+        )
         assert resp.status_code == 201
 
 
 # ── Average Storage and Retrieval ───────────────────────────────────
+
 
 class TestAverageStorage:
     """Test average stored and retrieved correctly."""
@@ -1381,13 +1652,18 @@ class TestAverageStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 1,
-            "player_a_average": 72.35,
-            "player_b_average": 61.80,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 1,
+                "player_a_average": 72.35,
+                "player_b_average": 61.80,
+            },
+        )
         assert resp.status_code == 201
         data = resp.json()
         assert data["player_a_average"] == 72.35
@@ -1399,12 +1675,17 @@ class TestAverageStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 75.00,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 75.00,
+            },
+        )
         match_id = resp.json()["id"]
 
         resp = client.get(f"/matches/{match_id}")
@@ -1417,12 +1698,17 @@ class TestAverageStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 68.50,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 68.50,
+            },
+        )
 
         resp = client.get("/matches/")
         assert resp.status_code == 200
@@ -1434,17 +1720,25 @@ class TestAverageStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 55.00,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 55.00,
+            },
+        )
         match_id = resp.json()["id"]
 
-        resp = client.put(f"/matches/{match_id}", json={
-            "player_a_average": 70.25,
-        })
+        resp = client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_average": 70.25,
+            },
+        )
         assert resp.status_code == 200
         assert resp.json()["player_a_average"] == 70.25
 
@@ -1454,21 +1748,31 @@ class TestAverageStorage:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 72.00,
-            "player_b_average": 60.00,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 72.00,
+                "player_b_average": 60.00,
+            },
+        )
         match1_id = resp.json()["id"]
 
         # New match triggers recalculation
-        client.post("/matches/", json={
-            "date": "2026-07-15",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 0, "player2_score": 3,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-15",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 0,
+                "player2_score": 3,
+            },
+        )
 
         # Verify average preserved
         resp = client.get(f"/matches/{match1_id}")
@@ -1477,6 +1781,7 @@ class TestAverageStorage:
 
 
 # ── Average in Player Statistics Endpoint ───────────────────────────
+
 
 class TestAveragePlayerStatistics:
     """Test average calculations in player statistics."""
@@ -1503,19 +1808,29 @@ class TestAveragePlayerStatistics:
         pa, pb = _create_players(db_session)
 
         # Match 1 with average
-        client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 60.00,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 60.00,
+            },
+        )
         # Match 2 with average
-        client.post("/matches/", json={
-            "date": "2026-07-15",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 1,
-            "player_a_average": 80.00,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-15",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 1,
+                "player_a_average": 80.00,
+            },
+        )
 
         resp = client.get(f"/rankings/player-stats/{pa.id}")
         at = resp.json()["all_time"]
@@ -1529,18 +1844,28 @@ class TestAveragePlayerStatistics:
         pa, pb = _create_players(db_session)
 
         # Match with average
-        client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 72.00,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 72.00,
+            },
+        )
         # Match without average
-        client.post("/matches/", json={
-            "date": "2026-07-15",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-15",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         resp = client.get(f"/rankings/player-stats/{pa.id}")
         at = resp.json()["all_time"]
@@ -1554,11 +1879,16 @@ class TestAveragePlayerStatistics:
         pa, pb = _create_players(db_session)
 
         # Match without average
-        client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         resp = client.get(f"/rankings/player-stats/{pa.id}")
         at = resp.json()["all_time"]
@@ -1573,24 +1903,39 @@ class TestAveragePlayerStatistics:
         pa, pb = _create_players(db_session)
 
         # Create 3 matches with averages
-        client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 50.00,
-        })
-        client.post("/matches/", json={
-            "date": "2026-07-15",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 1,
-            "player_a_average": 70.00,
-        })
-        client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 2,
-            "player_a_average": 90.00,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 50.00,
+            },
+        )
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-15",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 1,
+                "player_a_average": 70.00,
+            },
+        )
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 2,
+                "player_a_average": 90.00,
+            },
+        )
 
         resp = client.get(f"/rankings/player-stats/{pa.id}")
         at = resp.json()["all_time"]
@@ -1607,23 +1952,31 @@ class TestAveragePlayerStatistics:
         pa, pb = _create_players(db_session)
 
         # In period
-        client.post("/matches/", json={
-            "date": "2026-07-10",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 80.00,
-        })
-        # Outside period
-        client.post("/matches/", json={
-            "date": "2026-06-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 50.00,
-        })
-
-        resp = client.get(
-            f"/rankings/player-stats/{pa.id}?from_date=2026-07-01&to_date=2026-07-31"
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-10",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 80.00,
+            },
         )
+        # Outside period
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-06-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 50.00,
+            },
+        )
+
+        resp = client.get(f"/rankings/player-stats/{pa.id}?from_date=2026-07-01&to_date=2026-07-31")
         period = resp.json()["period"]
         assert period["average"] == 80.00
         assert period["average_count"] == 1
@@ -1635,6 +1988,7 @@ class TestAveragePlayerStatistics:
 
 
 # ── Average History Endpoint ────────────────────────────────────────
+
 
 class TestAverageHistoryEndpoint:
     """Test the average history API endpoint."""
@@ -1657,12 +2011,17 @@ class TestAverageHistoryEndpoint:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 72.00,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 72.00,
+            },
+        )
 
         resp = client.get(f"/rankings/player-stats/{pa.id}/average-history")
         assert resp.status_code == 200
@@ -1682,18 +2041,28 @@ class TestAverageHistoryEndpoint:
         pa, pb = _create_players(db_session)
 
         # Match with average
-        client.post("/matches/", json={
-            "date": "2026-07-01",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 72.00,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-01",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 72.00,
+            },
+        )
         # Match without average
-        client.post("/matches/", json={
-            "date": "2026-07-15",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-15",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
 
         resp = client.get(f"/rankings/player-stats/{pa.id}/average-history")
         data = resp.json()
@@ -1712,6 +2081,7 @@ class TestAverageHistoryEndpoint:
 
 # ── Average Audit Logging ───────────────────────────────────────────
 
+
 class TestAverageAuditLog:
     """Test that average changes appear in audit logs."""
 
@@ -1721,16 +2091,19 @@ class TestAverageAuditLog:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 72.50,
-        })
+        client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 72.50,
+            },
+        )
 
-        audit = db_session.query(AuditLog).filter(
-            AuditLog.action == "MATCH_CREATED"
-        ).first()
+        audit = db_session.query(AuditLog).filter(AuditLog.action == "MATCH_CREATED").first()
         assert audit is not None
         assert "average_a" in audit.new_value
         assert "72.5" in audit.new_value
@@ -1741,27 +2114,34 @@ class TestAverageAuditLog:
         _login(client)
         pa, pb = _create_players(db_session)
 
-        resp = client.post("/matches/", json={
-            "date": "2026-07-22",
-            "player_a_id": pa.id, "player_b_id": pb.id,
-            "player1_score": 3, "player2_score": 0,
-            "player_a_average": 60.00,
-        })
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": "2026-07-22",
+                "player_a_id": pa.id,
+                "player_b_id": pb.id,
+                "player1_score": 3,
+                "player2_score": 0,
+                "player_a_average": 60.00,
+            },
+        )
         match_id = resp.json()["id"]
 
-        client.put(f"/matches/{match_id}", json={
-            "player_a_average": 75.00,
-        })
+        client.put(
+            f"/matches/{match_id}",
+            json={
+                "player_a_average": 75.00,
+            },
+        )
 
-        audit = db_session.query(AuditLog).filter(
-            AuditLog.action == "MATCH_UPDATED"
-        ).first()
+        audit = db_session.query(AuditLog).filter(AuditLog.action == "MATCH_UPDATED").first()
         assert audit is not None
         assert "average_a" in audit.old_value
         assert "average_a" in audit.new_value
 
 
 # ── Average Migration Test ──────────────────────────────────────────
+
 
 class TestAverageMigration:
     """Test that the average columns exist in the schema."""
@@ -1778,6 +2158,7 @@ class TestAverageMigration:
 
 
 # ── Average UI Rendering ────────────────────────────────────────────
+
 
 class TestAverageUIRendering:
     """Tests for average-related UI elements."""
@@ -1830,10 +2211,10 @@ class TestAverageUIRendering:
         assert 'id="p2-avg"' in resp.text
         assert 'placeholder="000.00"' in resp.text
         assert 'inputmode="decimal"' in resp.text
-        assert 'formatAverageInput' in resp.text
-        assert 'padAverageInput' in resp.text
+        assert "formatAverageInput" in resp.text
+        assert "padAverageInput" in resp.text
         # maxlength must NOT be set - it blocks typing when formatted value fills the field
-        assert 'maxlength' not in resp.text.split('p1-avg')[1].split('>')[0]
+        assert "maxlength" not in resp.text.split("p1-avg")[1].split(">")[0]
 
     def test_admin_average_inputs_are_text_type_with_format(self, client, db_session):
         """Admin average edit inputs should be type='text' with 000.00 format."""
@@ -1844,11 +2225,9 @@ class TestAverageUIRendering:
         assert 'id="admin-edit-p2-avg"' in resp.text
         assert 'placeholder="000.00"' in resp.text
         assert 'inputmode="decimal"' in resp.text
-        assert 'formatAverageInput' in resp.text
-        assert 'formatAvgForDisplay' in resp.text
-        assert 'parseFormattedAvg' in resp.text
-        assert 'padAverageInput' in resp.text
+        assert "formatAverageInput" in resp.text
+        assert "formatAvgForDisplay" in resp.text
+        assert "parseFormattedAvg" in resp.text
+        assert "padAverageInput" in resp.text
         # maxlength must NOT be set
-        assert 'maxlength' not in resp.text.split('admin-edit-p1-avg')[1].split('>')[0]
-
-
+        assert "maxlength" not in resp.text.split("admin-edit-p1-avg")[1].split(">")[0]
