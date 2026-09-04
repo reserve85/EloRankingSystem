@@ -560,6 +560,12 @@ class RankingService:
 
         Returns:
             Dict with best_rank and date_reached.
+
+        Performance note (Fix L10): this loads every match and re-sorts the
+        player rankings on each target date, so it is O(matches * players) per
+        call. That is fine for club-scale histories (a few thousand matches);
+        if a much larger dataset ever shows up, precompute the all-time
+        per-player best rank in a background job instead of per request.
         """
         # Load all non-disabled players
         all_players = self.db.query(Player).filter(Player.disabled.is_(False)).all()

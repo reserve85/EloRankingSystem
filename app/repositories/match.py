@@ -67,13 +67,16 @@ class MatchRepository:
             The most recent prior match involving the player, or None.
         """
         boundary = (match.date, match.created_at, match.id)
-        last_prior: Optional[Match] = None
-        for m in self.get_by_player(player_id):
+        # Scan the player's chronologically-ordered history from the newest end
+        # and return the FIRST entry strictly before the boundary - the most
+        # recent prior match. For a player with substantial history this is
+        # typically found after one or two steps instead of after scanning the
+        # whole timeline (Fix L10); the tuple comparison stays in Python for
+        # the same ``created_at`` precision reason documented above.
+        for m in reversed(self.get_by_player(player_id)):
             if (m.date, m.created_at, m.id) < boundary:
-                last_prior = m
-            else:
-                break
-        return last_prior
+                return m
+        return None
 
     def get_from_match(self, match: Match) -> list[Match]:
         """Get all matches at or after the given boundary match's timeline position.
