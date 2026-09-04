@@ -262,26 +262,26 @@ class TestClubSettingsModel:
         assert settings.id is not None
         assert settings.club_name == "Dart Club"
         assert settings.club_logo_path is None
-        assert settings.default_elo == 1200
-        assert settings.k_factor == 32.0
-        assert settings.inactivity_months == 3
+        # Elo knobs are env/config-only: the dead DB columns were removed.
+        # Nothing reads them, so the model must not expose them anymore.
+        assert not hasattr(settings, "default_elo")
+        assert not hasattr(settings, "k_factor")
+        assert not hasattr(settings, "inactivity_months")
 
     def test_custom_club_settings(self, db_session):
-        """Test creating club settings with custom values."""
+        """Test creating club settings with custom club name / logo paths."""
         settings = ClubSettings(
             club_name="My Dart Club",
-            default_elo=1500,
-            k_factor=24.0,
-            inactivity_months=6,
+            club_logo_path="/uploads/logo.png",
+            club_logo_dark_path="/uploads/logo_dark.png",
         )
         db_session.add(settings)
         db_session.commit()
         db_session.refresh(settings)
 
         assert settings.club_name == "My Dart Club"
-        assert settings.default_elo == 1500
-        assert settings.k_factor == 24.0
-        assert settings.inactivity_months == 6
+        assert settings.club_logo_path == "/uploads/logo.png"
+        assert settings.club_logo_dark_path == "/uploads/logo_dark.png"
 
     def test_club_settings_repr(self, db_session):
         """Test ClubSettings string representation."""
@@ -416,10 +416,14 @@ class TestDatabaseSchema:
         columns = {col["name"] for col in inspector.get_columns("club_settings")}
 
         expected = {
-            "id", "club_name", "club_logo_path", "default_elo",
-            "k_factor", "inactivity_months", "created_at", "updated_at",
+            "id", "club_name", "club_logo_path",
+            "club_logo_dark_path", "created_at", "updated_at",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
+        # Dead Elo-knob columns were dropped: env/config wins.
+        assert "default_elo" not in columns
+        assert "k_factor" not in columns
+        assert "inactivity_months" not in columns
 
     def test_audit_log_table_columns(self, db_session):
         """Test that audit_log table has all required columns."""

@@ -1,16 +1,23 @@
-"""Club settings SQLAlchemy model."""
+"""Club settings SQLAlchemy model.
+
+Stores club identity and logo configuration only. Elo parameters
+(``default_elo``, ``k_factor``, ``inactivity_months``) are intentionally NOT
+stored here: they are read exclusively from the env/config singleton
+(``settings.*``), so environment/config wins. The old DB columns were dead
+weight and were dropped in migration ``f1e2d3c4b5a6``.
+"""
 
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import DateTime, Float, Integer, String, func
+from sqlalchemy import DateTime, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
 
 
 class ClubSettings(Base):
-    """Club settings model for storing application-wide configuration."""
+    """Club settings model for storing club identity and logo configuration."""
 
     __tablename__ = "club_settings"
 
@@ -24,9 +31,6 @@ class ClubSettings(Base):
     club_logo_dark_path: Mapped[Optional[str]] = mapped_column(
         String(500), nullable=True, default=None
     )
-    default_elo: Mapped[int] = mapped_column(Integer, nullable=False, default=1200)
-    k_factor: Mapped[float] = mapped_column(Float, nullable=False, default=32.0)
-    inactivity_months: Mapped[int] = mapped_column(Integer, nullable=False, default=3)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
