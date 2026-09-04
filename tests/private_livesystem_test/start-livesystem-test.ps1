@@ -91,7 +91,7 @@ switch ($Action) {
             Write-Host "=============================================" -ForegroundColor Green
             Write-Host ""
             Write-Host " Application URL:  " -NoNewline
-            Write-Host "http://localhost:8877" -ForegroundColor Yellow
+            Write-Host "http://localhost:8080" -ForegroundColor Yellow
             Write-Host ""
             Write-Host " System User:      " -NoNewline
             Write-Host "reserve" -ForegroundColor Yellow
@@ -139,7 +139,7 @@ switch ($Action) {
 
         # Check if app is responding
         try {
-            $response = Invoke-WebRequest -Uri "http://localhost:8877/health" -TimeoutSec 5 -ErrorAction Stop
+            $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -TimeoutSec 5 -ErrorAction Stop
             Write-Host "[OK] Application is responding (HTTP $($response.StatusCode))" -ForegroundColor Green
         }
         catch {
