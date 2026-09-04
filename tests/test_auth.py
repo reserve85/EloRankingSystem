@@ -501,3 +501,113 @@ class TestAuthEndpoints:
         """GET /auth/me without cookie should return 401."""
         response = client.get("/auth/me")
         assert response.status_code == 401
+
+
+# ── Forced Password Change (Fix H2) ──────────────────────────────────────
+
+
+def _flagged_user(db_session, username="fresh", role=UserRole.ADMIN, password="TempPass123!"):
+    """Create an active user that must change their password on next login."""
+    user = User(
+        username=username,
+        password_hash=hash_password(password),
+        role=role,
+        active=True,
+        must_change_password=True,
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+    return user
+
+
+class TestMustChangePassword:
+    """SYSTEM bootstrap / admin resets force a password change on next login."""
+
+    def test_provisioned_system_user_must_change_password(self, db_session, monkeypatch):
+        """provision_system_user should set must_change_password on creation."""
+        monkeypatch.setattr(
+            "app.core.config.settings.system_user_username", "system"
+        )
+        monkeypatch.setattr(
+            "app.core.config.settings.system_user_password", "adminpass"
+        )
+        user = provision_system_user(db_session)
+        assert user.must_change_password is True
+
+    def test_login_response_reports_must_change_password(self):
+        """create_login_response should surface the must-change flag."""
+        user = User(
+            username="fresh",
+            password_hash=hash_password("TempPass123!"),
+            role=UserRole.ADMIN,
+            active=True,
+            must_change_password=True,
+        )
+        data = create_login_response(user)
+        assert data["must_change_password"] is True
+
+    def test_login_endpoint_reports_must_change_password(self, client, db_session):
+        """POST /auth/login should include the must-change flag for the JS client."""
+        _flagged_user(db_session)
+        resp = client.post(
+            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
+        )
+        assert resp.status_code == 200
+        assert resp.json()["must_change_password"] is True
+
+    def test_me_reports_must_change_password(self, client, db_session):
+        """GET /auth/me should include the must-change flag."""
+        _flagged_user(db_session)
+        client.post(
+            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
+        )
+        resp = client.get("/auth/me")
+        assert resp.status_code == 200
+        assert resp.json()["must_change_password"] is True
+
+    def test_gated_endpoint_blocked_until_password_change(self, client, db_session):
+        """A user who must change their password is blocked from using the system."""
+        _flagged_user(db_session)
+        client.post(
+            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
+        )
+        resp = client.get("/players/active")
+        assert resp.status_code == 403
+
+    def test_dashboard_redirects_to_change_password(self, client, db_session):
+        """The dashboard redirects a forced-change user to the password page."""
+        _flagged_user(db_session)
+        client.post(
+            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
+        )
+        resp = client.get("/ui/dashboard", follow_redirects=False)
+        assert resp.status_code == 302
+        assert "/ui/change-password" in resp.headers["location"]
+
+    def test_change_password_page_remains_accessible(self, client, db_session):
+        """The change-password page (not the gated surface) must stay reachable."""
+        _flagged_user(db_session)
+        client.post(
+            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
+        )
+        resp = client.get("/ui/change-password")
+        assert resp.status_code == 200
+        assert "must set a new password" in resp.text
+
+    def test_correct_change_unblocks_user(self, client, db_session):
+        """Setting a new password clears the force flag and unblocks the user."""
+        _flagged_user(db_session)
+        client.post(
+            "/auth/login", data={"username": "fresh", "password": "TempPass123!"}
+        )
+        assert client.get("/players/active").status_code == 403
+
+        resp = client.post("/password/change", json={
+            "current_password": "TempPass123!",
+            "new_password": "NewPass123!",
+            "confirm_new_password": "NewPass123!",
+        })
+        assert resp.json()["success"] is True
+
+        assert client.get("/players/active").status_code == 200

@@ -56,6 +56,9 @@ def change_own_password(
         )
 
     current_user.password_hash = hash_password(data.new_password)
+    # A successful self-service change satisfies any forced-change requirement
+    # that was in place (e.g. right after SYSTEM bootstrap provision).
+    current_user.must_change_password = False
     db.commit()
 
     log_event(
@@ -110,6 +113,8 @@ def reset_user_password(
         )
 
     target_user.password_hash = hash_password(data.new_password)
+    # A reset sets a new temporary password: require it to be changed on next login.
+    target_user.must_change_password = True
     db.commit()
 
     log_event(

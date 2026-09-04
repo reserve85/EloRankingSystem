@@ -39,6 +39,9 @@ def _get_club_name(db: Session) -> str:
 @router.get("/dashboard")
 def dashboard_page(request: Request, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
     """Render the user dashboard. All authenticated users."""
+    # Force a required password change before the user can use the app (Fix H2).
+    if current_user.must_change_password:
+        return RedirectResponse(url="/ui/change-password", status_code=302)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -62,6 +65,9 @@ def dashboard_page(request: Request, current_user: User = Depends(get_current_us
 @router.get("/admin")
 def admin_page(request: Request, current_user: User = Depends(require_admin), db: Session = Depends(get_db)):
     """Render the admin dashboard. Requires ADMIN or SYSTEM role."""
+    # Force a required password change before the user can use the app (Fix H2).
+    if current_user.must_change_password:
+        return RedirectResponse(url="/ui/change-password", status_code=302)
     return templates.TemplateResponse(
         request,
         "admin.html",
@@ -93,6 +99,8 @@ def change_password_page(request: Request, current_user: User = Depends(get_curr
             "app_name": settings.app_name,
             "club_name": _get_club_name(db),
             "version_info": get_version_info(settings.timezone),
+            # True when the new password is mandatory (bootstrap/reset) - Fix H2.
+            "must_change": bool(current_user.must_change_password),
         },
     )
 

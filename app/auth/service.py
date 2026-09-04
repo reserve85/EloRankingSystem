@@ -57,6 +57,7 @@ def create_login_response(user: User) -> dict:
     return {
         "access_token": token,
         "token_type": "bearer",
+        "must_change_password": bool(user.must_change_password),
         "user": {
             "id": user.id,
             "username": user.username,
@@ -92,6 +93,9 @@ def provision_system_user(db: Session) -> User:
         password_hash=hash_password(settings.system_user_password),
         role=UserRole.SYSTEM,
         active=True,
+        # The config password is a one-shot bootstrap: force a real password on
+        # the first login (Fix H2) so the bootstrap never stays valid long-term.
+        must_change_password=True,
     )
     db.add(system_user)
     db.commit()

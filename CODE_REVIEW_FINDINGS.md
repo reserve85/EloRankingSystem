@@ -39,7 +39,7 @@
 - **Evidence:** `.env.example:44-49` and `config.yaml.example:36-46` only *tell* the operator to change them; nothing enforces it. `provision_system_user` runs automatically in the app lifespan (`app/main.py:36-41`).
 - **Impact:** Default-config deployment = fully compromised authentication/authorization.
 - **Recommendation:** In `get_settings()`/startup, hard-fail when `APP_ENV != "development"` (or `APP_ENV == "production"`) and `jwt_secret`/`system_user_password` are still the documented defaults. Provide a generated-secret bootstrap script.
-- **Status:** ✅ **Accepted tradeoff** (owner decision, 2026-09-04): the SYSTEM account / default secrets are only used to provision club login accounts, and the operator stays in control of deployment config. No change planned.
+- **Status:** ✅ **Fixed** (owner decision, 2026-09-04, superseding the earlier accepted-tradeoff note): the operator originally accepted the tradeoff, then decided to implement it. See **M1-aligned implementation log (H2)** below.
 
 ---
 
@@ -180,3 +180,29 @@ Verification:
 - Full suite: **798 passed** (~40-41 s vs. ~265 s before — an extra ~6x speedup).
 - No `*.db` files created at the repo root after a run; `data/database.db` mtime unchanged.
 - `ruff check tests/` clean.
+
+---
+
+## H2 implementation log (2026-09-04)
+
+**H2 — FIXED.** Default/weak secrets are enforced (fail-fast) and the SYSTEM bootstrap password is forced to change on first login. The two secrets were deliberately split because they have different security lives:
+
+- **`JWT_SECRET`** is the token-signing key; with the default, anyone can forge a token with `role=SYSTEM` without any credential. It has no runtime self-healing — the operator *must* set a unique one.
+- **`SYSTEM_USER_PASSWORD`** is only a **one-shot bootstrap**: `provision_system_user()` hashes it once on a fresh DB and never re-applies it; the SYSTEM user can already change it in-app via `/password/change`. The fix therefore enforces a strong *bootstrap* and then makes it single-use.
+
+Changes:
+
+- **Fail-fast startup** (`app/core/config.py`): `get_settings()` now calls `_validate_security_defaults()`, which raises `RuntimeError` when `APP_ENV != "development"` and `JWT_SECRET`/`SYSTEM_USER_PASSWORD` are empty or any documented placeholder (`change_me`, `CHANGE_ME_GENERATE_RANDOM`, `CHANGE_ME_HERE`, …). Development is exempt so local dev/tests are unchanged.
+- **Forced password change** (`must_change_password` flag):
+  - `app/models/user.py` + new Alembic migration `d0e1f2a3b4c5` (`users.must_change_password`, SQLite `server_default 0`).
+  - Set `True` on SYSTEM provisioning (`app/auth/service.py`) and on admin password resets (`app/api/routes/password.py`, `app/api/routes/users.py`); cleared on successful self-service `/password/change`.
+  - Surfaced in `POST /auth/login` and `GET /auth/me`; login JS redirects to `/ui/change-password`; the change-password page shows a "temporary setup password" warning and returns to the dashboard afterwards.
+  - Enforced server-side: `ensure_password_changed` dependency (`app/auth/dependencies.py`) applied to the auth-gated API routers in `app/main.py`; `/ui/dashboard` and `/ui/admin` redirect to the change-password page until the password is set. Auth/password/health and the change-password page are exempt by design.
+- `tests/test_config.py`: `TestSecurityDefaultEnforcement` (unit + `get_settings()` integration).
+- `tests/test_auth.py`: `TestMustChangePassword` (provision sets flag, login/me expose it, endpoint blocked with 403, dashboard redirects, page reachable, change unblocks).
+- `tests/test_password.py`: admin reset forces the flag.
+- `.env.example` / `config.yaml.example`: comments updated to document the fail-fast bootstrap; `tests/private_livesystem_test/docker-compose.yml` bootstrap swapped off the placeholder so the manual harness still starts.
+
+Verification: full suite **814 passed** (~41 s); `ruff check` clean on all changed files; fresh-DB `alembic upgrade head` ends at `d0e1f2a3b4c5` with `users.must_change_password` present; `data/database.db` untouched.
+
+> Note for deployments using `portainer_compose.yaml` / the documented example values: the app will now **refuse to start** in production until `JWT_SECRET` (and `SYSTEM_USER_PASSWORD` for fresh installs) are replaced with real randomized values (`openssl rand -hex 32`) — this is the intended fail-fast.

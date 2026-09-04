@@ -38,7 +38,9 @@ system_user:
   password: change_me
 
 security:
-  jwt_secret: change_me  # CHANGE THIS IN PRODUCTION! Generate with: openssl rand -hex 32
+  # MUST be a strong, unique secret. The app refuses to start outside
+  # development while this is a default/placeholder (fail-fast).
+  jwt_secret: change_me  # Generate with: openssl rand -hex 32
   jwt_algorithm: HS256
   access_token_lifetime_minutes: 480
   cookie_secure: true  # Set to false for local HTTP development

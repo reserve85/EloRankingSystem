@@ -461,3 +461,19 @@ class TestPasswordUI:
         })
         assert resp.status_code == 200
         assert "success" in resp.json()
+
+
+def test_reset_requires_password_change_on_next_login(client, db_session):
+    """After an admin reset, the target user must change their password (Fix H2)."""
+    _login_as(client, db_session, "admin", "Admin1234", UserRole.ADMIN)
+    target = _create_user_db(db_session, "target", "Test1234")
+    assert target.must_change_password is False
+
+    client.post("/password/reset", json={
+        "user_id": target.id,
+        "new_password": "ResetPass123!",
+        "confirm_new_password": "ResetPass123!",
+    })
+
+    db_session.refresh(target)
+    assert target.must_change_password is True

@@ -2,10 +2,12 @@
 
 import os
 
+import pytest
 import yaml
 
 from app.core.config import (
     Settings,
+    _validate_security_defaults,
     _yaml_to_env_defaults,
     get_settings,
     load_yaml_config,
@@ -426,3 +428,52 @@ class TestSettingsTypes:
         monkeypatch.setenv("TIMEZONE", "UTC")
         s = Settings()
         assert s.timezone == "UTC"
+
+
+class TestSecurityDefaultEnforcement:
+    """Tests for fail-fast enforcement of weak default secrets (Fix H2)."""
+
+    def test_dev_env_allows_default_secrets(self):
+        """Development environment should skip the weak-secret guard."""
+        # No exception expected despite the default placeholders.
+        _validate_security_defaults("development", "change_me", "change_me")
+
+    def test_production_default_jwt_secret_raises(self):
+        """A default JWT_SECRET in a non-dev environment must raise."""
+        with pytest.raises(RuntimeError):
+            _validate_security_defaults("production", "change_me", "StrongPass123!")
+
+    def test_production_weak_password_raises(self):
+        """A default SYSTEM_USER_PASSWORD in a non-dev environment must raise."""
+        with pytest.raises(RuntimeError):
+            _validate_security_defaults("staging", "a-very-strong-secret-0000", "change_me")
+
+    def test_production_empty_secrets_raise(self):
+        """Empty secrets outside development must raise."""
+        with pytest.raises(RuntimeError):
+            _validate_security_defaults("production", "", "")
+
+    def test_production_strong_secrets_ok(self):
+        """Strong values outside development should pass."""
+        _validate_security_defaults(
+            "production", "0123456789abcdef0123456789abcdef", "SuperSecret123!"
+        )
+
+    def test_get_settings_fails_fast_in_production_with_defaults(self, monkeypatch):
+        """get_settings() must raise when running production with default secrets."""
+        monkeypatch.delenv("JWT_SECRET", raising=False)
+        monkeypatch.delenv("SYSTEM_USER_PASSWORD", raising=False)
+        monkeypatch.setenv("APP_ENV", "production")
+        with pytest.raises(RuntimeError):
+            get_settings(None)
+
+    def test_get_settings_allows_strong_secrets_in_production(self, monkeypatch):
+        """get_settings() should succeed in production with strong secrets."""
+        monkeypatch.delenv("JWT_SECRET", raising=False)
+        monkeypatch.delenv("SYSTEM_USER_PASSWORD", raising=False)
+        monkeypatch.setenv("APP_ENV", "production")
+        monkeypatch.setenv("JWT_SECRET", "0123456789abcdef0123456789abcdef")
+        monkeypatch.setenv("SYSTEM_USER_PASSWORD", "SuperSecret123!")
+        settings = get_settings(None)
+        assert settings.app_env == "production"
+        assert settings.jwt_secret == "0123456789abcdef0123456789abcdef"

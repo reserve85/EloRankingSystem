@@ -2,7 +2,7 @@
 
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
@@ -26,6 +26,7 @@ from app.api.routes.reports import router as reports_router
 from app.api.routes.audit import router as audit_router
 from app.api.routes.password import router as password_router
 from app.api.routes.ui import router as ui_router
+from app.auth.dependencies import ensure_password_changed
 from app.auth.service import provision_system_user
 
 
@@ -76,16 +77,23 @@ async def ui_http_exception_handler(request: Request, exc: FastAPIHTTPException)
 # Mount static files
 app.mount("/static", StaticFiles(directory="app/static"), name="static")
 
-# Include API routers
+# Include API routers. Auth-gated functional routers also require the password
+# to have been changed (Fix H2) - a freshly-provisioned SYSTEM bootstrap (or a
+# just-reset password) is blocked until the user sets a real password. Auth,
+# password and health routers are exempt by design.
+def _requires_password_changed():
+    return Depends(ensure_password_changed)
+
+
 app.include_router(health_router)
 app.include_router(auth_router)
-app.include_router(players_router)
-app.include_router(matches_router)
-app.include_router(rankings_router)
-app.include_router(users_router)
-app.include_router(settings_router)
-app.include_router(reports_router)
-app.include_router(audit_router)
+app.include_router(players_router, dependencies=[_requires_password_changed()])
+app.include_router(matches_router, dependencies=[_requires_password_changed()])
+app.include_router(rankings_router, dependencies=[_requires_password_changed()])
+app.include_router(users_router, dependencies=[_requires_password_changed()])
+app.include_router(settings_router, dependencies=[_requires_password_changed()])
+app.include_router(reports_router, dependencies=[_requires_password_changed()])
+app.include_router(audit_router, dependencies=[_requires_password_changed()])
 app.include_router(password_router)
 
 # Include UI router

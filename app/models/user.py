@@ -32,6 +32,12 @@ class User(Base):
         default=UserRole.USER,
     )
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    # When True, the user must set a new password on their next login before
+    # using the system (e.g. right after the one-shot SYSTEM bootstrap provision
+    # or after an admin password reset) - Fix H2.
+    must_change_password: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),

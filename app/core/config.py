@@ -184,6 +184,53 @@ class Settings(BaseSettings):
     )
 
 
+# Weak/placeholder secrets that must never be used outside development. These
+# are the documented placeholders and the historical Settings defaults.
+_WEAK_SECRETS = {
+    "",
+    "change_me",
+    "changeme",
+    "change_me_generate_random",
+    "change_me_here",
+}
+
+
+def _validate_security_defaults(env: str, jwt_secret: str, system_user_password: str) -> None:
+    """Refuse to start a non-development instance with weak secrets (Fix H2).
+
+    ``JWT_SECRET`` is the token signing key: with the default value an attacker
+    could forge a token for *any* user, including ``role=SYSTEM``, without any
+    credential. ``SYSTEM_USER_PASSWORD`` is the one-shot bootstrap used to
+    provision the SYSTEM account on a fresh database; it must not be the public
+    default either.
+
+    Args:
+        env: The resolved APP_ENV value.
+        jwt_secret: The resolved JWT_SECRET value.
+        system_user_password: The resolved SYSTEM_USER_PASSWORD value.
+
+    Raises:
+        RuntimeError: If running outside development with a weak default secret.
+    """
+    if env is not None and str(env).strip().lower() == "development":
+        return
+
+    missing = []
+    if not jwt_secret or jwt_secret.strip().lower() in _WEAK_SECRETS:
+        missing.append("JWT_SECRET")
+    if not system_user_password or system_user_password.strip().lower() in _WEAK_SECRETS:
+        missing.append("SYSTEM_USER_PASSWORD")
+
+    if missing:
+        raise RuntimeError(
+            "Refusing to start: weak default secret(s) detected for "
+            + ", ".join(missing)
+            + ". Generate strong unique values (e.g. `openssl rand -hex 32`) and "
+            "set them via environment/.env (JWT_SECRET, SYSTEM_USER_PASSWORD). "
+            "This check is skipped when APP_ENV=development."
+        )
+
+
 def get_settings(yaml_path: Optional[str] = None) -> Settings:
     """Create and return application settings.
 
@@ -204,7 +251,14 @@ def get_settings(yaml_path: Optional[str] = None) -> Settings:
     for key, value in env_defaults.items():
         os.environ.setdefault(key, value)
 
-    return Settings()
+    resolved = Settings()
+    # Fail fast (outside dev) if the operator left default/weak secrets in place.
+    _validate_security_defaults(
+        env=getattr(resolved, "app_env", ""),
+        jwt_secret=getattr(resolved, "jwt_secret", ""),
+        system_user_password=getattr(resolved, "system_user_password", ""),
+    )
+    return resolved
 
 
 # Singleton settings instance

@@ -204,11 +204,17 @@ This application can be deployed via [Portainer](https://www.portainer.io/) Stac
    - `COOKIE_SECURE=false` — Set to `true` if using HTTPS
    - Adjust volume mount paths if needed (default: `/volume1/docker/elo/...`)
 
+   > ⚠️ **Fail-fast secrets:** outside `APP_ENV=development` the app refuses to
+   > start while `JWT_SECRET`/`SYSTEM_USER_PASSWORD` are still placeholders or
+   > empty — replace them with real random values first.
+
 6. **Deploy the stack** by clicking the button.
 
 7. **Open the application** at `http://your-host:8877`.
 
-8. **Login** with the system user credentials you configured.
+8. **Login** with the system user credentials you configured. On a fresh
+   install you will be asked to set a new password on the first login — the
+   system-user password is a one-time bootstrap.
 
 9. **Change the default system user password** immediately after first login.
 

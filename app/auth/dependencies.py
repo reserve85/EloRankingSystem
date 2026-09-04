@@ -117,6 +117,32 @@ def get_optional_user(
     return user
 
 
+def ensure_password_changed(current_user: User = Depends(get_current_user)) -> User:
+    """Block a user who must first change their password (Fix H2).
+
+    Used as a router-level dependency on auth-gated API endpoints. When
+    ``must_change_password`` is set (right after SYSTEM bootstrap provision or an
+    admin password reset), the user is forced to set a new password before using
+    the system. The exempt surface (login/logout, the change-password endpoint
+    and page) must not use this dependency.
+
+    Args:
+        current_user: The authenticated user (from the auth cookie).
+
+    Returns:
+        The current user when no password change is required.
+
+    Raises:
+        HTTPException 403: If the user must change their password first.
+    """
+    if current_user.must_change_password:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="A password change is required before using this resource",
+        )
+    return current_user
+
+
 def require_role(*roles: UserRole):
     """Dependency factory to require specific user roles.
 

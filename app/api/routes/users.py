@@ -114,6 +114,8 @@ def update_user(user_id: int, request: Request, data: UserUpdate, current_user: 
         if strength_errors:
             raise HTTPException(status_code=400, detail=strength_errors)
         user.password_hash = hash_password(data.password)
+        # An admin-set password is a temporary reset: force a change on next login.
+        user.must_change_password = True
     if data.role is not None:
         user.role = data.role
     if data.active is not None:

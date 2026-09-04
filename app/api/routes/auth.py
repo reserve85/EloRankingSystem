@@ -127,7 +127,10 @@ def auto_login(
         ip_address=ip, user_agent=ua,
     )
 
-    response = RedirectResponse(url="/ui/dashboard", status_code=302)
+    response = RedirectResponse(
+        url="/ui/change-password" if user.must_change_password else "/ui/dashboard",
+        status_code=302,
+    )
     response.set_cookie(
         key=AUTH_COOKIE_NAME,
         value=login_data["access_token"],
@@ -148,4 +151,5 @@ def get_me(current_user: User = Depends(get_current_user)):
         "username": current_user.username,
         "role": current_user.role.value,
         "active": current_user.active,
+        "must_change_password": bool(current_user.must_change_password),
     }
