@@ -146,6 +146,21 @@ def _get_or_create_settings(db: Session) -> ClubSettings:
     return cs
 
 
+def _settings_response(cs: ClubSettings) -> SettingsResponse:
+    """Build the API response for club settings.
+
+    ``club_name`` always comes from env/config (``settings.club_name``), never
+    from the database - the DB column was dropped as dead weight (Fix L9); the
+    row only carries logo paths.
+    """
+    return SettingsResponse(
+        id=cs.id,
+        club_name=settings.club_name or settings.app_name,
+        club_logo_path=cs.club_logo_path,
+        club_logo_dark_path=cs.club_logo_dark_path,
+    )
+
+
 def _delete_logo_file(path: str) -> None:
     """Safely delete a logo file."""
 
@@ -163,11 +178,7 @@ def get_settings(db: Session = Depends(get_db), current_user: User = Depends(req
 
     cs = _get_or_create_settings(db)
 
-    # Override club_name from env/config, not from DB
-
-    cs.club_name = settings.club_name or settings.app_name
-
-    return cs
+    return _settings_response(cs)
 
 
 @router.post("/logo", response_model=SettingsResponse)
@@ -231,10 +242,7 @@ async def upload_logo(
     # The new logo is persisted - only now retire the previous one.
     _delete_logo_file(old_path)
 
-    # Override club_name from env/config
-    cs.club_name = settings.club_name or settings.app_name
-
-    return cs
+    return _settings_response(cs)
 
 
 class QRCodeRequest(BaseModel):

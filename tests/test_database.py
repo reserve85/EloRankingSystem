@@ -260,18 +260,17 @@ class TestClubSettingsModel:
         db_session.refresh(settings)
 
         assert settings.id is not None
-        assert settings.club_name == "Dart Club"
         assert settings.club_logo_path is None
-        # Elo knobs are env/config-only: the dead DB columns were removed.
-        # Nothing reads them, so the model must not expose them anymore.
+        # Club identity lives in env/config, not the DB (Fix L9): the dead
+        # club_name column was dropped like the Elo knobs before it.
+        assert not hasattr(settings, "club_name")
         assert not hasattr(settings, "default_elo")
         assert not hasattr(settings, "k_factor")
         assert not hasattr(settings, "inactivity_months")
 
     def test_custom_club_settings(self, db_session):
-        """Test creating club settings with custom club name / logo paths."""
+        """Test creating club settings with custom logo paths."""
         settings = ClubSettings(
-            club_name="My Dart Club",
             club_logo_path="/uploads/logo.png",
             club_logo_dark_path="/uploads/logo_dark.png",
         )
@@ -279,19 +278,18 @@ class TestClubSettingsModel:
         db_session.commit()
         db_session.refresh(settings)
 
-        assert settings.club_name == "My Dart Club"
         assert settings.club_logo_path == "/uploads/logo.png"
         assert settings.club_logo_dark_path == "/uploads/logo_dark.png"
 
     def test_club_settings_repr(self, db_session):
         """Test ClubSettings string representation."""
-        settings = ClubSettings(club_name="Test Club")
+        settings = ClubSettings(club_logo_path="/uploads/logo.png")
         db_session.add(settings)
         db_session.commit()
         db_session.refresh(settings)
 
         result = repr(settings)
-        assert "Test Club" in result
+        assert "logo.png" in result
 
 
 class TestAuditLogModel:
@@ -440,14 +438,14 @@ class TestDatabaseSchema:
 
         expected = {
             "id",
-            "club_name",
             "club_logo_path",
             "club_logo_dark_path",
             "created_at",
             "updated_at",
         }
         assert expected.issubset(columns), f"Missing columns: {expected - columns}"
-        # Dead Elo-knob columns were dropped: env/config wins.
+        # Dead columns were dropped: env/config wins (Fix L9 + f1e2d3c4b5a6).
+        assert "club_name" not in columns
         assert "default_elo" not in columns
         assert "k_factor" not in columns
         assert "inactivity_months" not in columns
