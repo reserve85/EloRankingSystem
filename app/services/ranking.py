@@ -51,13 +51,34 @@ class RankingService:
         # - Elo at period end (Elo after the last match on or before to_date)
         # - Elo change
         # - Position at period start and end
+        # All per-player values are derived from a single batched query instead
+        # of the previous three queries per player (Fix #8: N+1 → 1). The
+        # values are identical to the old per-player queries, so the ranking
+        # positions never change.
+        records = self._build_ranking_records(from_date, to_date)
         entries: list[dict] = []
 
         for player in players:
-            elo_at_start = self._get_elo_at_date(player, from_date, before=True)
-            elo_at_end = self._get_elo_at_date(player, to_date, before=False)
-            stats = self._get_period_statistics(player.id, from_date, to_date)
-            total_matches = stats["match_count"]
+            rec = records.get(player.id)
+            if rec is None:
+                # No matches up to to_date -> start_elo at both boundaries.
+                elo_at_start = float(player.start_elo)
+                elo_at_end = float(player.start_elo)
+                total_matches = 0
+                total_180s = 0
+                high_finishes: list[int] = []
+                low_darts: list[int] = []
+            else:
+                elo_at_start = (
+                    rec["elo_at_start"]
+                    if rec["elo_at_start"] is not None
+                    else float(player.start_elo)
+                )
+                elo_at_end = rec["elo_at_end"]
+                total_matches = rec["match_count"]
+                total_180s = rec["total_180s"]
+                high_finishes = sorted(rec["high_finishes"], reverse=True)
+                low_darts = sorted(rec["low_darts"])
 
             entries.append({
                 "player_id": player.id,
@@ -66,9 +87,9 @@ class RankingService:
                 "elo_change": elo_at_end - elo_at_start,
                 "start_elo": elo_at_start,
                 "total_matches": total_matches,
-                "total_180s": stats["total_180s"],
-                "high_finishes": stats["high_finishes"],
-                "low_darts": stats["low_darts"],
+                "total_180s": total_180s,
+                "high_finishes": high_finishes,
+                "low_darts": low_darts,
             })
 
         # Sort by current Elo descending for end-of-period ranking
@@ -151,100 +172,75 @@ class RankingService:
 
         return query.all()
 
-    def _get_elo_at_date(
-        self, player: Player, target_date: date, before: bool = True
-    ) -> float:
-        """Get a player's Elo rating at a specific date.
+    def _build_ranking_records(self, from_date: date, to_date: date) -> dict[int, dict]:
+        """Batch-load matches up to ``to_date`` and aggregate per player.
 
-        If before=True, returns Elo after the last match strictly before target_date.
-        If before=False, returns Elo after the last match on or before target_date.
+        Fix #8: replaces the previous N+1 pattern (three per-player queries
+        in ``generate_ranking``) with a single query plus in-memory
+        aggregation. The values are identical to the old per-player queries:
 
-        If no matches found, returns player's start_elo.
+        - ``elo_at_end`` = the player's stored ``elo_after`` for the last
+          match with ``date <= to_date``.
+        - ``elo_at_start`` = the stored ``elo_after`` for the last match
+          with ``date < from_date`` (None when the player has no prior match).
+        - period statistics aggregate matches with
+          ``from_date <= date <= to_date``.
+
+        Matches are iterated in the deterministic timeline order
+        (date ASC, created_at ASC, id ASC), so the last value written for a
+        player is exactly the match the old ``ORDER BY date DESC,
+        created_at DESC, id DESC LIMIT 1`` queries returned - ranking
+        positions are therefore unchanged.
 
         Args:
-            player: The player.
-            target_date: The date to look up.
-            before: Whether to look before or up to the target date.
+            from_date: Start of the ranking period.
+            to_date: End of the ranking period.
 
         Returns:
-            The player's Elo at that point in time.
+            Dict mapping ``player_id`` to an aggregation record.
         """
-        query = self.db.query(Match).filter(
-            (Match.player_a_id == player.id) | (Match.player_b_id == player.id)
+        matches = (
+            self.db.query(Match)
+            .filter(Match.date <= to_date)
+            .order_by(Match.date.asc(), Match.created_at.asc(), Match.id.asc())
+            .all()
         )
 
-        if before:
-            query = query.filter(Match.date < target_date)
-        else:
-            query = query.filter(Match.date <= target_date)
-
-        match = query.order_by(
-            Match.date.desc(), Match.created_at.desc(), Match.id.desc()
-        ).first()
-
-        if match is None:
-            return float(player.start_elo)
-
-        if match.player_a_id == player.id:
-            return match.elo_after_a
-        return match.elo_after_b
-
-    def _get_total_match_count(self, player_id: int) -> int:
-        """Get the total lifetime match count for a player.
-
-        Args:
-            player_id: The player's ID.
-
-        Returns:
-            Total number of matches involving this player.
-        """
-        count = self.db.query(Match).filter(
-            (Match.player_a_id == player_id) | (Match.player_b_id == player_id)
-        ).count()
-        return count
-
-    def _get_period_statistics(
-        self, player_id: int, from_date: date, to_date: date
-    ) -> dict:
-        """Get dart statistics for a player within a period.
-
-        Args:
-            player_id: The player's ID.
-            from_date: Start of period.
-            to_date: End of period.
-
-        Returns:
-            Dict with total_180s, high_finishes, low_darts.
-        """
-        matches = self.db.query(Match).filter(
-            ((Match.player_a_id == player_id) | (Match.player_b_id == player_id))
-            & (Match.date >= from_date)
-            & (Match.date <= to_date)
-        ).all()
-
-        total_180s = 0
-        high_finishes: list[int] = []
-        low_darts: list[int] = []
+        records: dict[int, dict] = {}
         for m in matches:
-            if m.player_a_id == player_id:
-                total_180s += m.player_a_180s or 0
-                if m.player_a_high_finishes:
-                    high_finishes.extend(m.player_a_high_finishes)
-                if m.player_a_low_darts:
-                    low_darts.extend(m.player_a_low_darts)
-            else:
-                total_180s += m.player_b_180s or 0
-                if m.player_b_high_finishes:
-                    high_finishes.extend(m.player_b_high_finishes)
-                if m.player_b_low_darts:
-                    low_darts.extend(m.player_b_low_darts)
+            for pid, elo_after in (
+                (m.player_a_id, m.elo_after_a),
+                (m.player_b_id, m.elo_after_b),
+            ):
+                rec = records.setdefault(pid, {
+                    "elo_at_start": None,  # elo_after of last match before from_date
+                    "elo_at_end": None,    # elo_after of last match up to to_date
+                    "match_count": 0,
+                    "total_180s": 0,
+                    "high_finishes": [],
+                    "low_darts": [],
+                })
+                rec["elo_at_end"] = elo_after
+                if m.date < from_date:
+                    rec["elo_at_start"] = elo_after
+                    continue
 
-        return {
-            "total_180s": total_180s,
-            "high_finishes": sorted(high_finishes, reverse=True),
-            "low_darts": sorted(low_darts),
-            "match_count": len(matches),
-        }
+                # Match inside the period: aggregate dart statistics.
+                rec["match_count"] += 1
+                if m.player_a_id == pid:
+                    rec["total_180s"] += m.player_a_180s or 0
+                    if m.player_a_high_finishes:
+                        rec["high_finishes"].extend(m.player_a_high_finishes)
+                    if m.player_a_low_darts:
+                        rec["low_darts"].extend(m.player_a_low_darts)
+                else:
+                    rec["total_180s"] += m.player_b_180s or 0
+                    if m.player_b_high_finishes:
+                        rec["high_finishes"].extend(m.player_b_high_finishes)
+                    if m.player_b_low_darts:
+                        rec["low_darts"].extend(m.player_b_low_darts)
+
+        return records
 
     def get_player_statistics(
         self,
