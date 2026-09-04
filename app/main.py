@@ -6,11 +6,15 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.core.database import SessionLocal, init_db
 from app.core.csrf import CSRFMiddleware
+from app.core.rate_limit import limiter
 from app.api.routes.health import router as health_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.players import router as players_router
@@ -52,6 +56,11 @@ app = FastAPI(
 # Register CSRF protection (double-submit cookie pattern). Must be added
 # after app creation so it wraps all routes, including the UI page renderer.
 app.add_middleware(CSRFMiddleware)
+
+# Register rate limiting (brute-force protection for auth endpoints).
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
 
 
 @app.exception_handler(FastAPIHTTPException)

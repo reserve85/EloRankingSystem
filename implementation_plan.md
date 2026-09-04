@@ -23,7 +23,7 @@ Implement double-submit cookie CSRF pattern: generate a `csrf_token` cookie (non
 
 ---
 
-# #4 — No Rate Limiting on Authentication Endpoints
+# #4 — No Rate Limiting on Authentication Endpoints - Status DONE
 **Severity:** 🟠 HIGH | **Category:** Security | **File:** `app/api/routes/auth.py`, `app/api/routes/password.py`
 
 **Problem**
@@ -34,7 +34,7 @@ Add `slowapi` library (`requirements.txt`). Decorate `login` with `@limiter.limi
 
 ---
 
-# #5 — `lstrip("v")` Uses Character Set Stripping, Not Prefix Removal
+# #5 — `lstrip("v")` Uses Character Set Stripping, Not Prefix Removal - Status DONE
 **Severity:** 🟠 HIGH | **Category:** Bug | **File:** `app/core/version.py:23`
 
 **Problem**

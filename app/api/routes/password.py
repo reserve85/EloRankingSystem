@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Request
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.rate_limit import limiter, PASSWORD_LIMIT
 from app.auth.dependencies import get_current_user, require_admin
 from app.auth.password import hash_password, verify_password
 from app.auth.password_validation import validate_password_strength
@@ -15,6 +16,7 @@ router = APIRouter(prefix="/password", tags=["password"])
 
 
 @router.post("/change", response_model=PasswordResponse)
+@limiter.limit(PASSWORD_LIMIT)
 def change_own_password(
     request: Request,
     data: PasswordChangeRequest,
@@ -67,6 +69,7 @@ def change_own_password(
 
 
 @router.post("/reset", response_model=PasswordResponse)
+@limiter.limit(PASSWORD_LIMIT)
 def reset_user_password(
     request: Request,
     data: PasswordResetRequest,

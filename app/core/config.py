@@ -88,6 +88,7 @@ def _yaml_to_env_defaults(yaml_config: dict) -> dict[str, str]:
         ("security", "cookie_httponly", "COOKIE_HTTPONLY"),
         ("security", "cookie_samesite", "COOKIE_SAMESITE"),
         ("security", "csrf_enabled", "CSRF_ENABLED"),
+        ("security", "rate_limit_enabled", "RATE_LIMIT_ENABLED"),
         ("storage", "data_dir", "DATA_DIR"),
         ("storage", "upload_dir", "UPLOAD_DIR"),
         ("storage", "log_dir", "LOG_DIR"),
@@ -160,8 +161,9 @@ class Settings(BaseSettings):
     )
     cookie_secure: bool = Field(default=False, alias="COOKIE_SECURE")
     cookie_httponly: bool = Field(default=True, alias="COOKIE_HTTPONLY")
-    csrf_enabled: bool = Field(default=True, alias="CSRF_ENABLED")
     cookie_samesite: str = Field(default="lax", alias="COOKIE_SAMESITE")
+    csrf_enabled: bool = Field(default=True, alias="CSRF_ENABLED")
+    rate_limit_enabled: bool = Field(default=True, alias="RATE_LIMIT_ENABLED")
 
     # ── Timezone & Date Format
     timezone: str = Field(default="UTC", alias="TIMEZONE")

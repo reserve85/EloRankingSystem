@@ -19,8 +19,14 @@ def get_version_info(timezone: str = "UTC") -> dict:
         Dict with version, git_commit, build_date, github_url, release_url.
     """
     raw_version = os.getenv("APP_VERSION", "0.1.0")
-    # Strip leading "v" or "vv" to avoid double-v in output
-    version = raw_version.lstrip("v")
+    # Strip a leading build-tag "v" ("v1.2.3", "vv1.2.3") — but only when the
+    # remainder actually looks like a version (starts with a digit). A bare
+    # str.lstrip("v") or a startswith("v") loop would corrupt arbitrary
+    # strings (e.g. "version" -> "ersion"); the digit guard keeps them intact.
+    version = raw_version
+    candidate = version.lstrip("v")
+    if candidate[:1].isdigit():
+        version = candidate
 
     git_commit = os.getenv("GIT_COMMIT", "dev")[:7]
 

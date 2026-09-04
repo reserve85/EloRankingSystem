@@ -7,6 +7,7 @@ from sqlalchemy.orm import sessionmaker
 
 from app.core.database import Base, get_db
 from app.core.config import settings
+from app.core.rate_limit import limiter
 from app.main import app
 
 # The CSRF middleware is part of the app. Existing tests hit state-changing
@@ -14,6 +15,14 @@ from app.main import app
 # general suite. Dedicated CSRF coverage lives in tests/test_csrf.py, which
 # re-enables it per test.
 settings.csrf_enabled = False
+
+# The slowapi rate limiter is also part of the app. Existing tests exercise
+# auth endpoints more than the production limits would allow, so disable
+# enforcement for the general suite. Dedicated rate-limit coverage lives in
+# tests/test_rate_limit.py, which re-enables it per test. `limiter.enabled`
+# is read at request time, so toggling here takes effect immediately.
+settings.rate_limit_enabled = False
+limiter.enabled = False
 
 
 # Use in-memory SQLite for tests

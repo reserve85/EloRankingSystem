@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.config import settings
+from app.core.rate_limit import limiter, LOGIN_LIMIT, AUTO_LOGIN_LIMIT
 from app.auth.dependencies import AUTH_COOKIE_NAME, get_current_user
 from app.auth.service import authenticate_user, create_login_response
 from app.models.user import User
@@ -16,6 +17,7 @@ router = APIRouter(prefix="/auth", tags=["authentication"])
 
 
 @router.post("/login")
+@limiter.limit(LOGIN_LIMIT)
 def login(
     request: Request,
     response: Response,
@@ -89,6 +91,7 @@ def logout(request: Request, response: Response, db: Session = Depends(get_db)):
 
 
 @router.get("/auto-login")
+@limiter.limit(AUTO_LOGIN_LIMIT)
 def auto_login(
     request: Request,
     u: str,

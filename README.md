@@ -274,6 +274,7 @@ Copy `.env.example` to `.env` and adjust as needed:
 | `COOKIE_HTTPONLY` | HttpOnly cookie flag | `true` |
 | `COOKIE_SAMESITE` | SameSite cookie policy | `strict` |
 | `CSRF_ENABLED` | Double-submit cookie CSRF protection | `true` |
+| `RATE_LIMIT_ENABLED` | Rate limiting on auth endpoints | `true` |
 | `DATA_DIR` | Data storage path | `./data` |
 | `UPLOAD_DIR` | Upload storage path | `./uploads` |
 | `LOG_DIR` | Log storage path | `./logs` |
@@ -290,7 +291,7 @@ Copy `config.yaml.example` to `config.yaml` and adjust club-specific settings. T
 | `statistics` | `high_finish_min`, `high_finish_max`, `low_darts_min`, `low_darts_max`, `best_of_legs` | Dart statistics & match format validation |
 | `legal` | `contact_company`, `contact_name`, `contact_street`, `contact_city`, `contact_email` | Impressum & Privacy page data |
 | `system_user` | `username`, `password` | Host administrator credentials |
-| `security` | `jwt_secret`, `jwt_algorithm`, `access_token_lifetime_minutes`, `cookie_secure`, `cookie_httponly`, `cookie_samesite`, `csrf_enabled` | Authentication & security |
+| `security` | `jwt_secret`, `jwt_algorithm`, `access_token_lifetime_minutes`, `cookie_secure`, `cookie_httponly`, `cookie_samesite`, `csrf_enabled`, `rate_limit_enabled` | Authentication & security |
 | `storage` | `data_dir`, `upload_dir`, `log_dir` | File storage paths |
 
 Values in `.env` or environment variables always override values in `config.yaml`.
@@ -482,6 +483,11 @@ automatically.
   in constant time). The `apiFetch()` helper in `base.html` injects the header
   automatically — always use it for mutating calls. `POST /auth/login` and
   `GET /auth/auto-login` are exempt. Set `CSRF_ENABLED=false` to disable.
+- Rate limiting is enforced on the authentication endpoints using `slowapi`
+  (keyed by client IP): `POST /auth/login` → 20/minute,
+  `GET /auth/auto-login` → 30/minute, `POST /password/change` and
+  `POST /password/reset` → 5/minute. Exceeding a limit returns HTTP 429.
+  Set `RATE_LIMIT_ENABLED=false` to disable.
 - Role-based access control is enforced on the backend
 - Never commit `.env`, `config.yaml`, or database files
 - Change all default passwords before deploying to production

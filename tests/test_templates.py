@@ -632,6 +632,14 @@ class TestVersionInfo:
             info = version.get_version_info()
             assert info["version"] == "2.5.0"
 
+    def test_version_info_prefix_removal_only(self, client, db_session):
+        """Only a leading 'v' prefix is removed, never interior 'v' characters."""
+        with patch.dict(os.environ, {"APP_VERSION": "version"}):
+            from app.core import version
+            info = version.get_version_info()
+            # Old lstrip("v") would have produced "ersion"
+            assert info["version"] == "version"
+
     def test_version_info_default_version(self, client, db_session):
         """Default version should be '0.1.0' when no env var set."""
         with patch.dict(os.environ, {}, clear=False):
