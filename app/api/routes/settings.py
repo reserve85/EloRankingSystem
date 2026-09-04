@@ -158,46 +158,39 @@ async def upload_logo(
 
     cs = _get_or_create_settings(db)
 
+    # Save the new file first; the previous logo is retired only AFTER the DB
+    # write succeeds, so a failed commit never leaves an orphan file behind
+    # and never destroys the current logo (Fix #4: file I/O + DB atomicity).
+    prefix = "club_logo_dark" if mode == "dark" else "club_logo"
+    file_path = _save_logo_file(file, content, prefix, settings.upload_dir)
+
+    old_path = cs.club_logo_dark_path if mode == "dark" else cs.club_logo_path
     if mode == "dark":
-
-        _delete_logo_file(cs.club_logo_dark_path)
-
-        file_path = _save_logo_file(file, content, "club_logo_dark", settings.upload_dir)
-
-        old_path = cs.club_logo_dark_path
-
         cs.club_logo_dark_path = file_path
-
     else:
-
-        _delete_logo_file(cs.club_logo_path)
-
-        file_path = _save_logo_file(file, content, "club_logo", settings.upload_dir)
-
-        old_path = cs.club_logo_path
-
         cs.club_logo_path = file_path
 
-    db.commit()
+    try:
+        log_event(
+            db, action="CLUB_LOGO_UPLOADED", entity_type="club_settings",
+            entity_id=cs.id, user_id=current_user.id, username=current_user.username,
+            old_value={f"club_logo_{mode}_path": old_path},
+            new_value={f"club_logo_{mode}_path": file_path},
+            ip_address=ip, user_agent=ua,
+        )
+        # Single commit: the settings update and its audit entry are atomic
+        # (no more double commit that could orphan files / write partial state).
+        db.commit()
+        db.refresh(cs)
+    except Exception:
+        db.rollback()
+        _delete_logo_file(file_path)  # commit failed: don't leave an orphan
+        raise
 
-    db.refresh(cs)
-
-    log_event(
-
-        db, action="CLUB_LOGO_UPLOADED", entity_type="club_settings",
-
-        entity_id=cs.id, user_id=current_user.id, username=current_user.username,
-
-        old_value={f"club_logo_{mode}_path": old_path}, new_value={f"club_logo_{mode}_path": file_path},
-
-        ip_address=ip, user_agent=ua,
-
-    )
-
-    db.commit()
+    # The new logo is persisted - only now retire the previous one.
+    _delete_logo_file(old_path)
 
     # Override club_name from env/config
-
     cs.club_name = settings.club_name or settings.app_name
 
     return cs
