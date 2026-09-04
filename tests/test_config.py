@@ -267,6 +267,33 @@ class TestSettings:
         settings = Settings()
         assert "sqlite" in settings.database_url
 
+    def test_relative_sqlite_url_resolved_against_project_root(self, monkeypatch):
+        """A relative DATABASE_URL must be made absolute relative to the project root (Fix M5).
+
+        Without this, SQLAlchemy resolves ``sqlite:///./data/database.db``
+        against the current working directory, silently creating a stray,
+        empty database (and a fresh SYSTEM bootstrap) whenever the app is
+        started from a different directory.
+        """
+        monkeypatch.setenv("DATABASE_URL", "sqlite:///./data/database.db")
+        s = Settings()
+        assert s.database_url.startswith("sqlite:///")
+        db_path = s.database_url[len("sqlite:///"):]
+        assert os.path.isabs(db_path)
+        assert db_path.replace("\\", "/").endswith("data/database.db")
+
+    def test_absolute_sqlite_url_passes_through(self, monkeypatch):
+        """Absolute SQLite URLs (e.g. Docker) must not be rewritten."""
+        monkeypatch.setenv("DATABASE_URL", "sqlite:////data/database.db")
+        s = Settings()
+        assert s.database_url == "sqlite:////data/database.db"
+
+    def test_in_memory_sqlite_url_passes_through(self, monkeypatch):
+        """In-memory and parameter-less SQLite URLs must not be rewritten."""
+        monkeypatch.setenv("DATABASE_URL", "sqlite://")
+        s = Settings()
+        assert s.database_url == "sqlite://"
+
     def test_settings_from_env_vars(self, monkeypatch):
         """Test settings override from environment variables."""
         monkeypatch.setenv("APP_NAME", "Env Club")

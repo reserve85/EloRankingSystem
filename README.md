@@ -261,7 +261,7 @@ Copy `.env.example` to `.env` and adjust as needed:
 | `TIMEZONE` | Timezone for date display (IANA format) | `Europe/Berlin` |
 | `DATE_FORMAT` | Date format for display | `dd/MM/yyyy` |
 | `APP_BASE_URL` | Public base URL for QR code behind reverse proxy (e.g. `https://darts.example.com`) | *(empty, uses request URL)* |
-| `DATABASE_URL` | Database connection string | `sqlite:///./data/database.db` |
+| `DATABASE_URL` | Database connection string. Relative SQLite paths are resolved against the project root (Fix M5); use an absolute path (e.g. `sqlite:////data/database.db`) in Docker | `sqlite:///{project root}/data/database.db` |
 | `DEFAULT_ELO` | Default Elo rating for new players | `1200` |
 | `K_FACTOR` | Elo K-factor (rating sensitivity) | `32` |
 | `INACTIVITY_MONTHS` | Months before player is considered inactive | `3` |

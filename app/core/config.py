@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import ConfigDict, Field
+from pydantic import ConfigDict, Field, field_validator
 from pydantic_settings import BaseSettings
 
 
@@ -208,6 +208,34 @@ class Settings(BaseSettings):
         populate_by_name=True,
         extra="ignore",
     )
+
+    @field_validator("database_url")
+    @classmethod
+    def _resolve_relative_sqlite_path(cls, value: str) -> str:
+        """Resolve a relative SQLite path against the project root (Fix M5).
+
+        ``.env`` files copied from the example typically carry
+        ``sqlite:///./data/database.db``. SQLAlchemy resolves that path against
+        the *current working directory*, so starting the app from anywhere else
+        (systemd, an IDE, supervisor, ...) silently created a brand-new empty
+        database in the wrong place - including a fresh SYSTEM bootstrap.
+        Absolute paths (Docker: ``sqlite:////data/database.db``), the in-memory
+        form and non-SQLite URLs pass through unchanged.
+        """
+        if not value.startswith("sqlite:///"):
+            return value
+        db_path = value[len("sqlite:///"):]
+        # ``startswith(("/", "\\"))`` treats a rooted path like
+        # ``/data/database.db`` (Docker style) as absolute on Windows too,
+        # where Path.is_absolute() alone would not.
+        if (
+            not db_path
+            or db_path == ":memory:"
+            or db_path.startswith(("/", "\\"))
+            or Path(db_path).is_absolute()
+        ):
+            return value
+        return f"sqlite:///{(BASE_DIR / db_path).resolve().as_posix()}"
 
 
 # Weak/placeholder secrets that must never be used outside development. These
