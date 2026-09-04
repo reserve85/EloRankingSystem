@@ -454,6 +454,24 @@ class TestAuditApi:
         assert resp.status_code == 200
         assert isinstance(resp.json(), list)
 
+    def test_audit_log_rejects_non_positive_limit(self, client, db_session):
+        """Negative/zero limits must be rejected instead of silently bypassing the cap (Fix M1).
+
+        SQLite treats ``LIMIT -1`` as "no limit", so a negative value would
+        return the entire audit table regardless of the ``le=500`` guard.
+        """
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        for value in ("0", "-1", "-100"):
+            resp = client.get(f"/audit/?limit={value}")
+            assert resp.status_code == 422, f"limit={value} should be rejected"
+            assert "limit" in resp.json().get("detail")[0].get("loc", [])
+
+    def test_audit_log_accepts_upper_bound_valid(self, client, db_session):
+        """A valid limit within [1, 500] stays accepted."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        resp = client.get("/audit/?limit=500")
+        assert resp.status_code == 200
+
     def test_user_cannot_list_audit_logs(self, client, db_session):
         """USER should not be able to list audit logs."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)

@@ -33,7 +33,7 @@ class AuditLogResponse(BaseModel):
 
 @router.get("/", response_model=list[AuditLogResponse])
 def list_audit_logs(
-    limit: int = Query(default=100, le=500),
+    limit: int = Query(default=100, ge=1, le=500),
     action: Optional[str] = Query(default=None),
     entity_type: Optional[str] = Query(default=None),
     current_user: User = Depends(require_admin),
