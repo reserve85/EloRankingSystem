@@ -152,8 +152,14 @@ class TestYamlToEnvDefaults:
         assert result["COOKIE_HTTPONLY"] == "False"
         assert result["COOKIE_SAMESITE"] == "strict"
 
-    def test_storage_section_mapping(self):
+    def test_storage_section_mapping(self, monkeypatch):
         """Test storage section YAML → env var mapping."""
+        # _yaml_to_env_defaults skips env vars that are already set; the
+        # shared test conftest sets these for app isolation, so take them
+        # out of the environment to exercise the mapping.
+        monkeypatch.delenv("DATA_DIR", raising=False)
+        monkeypatch.delenv("UPLOAD_DIR", raising=False)
+        monkeypatch.delenv("LOG_DIR", raising=False)
         yaml_config = {
             "storage": {
                 "data_dir": "/custom/data",
