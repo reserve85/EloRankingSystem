@@ -460,7 +460,10 @@ document.getElementById('match-to').addEventListener('change', function() { sync
 
 let playerMap = {};
 async function loadPlayers() {
-  const resp = await fetch('/players/active');
+  // Load the FULL roster (disabled players included): historical matches of a
+  // disabled player must still show their name in the match list / detail
+  // modal. The match-entry dropdowns below only offer non-disabled players.
+  const resp = await fetch('/players/?include_disabled=true');
   if (!resp.ok) return;
   const players = await resp.json();
   playerMap = {};
@@ -470,6 +473,8 @@ async function loadPlayers() {
   selB.innerHTML = '<option value="">Select player...</option>';
   players.sort((a, b) => a.name.localeCompare(b.name)).forEach(p => {
     playerMap[p.id] = p.name;
+    // Disabled players are name-lookup only - never selectable for new matches.
+    if (p.disabled) return;
     selA.add(new Option(p.name, p.id));
     selB.add(new Option(p.name, p.id));
   });

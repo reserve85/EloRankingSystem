@@ -180,15 +180,20 @@ class TestAdminPage:
 
     def test_admin_has_entry_date_field(self, client, db_session):
         """Fix #3 II: the Add/Edit player form has an entry-date (member-since)
-        input and the players table shows the Entry column."""
+        input and the players table shows the Entry column.
+
+        Fix #5 II: the Add-player form pre-picks today's date (server-timezone)
+        in resetPlayerForm, so the timepicker is never empty on create.
+        """
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
         resp = client.get("/ui/admin")
         # Modal input.
         assert 'id="player-entry-date"' in resp.text
         # The table header has the Entry column.
         assert "<th>Entry</th>" in resp.text
-        # resetPlayerForm clears the field.
-        assert "player-entry-date').value=''" in resp.text
+        # resetPlayerForm pre-picks today's date (member since = today).
+        assert "player-entry-date').value=todayISO()" in resp.text
+        assert "player-entry-date').value=''" not in resp.text
         # savePlayer sends it when set.
         assert "body.entry_date = entryDate" in resp.text
         # editPlayer prefills it.
@@ -1322,6 +1327,24 @@ class TestMatchCreateLayout:
         resp = client.get("/ui/dashboard")
         assert 'id="player-a-select"' in resp.text
         assert 'id="score-a"' in resp.text
+
+    def test_dashboard_loads_disabled_players_for_match_list(self, client, db_session):
+        """Fix #5 III: disabled players must show their NAME in the match list.
+
+        playerMap is built from the full roster (include_disabled=true) so
+        historical matches of a disabled player render the name instead of
+        'Player <id>', while the match-entry dropdowns skip disabled players.
+        """
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # Full roster is fetched for the name map.
+        assert "fetch('/players/?include_disabled=true')" in resp.text
+        # Disabled players still populate the name map ...
+        assert "playerMap[p.id] = p.name;" in resp.text
+        # ... but are never added to the "new match" dropdowns.
+        assert "if (p.disabled) return;" in resp.text
+        # The old active-only fetch is gone.
+        assert "fetch('/players/active')" not in resp.text
 
     def test_format_dropdown_contains_options(self, client, db_session):
         """Format dropdown should contain Best of N options."""

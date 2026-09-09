@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.player import Player
+from app.models.player_disable_period import PlayerDisablePeriod
 from app.repositories.player import PlayerRepository
 from app.schemas.player import PlayerCreate, PlayerUpdate
 
@@ -155,6 +156,12 @@ class PlayerService:
         - Retain all Elo history
         - Remain available in historical reports
 
+        Record of the disablement (Fix #5): a new open disable period
+        ("from today on") is stored, so the history-aware rankings only
+        exclude the player on dates the disable was actually active. Old
+        rankings before today keep counting the player, i.e. disabling a
+        top player never retroactively improves anyone else's Best Rank.
+
         Args:
             player_id: The player's ID.
 
@@ -162,6 +169,23 @@ class PlayerService:
             The disabled player.
         """
         player = self.get_player(player_id)
+        if not player.disabled:
+            open_period = (
+                self.repo.db.query(PlayerDisablePeriod)
+                .filter(
+                    PlayerDisablePeriod.player_id == player.id,
+                    PlayerDisablePeriod.disabled_to.is_(None),
+                )
+                .first()
+            )
+            if open_period is None:
+                self.repo.db.add(
+                    PlayerDisablePeriod(
+                        player_id=player.id,
+                        disabled_from=date.today(),
+                        disabled_to=None,
+                    )
+                )
         player.disabled = True
         player.active = False
         player = self.repo.update(player)
@@ -170,6 +194,11 @@ class PlayerService:
     def reactivate_player(self, player_id: int) -> Player:
         """Reactivate a disabled player.
 
+        Closes the player's currently open disable period today (Fix #5), so
+        the exact window is recorded for the history-aware rankings. A player
+        disabled Jan-Feb, re-enabled and disabled again later therefore
+        accumulates multiple windows that are each evaluated separately.
+
         Args:
             player_id: The player's ID.
 
@@ -177,6 +206,17 @@ class PlayerService:
             The reactivated player.
         """
         player = self.get_player(player_id)
+        if player.disabled:
+            open_period = (
+                self.repo.db.query(PlayerDisablePeriod)
+                .filter(
+                    PlayerDisablePeriod.player_id == player.id,
+                    PlayerDisablePeriod.disabled_to.is_(None),
+                )
+                .first()
+            )
+            if open_period is not None:
+                open_period.disabled_to = date.today()
         player.disabled = False
         player.active = True
         player = self.repo.update(player)

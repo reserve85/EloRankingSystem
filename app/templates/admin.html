@@ -479,7 +479,7 @@ function fmtDate(d) {
   return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value+'-'+parts.find(p=>p.type==='day').value;
 }
 // --- Players ---
-function resetPlayerForm() { document.getElementById('player-edit-id').value=''; document.getElementById('player-name').value=''; document.getElementById('player-start-elo').value='{{ default_elo }}'; document.getElementById('player-entry-date').value=''; document.getElementById('player-modal-title').textContent='Add Player'; }
+function resetPlayerForm() { document.getElementById('player-edit-id').value=''; document.getElementById('player-name').value=''; document.getElementById('player-start-elo').value='{{ default_elo }}'; document.getElementById('player-entry-date').value=todayISO(); document.getElementById('player-modal-title').textContent='Add Player'; }
 async function loadPlayers() {
   const resp = await fetch('/players/?include_disabled=true');
   if (!resp.ok) return;

@@ -1,5 +1,6 @@
 """Tests for Alembic database migrations."""
 
+import sqlalchemy as sa
 from sqlalchemy import create_engine, inspect
 from alembic.config import Config
 from alembic import command
@@ -31,6 +32,7 @@ class TestMigrations:
             expected_tables = {
                 "users",
                 "players",
+                "player_disable_periods",
                 "matches",
                 "club_settings",
                 "audit_log",
@@ -135,6 +137,54 @@ class TestMigrations:
 
             # Running upgrade should be a no-op
             command.upgrade(alembic_cfg, "head")
+        finally:
+            engine.dispose()
+
+    def test_disable_periods_backfilled_for_currently_disabled(self, tmp_path):
+        """Fix #5: upgrading an existing database gives every currently
+        disabled player an open disable period starting at the migration date,
+        so their pre-migration history stays valid (nothing retroactive)."""
+        db_path = tmp_path / "backfill.db"
+        db_url = f"sqlite:///{db_path}"
+
+        engine = create_engine(db_url, connect_args={"check_same_thread": False})
+        alembic_cfg = self._get_alembic_config()
+        alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+
+        try:
+            # Run all migrations except the disable-period one.
+            command.upgrade(alembic_cfg, "f5a6b7c8d9e0")
+
+            with engine.begin() as conn:
+                conn.execute(
+                    sa.text(
+                        "INSERT INTO players (name, start_elo, current_elo, active, disabled) "
+                        "VALUES ('Old Disabled', 1200, 1200, 0, 1)"
+                    )
+                )
+                conn.execute(
+                    sa.text(
+                        "INSERT INTO players (name, start_elo, current_elo, active, disabled) "
+                        "VALUES ('Active Member', 1200, 1200, 1, 0)"
+                    )
+                )
+
+            command.upgrade(alembic_cfg, "head")
+
+            with engine.begin() as conn:
+                rows = conn.execute(
+                    sa.text(
+                        "SELECT p.name, pd.disabled_from, pd.disabled_to "
+                        "FROM player_disable_periods pd JOIN players p ON p.id = pd.player_id"
+                    )
+                ).mappings()
+
+            periods = {r["name"]: r for r in rows}
+            # Only the currently disabled player got a period.
+            assert set(periods) == {"Old Disabled"}
+            # It is an OPEN period (still disabled today) with a real start date.
+            assert periods["Old Disabled"]["disabled_from"] is not None
+            assert periods["Old Disabled"]["disabled_to"] is None
         finally:
             engine.dispose()
 
