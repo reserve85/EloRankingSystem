@@ -103,7 +103,9 @@ class TestRankingGeneration:
         assert data["entries"][0]["player_name"] == "Alice"
         assert data["entries"][0]["elo_rating"] == 1200.0
         assert data["entries"][0]["elo_change"] == 0.0
-        assert data["entries"][0]["position_change"] == 0
+        # Fix #1: no match history -> no previous ranking position, so the
+        # position change reports None (the UI renders it as '-').
+        assert data["entries"][0]["position_change"] is None
 
     def test_ranking_after_match(self, client, db_session):
         """Ranking should reflect match results."""
@@ -281,6 +283,66 @@ class TestPositionChange:
         # Position could change based on name tiebreaker
         # But with equal Elo she stays #1
         assert alice["position"] == 1
+
+
+class TestMissingHistoricalRank:
+    """Fix #1: players without any match must not get a phantom rank change."""
+
+    def test_new_player_without_matches_shows_no_rank_change(self, client, db_session):
+        """
+        A newly created player with zero matches has no previous ranking
+        position, so position_change must be '-' (None) even when other
+        players move around them inside the period.
+
+        Regression: the old code fabricated start/end positions from the
+        player's configured start_elo, producing a bogus +1 in the "Pos"
+        column although no match was ever played.
+        """
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        # Brand-new member without any matches (API-created => active=False).
+        _create_player(db_session, "Jasmin", elo=1500, active=False)
+        top = _create_player(db_session, "Top", elo=1550)
+        weak = _create_player(db_session, "Weak", elo=1200)
+
+        # Top (start_elo 1550) loses twice to the 1200 player inside the period,
+        # dropping below Jasmin's 1500: 1550 -> ~1521.8 -> ~1494.1. Before the
+        # fix Jasmin's phantom start position (#2) vs end position (#1) showed +1.
+        _create_match(client, top.id, weak.id, weak.id, "2025-06-15")
+        _create_match(client, top.id, weak.id, weak.id, "2025-06-20")
+
+        resp = _get_ranking(client, "2025-06-01", "2025-06-30", include_inactive=True)
+        entries = resp.json()["entries"]
+        jasmin_entry = next(e for e in entries if e["player_name"] == "Jasmin")
+
+        assert jasmin_entry["total_matches"] == 0
+        assert jasmin_entry["elo_change"] == 0.0
+        assert jasmin_entry["position_change"] is None
+
+    def test_established_player_keeps_computed_rank_change(self, client, db_session):
+        """
+        A player WITH match history before the period but no matches inside it
+        still gets a normal rank change: when a higher-ranked opponent drops
+        below them, +1 is the correct result (issue acceptance criterion).
+        """
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        jasmin = _create_player(db_session, "Jasmin", elo=1500)
+        top = _create_player(db_session, "Top", elo=1550)
+        weak = _create_player(db_session, "Weak", elo=1200)
+
+        # Jasmin plays before the period and ends at ~1504.8.
+        _create_match(client, jasmin.id, weak.id, jasmin.id, "2025-05-15")
+        # Top (start_elo 1550, no prior matches) loses twice in the period and
+        # falls to ~1494, below Jasmin.
+        _create_match(client, top.id, weak.id, weak.id, "2025-06-15")
+        _create_match(client, top.id, weak.id, weak.id, "2025-06-20")
+
+        resp = _get_ranking(client, "2025-06-01", "2025-06-30")
+        entries = resp.json()["entries"]
+        jasmin_entry = next(e for e in entries if e["player_name"] == "Jasmin")
+
+        # No matches in the period, but a real historical rank exists.
+        assert jasmin_entry["total_matches"] == 0
+        assert jasmin_entry["position_change"] == 1
 
 
 class TestDateRangeFiltering:

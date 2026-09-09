@@ -14,7 +14,9 @@ class RankingEntry(BaseModel):
     position: int
     elo_rating: float
     elo_change: float
-    position_change: int
+    # None when the player has no previous ranking position (no matches up to
+    # to_date) - the UI renders it as '-'. (Fix #1)
+    position_change: Optional[int] = None
     total_matches: int = 0
     total_180s: int = 0
     high_finishes: list[int] = []

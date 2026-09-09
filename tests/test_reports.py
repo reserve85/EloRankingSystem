@@ -173,6 +173,30 @@ class TestPdfGeneration:
         )
         pdf = generate_ranking_pdf(ranking)
         assert pdf[:4] == b"%PDF"
+        assert len(pdf) > 500
+
+    def test_generate_pdf_missing_position_change(self):
+        """PDF should render a missing position change (None) as '-' (Fix #1)."""
+        ranking = RankingResponse(
+            from_date=date(2025, 6, 1),
+            to_date=date(2025, 6, 30),
+            entries=[
+                RankingEntry(
+                    player_id=1,
+                    player_name="Newbie",
+                    position=1,
+                    elo_rating=1500.0,
+                    elo_change=0.0,
+                    position_change=None,
+                )
+            ],
+            generated_at=__import__("datetime").datetime(
+                2025, 7, 1, tzinfo=__import__("datetime").timezone.utc
+            ),
+        )
+        pdf = generate_ranking_pdf(ranking)
+        assert pdf[:4] == b"%PDF"
+        assert len(pdf) > 500
 
     def test_generate_pdf_empty_ranking(self):
         """PDF should handle empty ranking gracefully."""

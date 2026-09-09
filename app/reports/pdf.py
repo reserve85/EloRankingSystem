@@ -144,9 +144,12 @@ def generate_ranking_pdf(
     data = [header]
     for entry in ranking.entries:
         # Zero change is shown without a "+" prefix. Position change zero uses
-        # a bare "-" exactly like the dashboard so both surfaces agree (Fix L5).
+        # a bare "-" exactly like the dashboard so both surfaces agree (Fix L5);
+        # None (no previous ranking position, Fix #1) also renders as "-".
         elo_sign = "+" if entry.elo_change > 0 else ""
-        if entry.position_change > 0:
+        if entry.position_change is None:
+            pos_txt = "-"
+        elif entry.position_change > 0:
             pos_txt = f"+{entry.position_change}"
         elif entry.position_change < 0:
             pos_txt = str(entry.position_change)
@@ -206,10 +209,10 @@ def generate_ranking_pdf(
         elif entry.elo_change < 0:
             style_commands.append(("TEXTCOLOR", (3, row), (3, row), colors.HexColor("#d63939")))
 
-        # Position Change coloring
-        if entry.position_change > 0:
+        # Position Change coloring (skip None = no previous position)
+        if entry.position_change is not None and entry.position_change > 0:
             style_commands.append(("TEXTCOLOR", (4, row), (4, row), colors.HexColor("#2fb344")))
-        elif entry.position_change < 0:
+        elif entry.position_change is not None and entry.position_change < 0:
             style_commands.append(("TEXTCOLOR", (4, row), (4, row), colors.HexColor("#d63939")))
 
     table.setStyle(TableStyle(style_commands))

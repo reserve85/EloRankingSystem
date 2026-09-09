@@ -58,6 +58,13 @@ class RankingService:
         records = self._build_ranking_records(from_date, to_date)
         entries: list[dict] = []
 
+        # Players with at least one match up to ``to_date`` have a real ranking
+        # position; everyone else (e.g. a brand-new member without any matches)
+        # has no previous position at all. The old code computed a phantom
+        # position change for those players by comparing two synthetic
+        # start_elo-derived positions (Fix #1).
+        players_with_matches = set(records.keys())
+
         for player in players:
             rec = records.get(player.id)
             if rec is None:
@@ -110,8 +117,14 @@ class RankingService:
         ranking_entries: list[RankingEntry] = []
         for i, entry in enumerate(entries):
             end_position = i + 1
-            start_position = start_positions.get(entry["player_id"], end_position)
-            position_change = start_position - end_position  # positive = moved up
+            if entry["player_id"] not in players_with_matches:
+                # Fix #1: no match history up to to_date -> the player has no
+                # previous ranking position, so a rank change would be
+                # fabricated. Show '-' (None) instead.
+                position_change = None
+            else:
+                start_position = start_positions.get(entry["player_id"], end_position)
+                position_change = start_position - end_position  # positive = moved up
 
             ranking_entries.append(
                 RankingEntry(

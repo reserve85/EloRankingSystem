@@ -87,6 +87,13 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
             return float(player.start_elo)
         return match.elo_after_a if match.player_a_id == player.id else match.elo_after_b
 
+    def has_any_match(player, target_date):
+        """Whether the player has any match up to ``target_date`` (Fix #1)."""
+        query = db_session.query(Match).filter(
+            (Match.player_a_id == player.id) | (Match.player_b_id == player.id)
+        )
+        return query.filter(Match.date <= target_date).first() is not None
+
     def period_stats(pid):
         matches = (
             db_session.query(Match)
@@ -132,6 +139,7 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
                 "elo_rating": end,
                 "elo_change": end - start,
                 "start_elo": start,
+                "has_match_history": has_any_match(player, to_date),
                 "total_matches": s["match_count"],
                 "total_180s": s["total_180s"],
                 "high_finishes": s["high_finishes"],
@@ -149,7 +157,13 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
             {
                 "player_id": e["player_id"],
                 "position": i + 1,
-                "position_change": start_positions.get(e["player_id"], i + 1) - (i + 1),
+                # Fix #1: no match history up to to_date -> no previous ranking
+                # position -> the API reports None (rendered as '-').
+                "position_change": (
+                    start_positions.get(e["player_id"], i + 1) - (i + 1)
+                    if e["has_match_history"]
+                    else None
+                ),
                 "elo_rating": round(e["elo_rating"], 6),
                 "elo_change": round(e["elo_change"], 6),
                 "total_matches": e["total_matches"],
