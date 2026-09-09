@@ -1,6 +1,6 @@
 """Player service - business logic for player management."""
 
-from datetime import date
+from datetime import date, timedelta
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
@@ -194,10 +194,21 @@ class PlayerService:
     def reactivate_player(self, player_id: int) -> Player:
         """Reactivate a disabled player.
 
-        Closes the player's currently open disable period today (Fix #5), so
-        the exact window is recorded for the history-aware rankings. A player
-        disabled Jan-Feb, re-enabled and disabled again later therefore
-        accumulates multiple windows that are each evaluated separately.
+        Closes the player's currently open disable period the day BEFORE the
+        reactivation (Fix #5), so the player is excluded up to and including
+        yesterday and reappears in the rankings the SAME day they are
+        re-enabled. The exact window is recorded for the history-aware
+        rankings; a player disabled Jan-Feb, re-enabled and disabled again
+        later therefore accumulates multiple windows that are each evaluated
+        separately.
+
+        A disable + immediate re-enable on the SAME day is a no-op toggle:
+        the player is not disabled for a single whole day, so the window is
+        DELETED instead of persist. Storing an empty window (disabled_from
+        ``today``, disabled_to ``today - 1``) would otherwise accumulate a
+        junk row per toggle and could poison the ranking when combined with
+        legacy same-day windows (``[today, today]``) written by the original
+        Fix #5 code.
 
         Args:
             player_id: The player's ID.
@@ -216,7 +227,16 @@ class PlayerService:
                 .first()
             )
             if open_period is not None:
-                open_period.disabled_to = date.today()
+                if open_period.disabled_from == date.today():
+                    # Disabled and re-enabled on the same calendar day: there
+                    # is no day on which the player was actually missing, so
+                    # drop the period instead of recording an empty window.
+                    self.repo.db.delete(open_period)
+                else:
+                    # Close the window the day BEFORE the reactivation: the
+                    # inclusive window semantics would otherwise keep the
+                    # player hidden for the whole re-enable day.
+                    open_period.disabled_to = date.today() - timedelta(days=1)
         player.disabled = False
         player.active = True
         player = self.repo.update(player)

@@ -1,5 +1,7 @@
 """Tests for Alembic database migrations."""
 
+import datetime
+
 import sqlalchemy as sa
 from sqlalchemy import create_engine, inspect
 from alembic.config import Config
@@ -185,6 +187,87 @@ class TestMigrations:
             # It is an OPEN period (still disabled today) with a real start date.
             assert periods["Old Disabled"]["disabled_from"] is not None
             assert periods["Old Disabled"]["disabled_to"] is None
+        finally:
+            engine.dispose()
+
+    def test_prune_zero_length_disable_periods(self, tmp_path):
+        """The prune migration removes same-day (legacy) and empty at zero-length
+        disable windows while keeping real multi-day windows and open rows."""
+        db_path = tmp_path / "prune.db"
+        db_url = f"sqlite:///{db_path}"
+
+        engine = create_engine(db_url, connect_args={"check_same_thread": False})
+        alembic_cfg = self._get_alembic_config()
+        alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+
+        try:
+            # Upgrade to the migration that creates the table.
+            command.upgrade(alembic_cfg, "f6a7b8c9d0e1")
+
+            today = datetime.date.today()
+            yesterday = today - datetime.timedelta(days=1)
+            past = today - datetime.timedelta(days=5)
+
+            with engine.begin() as conn:
+                conn.execute(
+                    sa.text(
+                        "INSERT INTO players (name, start_elo, current_elo, active, disabled) "
+                        "VALUES ('SameDay', 1200, 1200, 1, 0)"
+                    )
+                )
+                pid = conn.execute(
+                    sa.text("SELECT id FROM players WHERE name = 'SameDay'")
+                ).scalar()
+                # Legacy same-day window (disabled_to == disabled_from) -> prune.
+                conn.execute(
+                    sa.text(
+                        "INSERT INTO player_disable_periods (player_id, disabled_from, disabled_to) "
+                        "VALUES (:pid, :day, :day)"
+                    ),
+                    {"pid": pid, "day": today},
+                )
+                # Empty window from an interim fix (disabled_to < disabled_from) -> prune.
+                conn.execute(
+                    sa.text(
+                        "INSERT INTO player_disable_periods (player_id, disabled_from, disabled_to) "
+                        "VALUES (:pid, :day, :yesterday)"
+                    ),
+                    {"pid": pid, "day": today, "yesterday": yesterday},
+                )
+                # Genuine multi-day window -> keep.
+                conn.execute(
+                    sa.text(
+                        "INSERT INTO player_disable_periods (player_id, disabled_from, disabled_to) "
+                        "VALUES (:pid, :past, :yesterday)"
+                    ),
+                    {"pid": pid, "past": past, "yesterday": yesterday},
+                )
+                # Open window (still disabled) -> keep.
+                conn.execute(
+                    sa.text(
+                        "INSERT INTO player_disable_periods (player_id, disabled_from, disabled_to) "
+                        "VALUES (:pid, :day, NULL)"
+                    ),
+                    {"pid": pid, "day": today},
+                )
+
+            command.upgrade(alembic_cfg, "head")
+
+            with engine.begin() as conn:
+                rows = conn.execute(
+                    sa.text(
+                        "SELECT disabled_from, disabled_to FROM player_disable_periods "
+                        "ORDER BY disabled_from, disabled_to"
+                    )
+                ).fetchall()
+
+            # Only the multi-day window and the open window survive.
+            # (SQLite DATE columns come back as ISO strings.)
+            expected = {
+                (today.isoformat(), None),  # open (still disabled) kept
+                (past.isoformat(), yesterday.isoformat()),  # multi-day kept
+            }
+            assert {tuple(r) for r in rows} == expected, rows
         finally:
             engine.dispose()
 

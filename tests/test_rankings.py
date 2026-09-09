@@ -1,6 +1,6 @@
 """Tests for ranking generation."""
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 
 from app.models.player import Player
@@ -1265,8 +1265,12 @@ class TestDisablePeriodRanking:
         assert ath["ath_rank"]["date_reached"] == "2026-02-01"
 
     def test_disable_reactivate_disable_cycle_records_separate_windows(self, client, db_session):
-        """Disable -> re-enable -> disable accumulates one period per window;
-        historical days before the first window keep counting the player."""
+        """Disable -> re-enable -> disable on the same day leaves ONE open window.
+
+        A disable + immediate re-enable is a no-op toggle (the period is
+        deleted instead of persisted), so the first cycle produces no junk
+        row. Days before the disable keep counting the player historically.
+        """
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
         flp = _create_player(db_session, "Flo", elo=5000, created_at=datetime(2025, 1, 1, 9, 0))
         ingo = _create_player(db_session, "Ingo", elo=1000, created_at=datetime(2025, 1, 1, 9, 0))
@@ -1276,9 +1280,9 @@ class TestDisablePeriodRanking:
         # A match before Flo is ever disabled.
         _create_match(client, ingo.id, sparring.id, ingo.id, "2026-03-15")
 
-        assert client.post(f"/players/{flp.id}/disable").status_code == 200  # window 1 open
-        assert client.post(f"/players/{flp.id}/reactivate").status_code == 200  # closes today
-        assert client.post(f"/players/{flp.id}/disable").status_code == 200  # window 2 open
+        assert client.post(f"/players/{flp.id}/disable").status_code == 200  # window opens
+        assert client.post(f"/players/{flp.id}/reactivate").status_code == 200  # deletes it
+        assert client.post(f"/players/{flp.id}/disable").status_code == 200  # window opens again
 
         periods = (
             db_session.query(PlayerDisablePeriod)
@@ -1286,17 +1290,61 @@ class TestDisablePeriodRanking:
             .order_by(PlayerDisablePeriod.disabled_from.asc())
             .all()
         )
-        assert len(periods) == 2
-        assert periods[0].disabled_to == date.today()
-        assert periods[1].disabled_to is None  # currently disabled again
+        # Only ONE, open, fresh window survives (the toggle rows are gone).
+        assert len(periods) == 1
+        assert periods[0].disabled_from == date.today()
+        assert periods[0].disabled_to is None  # currently disabled again
 
-        # The historical match (2026-03-15) predates window 1 -> Flo counts.
+        # The historical match (2026-03-15) predates the disable -> Flo counted.
         ath = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
         assert ath["ath_rank"]["best_rank"] == 2, ath
 
-        # The current ranking excludes Flo (window 2 is open today).
+        # The current ranking excludes Flo (an open window covers today).
         resp = _get_ranking(client, str(date.today()), str(date.today()), include_inactive=True)
         assert "Flo" not in [e["player_name"] for e in resp.json()["entries"]]
+
+    def test_reactivate_same_day_player_visible_in_ranking(self, client, db_session):
+        """Fix #5 regression: disable + immediate re-enable on the same day
+        must bring the player back into TODAY's ranking.
+
+        The same-day toggle deletes the disable window entirely (the player
+        was never absent for a whole day), so no stale row can hide them from
+        the current or historical tables.
+        """
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        _create_player(db_session, "Ingo", elo=1000, created_at=datetime(2025, 1, 1, 9, 0))
+        flo = _create_player(db_session, "Flo", elo=5000, created_at=datetime(2025, 1, 1, 9, 0))
+
+        assert client.post(f"/players/{flo.id}/disable").status_code == 200
+        assert client.post(f"/players/{flo.id}/reactivate").status_code == 200
+
+        # The disable was cancelled the same day: no period exists.
+        periods = (
+            db_session.query(PlayerDisablePeriod)
+            .filter(PlayerDisablePeriod.player_id == flo.id)
+            .all()
+        )
+        assert periods == []
+
+        today = date.today()
+        resp = _get_ranking(client, str(today), str(today), include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert names == ["Flo", "Ingo"], names
+
+        # And she is visible the day after as well.
+        tomorrow = today + timedelta(days=1)
+        resp = _get_ranking(client, str(tomorrow), str(tomorrow), include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert names == ["Flo", "Ingo"], names
+
+        # The exact reported case: the roster for a range that ENDS today
+        # (e.g. 01.09. - 09.09.) is computed as of to_date=today, so Flo must
+        # show there too - previously the [today, today] window hid her from
+        # the entire range.
+        range_from = today - timedelta(days=8)
+        resp = _get_ranking(client, str(range_from), str(today), include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert names == ["Flo", "Ingo"], names
 
 
 class TestHistoricalBestRankImmutability:
