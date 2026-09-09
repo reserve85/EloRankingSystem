@@ -119,6 +119,17 @@ class TestPlayerModel:
         assert player.last_match_date is None
         assert player.created_at is not None
 
+    def test_create_player_uses_configured_default_elo(self, db_session, monkeypatch):
+        """Fix #3: ORM insert defaults follow DEFAULT_ELO (no hardcoded 1200)."""
+        monkeypatch.setattr("app.models.player.settings.default_elo", 1600)
+        player = Player(name="Configured Default")
+        db_session.add(player)
+        db_session.commit()
+        db_session.refresh(player)
+
+        assert player.start_elo == 1600
+        assert player.current_elo == 1600.0
+
     def test_create_player_custom_elo(self, db_session):
         """Test creating a player with custom start Elo."""
         player = Player(name="Pro Player", start_elo=1500, current_elo=1500.0)

@@ -92,6 +92,9 @@ def admin_page(
             "wins_needed": (settings.best_of_legs + 1) // 2,
             "timezone": settings.timezone,
             "date_format": settings.date_format,
+            # Fix #3: the Add Player form must pre-fill and fall back to the
+            # configured DEFAULT_ELO, not a hardcoded 1200.
+            "default_elo": settings.default_elo,
         },
     )
 

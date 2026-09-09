@@ -149,6 +149,35 @@ class TestAdminPage:
         assert "player-modal" in resp.text
         assert "player-name" in resp.text
 
+    def test_admin_player_form_uses_configured_default_elo(self, client, db_session, monkeypatch):
+        """Fix #3: the Add Player form pre-fills and falls back to DEFAULT_ELO.
+
+        With DEFAULT_ELO=1500 the admin page must render 1500 (not a hardcoded
+        1200) in the modal input, the reset handler, and the submit fallback,
+        so frontend and backend use the same configured source.
+        """
+        monkeypatch.setattr("app.api.routes.ui.settings.default_elo", 1500)
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert resp.status_code == 200
+
+        # Modal input pre-fill.
+        assert 'id="player-start-elo" class="form-control" value="1500"' in resp.text
+        # resetPlayerForm() uses the configured value.
+        assert "player-start-elo').value='1500'" in resp.text
+        # savePlayer() fallback uses the configured value.
+        assert "parseInt(document.getElementById('player-start-elo').value) || 1500" in resp.text
+
+        # No hardcoded 1200 remains for the player start Elo.
+        assert 'id="player-start-elo" class="form-control" value="1200"' not in resp.text
+        assert "|| 1200" not in resp.text
+
+    def test_admin_player_form_defaults_to_1200_when_unconfigured(self, client, db_session):
+        """With DEFAULT_ELO unset the form still renders the built-in default."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert 'id="player-start-elo" class="form-control" value="1200"' in resp.text
+
     def test_admin_contains_user_modal(self, client, db_session):
         """Admin page should contain user management modal."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
