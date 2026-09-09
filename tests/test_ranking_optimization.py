@@ -70,9 +70,19 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
     # entry-date rule (entry date <= to_date) is mirrored here as well.
     from datetime import datetime as _datetime, time as _time, timedelta as _timedelta
 
-    players = db_session.query(Player).filter(Player.disabled.is_(False)).all()
     entry_cutoff = _datetime.combine(to_date, _time.min) + _timedelta(days=1)
-    players = [p for p in players if p.created_at < entry_cutoff]
+
+    def _any_match_by(player, target_date):
+        """Whether the player has any recorded match up to ``target_date``."""
+        query = db_session.query(Match).filter(
+            (Match.player_a_id == player.id) | (Match.player_b_id == player.id)
+        )
+        return query.filter(Match.date <= target_date).first() is not None
+
+    players = db_session.query(Player).filter(Player.disabled.is_(False)).all()
+    # Fix #2 + Fix #4: effective entry date = earlier of creation date and
+    # first recorded match; the player must be existing by ``to_date``.
+    players = [p for p in players if p.created_at < entry_cutoff or _any_match_by(p, to_date)]
     if not include_inactive:
         period_matches = (
             db_session.query(Match).filter(Match.date >= from_date, Match.date <= to_date).all()

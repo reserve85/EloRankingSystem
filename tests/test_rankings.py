@@ -546,12 +546,18 @@ class TestEntryDateFiltering:
         names = [e["player_name"] for e in resp.json()["entries"]]
         assert "Jasmin Störmer" in names
 
-    def test_historical_matches_before_entry_date_do_not_make_player_visible(
+    def test_player_with_matches_before_creation_is_eligible_from_first_match(
         self, client, db_session
     ):
-        """Even with a match dated before the entry date, the player stays
-        invisible for periods ending before they joined the club (acceptance:
-        ranking calculations ignore not-yet-existing players)."""
+        """A recorded match proves existence (Fix #4).
+
+        Imported rosters often hold historical matches dated before the row's
+        created_at (the private livesystem DB bulk-imported every player on
+        2026-07-24 although they played in May 2026). Such a player is
+        considered to exist from their earliest recorded match, so they are
+        rankable there - otherwise a whole season of history would vanish.
+        They remain invisible for periods ending before that first match.
+        """
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         jasmin = _create_player(
             db_session,
@@ -563,14 +569,18 @@ class TestEntryDateFiltering:
         veteran = _create_player(db_session, "Veteran", elo=1400)
         rookie = _create_player(db_session, "Rookie", elo=1200)
         _create_match(client, veteran.id, rookie.id, veteran.id, "2025-09-05")
-        # A match dated BEFORE the entry date (retroactive historical entry).
+        # Backdated/imported match dated BEFORE the creation date.
         _create_match(client, jasmin.id, rookie.id, jasmin.id, "2025-08-20")
 
+        # Visible from the earliest recorded match onwards...
         resp = _get_ranking(client, "2025-08-01", "2025-08-31", include_inactive=True)
         names = [e["player_name"] for e in resp.json()["entries"]]
+        assert "Jasmin Störmer" in names
+
+        # ...but not for periods ending before that match.
+        resp = _get_ranking(client, "2025-06-01", "2025-08-19", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
         assert "Jasmin Störmer" not in names
-        assert "Veteran" in names
-        assert "Rookie" in names
 
 
 class TestRankingPermissions:
@@ -1043,6 +1053,194 @@ class TestAllTimeHighRanking:
         data = resp.json()
         assert data["ath_rank"]["best_rank"] is None
         assert data["ath_rank"]["date_reached"] is None
+
+
+class TestHistoricalBestRankImmutability:
+    """Fix #4: adding a new player must never change historical ranks."""
+
+    def test_added_player_does_not_change_existing_best_rank(self, client, db_session):
+        """Ingo #32/32 on 2026-05-06 stays #32 after Jasmin joins 2026-09-09.
+
+        Mirrors the live-data situation: every existing player was bulk
+        imported on 2026-07-24 (created_at AFTER the historical matches), so
+        their existence is proven by their recorded matches; Jasmin joins
+        later WITHOUT any match and must not be inserted retroactively.
+        """
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+
+        import_date = datetime(2026, 7, 24, 14, 0, 0)  # legacy bulk import
+        # 30 members, all on 2000. Pair them up: each plays once on 2026-05-04.
+        members = [
+            _create_player(db_session, f"Member_{i:02d}", elo=2000, created_at=import_date)
+            for i in range(30)
+        ]
+        ingo = _create_player(db_session, "Ingo Hohm", elo=1200, created_at=import_date)
+        sparring = _create_player(db_session, "Sparring", elo=1200, created_at=import_date)
+
+        # 15 matches on 2026-05-04 pair the 30 members; all stay >= ~1984.
+        for i in range(0, 30, 2):
+            _create_match(client, members[i].id, members[i + 1].id, members[i].id, "2026-05-04")
+        # Ingo loses his 2026-05-06 match -> lowest elo of the 32 -> #32/32.
+        _create_match(client, ingo.id, sparring.id, sparring.id, "2026-05-06")
+
+        # Ground truth: on 2026-05-06 exactly 32 players exist, Ingo is #32.
+        resp = _get_ranking(client, "2026-05-06", "2026-05-06", include_inactive=True)
+        entries = resp.json()["entries"]
+        assert len(entries) == 32
+        ingo_entry = next(e for e in entries if e["player_name"] == "Ingo Hohm")
+        assert ingo_entry["position"] == 32
+
+        ath_before = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
+        assert ath_before["ath_rank"]["best_rank"] == 32
+        assert ath_before["ath_rank"]["date_reached"] == "2026-05-06"
+
+        # Jasmin joins on 2026-09-09 (entry date = creation date, no matches).
+        _create_player(
+            db_session,
+            "Jasmin Störmer",
+            elo=1500,
+            active=False,
+            created_at=datetime(2026, 9, 9, 12, 0, 0),
+        )
+
+        # Historical rank on 06/05 is immutable: still 32 players, Ingo #32.
+        resp = _get_ranking(client, "2026-05-06", "2026-05-06", include_inactive=True)
+        entries = resp.json()["entries"]
+        assert len(entries) == 32
+        assert "Jasmin Störmer" not in [e["player_name"] for e in entries]
+        assert next(e for e in entries if e["player_name"] == "Ingo Hohm")["position"] == 32
+
+        # Best rank statistic is immutable too.
+        ath_after = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
+        assert ath_after["ath_rank"]["best_rank"] == 32
+        assert ath_after["ath_rank"]["date_reached"] == "2026-05-06"
+
+        # Jasmin is excluded before 09.09. and appears on/after it.
+        resp = _get_ranking(client, "2026-05-01", "2026-09-08", include_inactive=True)
+        assert "Jasmin Störmer" not in [e["player_name"] for e in resp.json()["entries"]]
+        resp = _get_ranking(client, "2026-09-09", "2026-09-09", include_inactive=True)
+        assert "Jasmin Störmer" in [e["player_name"] for e in resp.json()["entries"]]
+
+        # Jasmin herself has no match history -> no best rank yet.
+        jasmin = db_session.query(Player).filter(Player.name == "Jasmin Störmer").one()
+        ath_j = client.get(f"/rankings/player-stats/{jasmin.id}/ath").json()
+        assert ath_j["ath_rank"]["best_rank"] is None
+
+    def test_new_player_never_changes_best_rank_of_established_player(self, client, db_session):
+        """Adding a later-entered, high-elo player with no matches leaves
+        existing best ranks untouched (the /ath endpoint path)."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        alice = _create_player(
+            db_session, "Alice", elo=1200, created_at=datetime(2026, 1, 1, 12, 0, 0)
+        )
+        bob = _create_player(db_session, "Bob", elo=1200, created_at=datetime(2026, 1, 1, 12, 0, 0))
+        charlie = _create_player(
+            db_session, "Charlie", elo=1200, created_at=datetime(2026, 1, 1, 12, 0, 0)
+        )
+
+        _create_match(client, alice.id, bob.id, alice.id, "2026-02-10")
+        _create_match(client, alice.id, charlie.id, alice.id, "2026-02-20")
+
+        ath_before = client.get(f"/rankings/player-stats/{alice.id}/ath").json()
+        assert ath_before["ath_rank"]["best_rank"] == 1
+
+        # Late joiners with high start_elo but zero matches.
+        for i in range(5):
+            _create_player(
+                db_session,
+                f"Late_{i}",
+                elo=3000,
+                active=False,
+                created_at=datetime(2026, 9, 9, 12, 0, 0),
+            )
+
+        ath_after = client.get(f"/rankings/player-stats/{alice.id}/ath").json()
+        assert ath_after["ath_rank"]["best_rank"] == 1
+        assert ath_after["ath_rank"]["date_reached"] == "2026-02-10"
+
+
+class TestBestRankUsesMinimum:
+    """Fix #4: Best Rank is the LOWEST rank number ever achieved (MIN, not
+    MAX), and the date is the first date that rank was reached."""
+
+    def test_best_rank_is_minimum_across_dates(self, client, db_session):
+        """Daily ranks 3 -> 1 -> 3 yield Best Rank #1 on the middle date."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        alice = _create_player(
+            db_session, "Alice", elo=1200, created_at=datetime(2025, 1, 1, 12, 0, 0)
+        )
+        bob = _create_player(db_session, "Bob", elo=1200, created_at=datetime(2025, 1, 1, 12, 0, 0))
+        # Charlie exists (he keeps Alice off #2 early on) but never plays.
+        _create_player(db_session, "Charlie", elo=1200, created_at=datetime(2025, 1, 1, 12, 0, 0))
+
+        # 2025-04-01: Alice loses -> #3
+        _create_match(client, alice.id, bob.id, bob.id, "2025-04-01")
+        # 2025-04-10: Alice upsets Bob -> #1
+        _create_match(client, alice.id, bob.id, alice.id, "2025-04-10")
+        # 2025-04-20: Alice loses again -> #3
+        _create_match(client, alice.id, bob.id, bob.id, "2025-04-20")
+
+        ath = client.get(f"/rankings/player-stats/{alice.id}/ath").json()
+        assert ath["ath_rank"]["best_rank"] == 1
+        assert ath["ath_rank"]["date_reached"] == "2025-04-10"
+
+    def test_best_rank_equals_min_of_daily_ranking_positions(self, client, db_session):
+        """Property test: over a varied history the ATH best rank equals the
+        minimum of the player's daily ranking positions (covers sequences like
+        32,20,25 -> #20 and 10,5,8 -> #5)."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        # Six players with distinct ratings so no ties occur.
+        start_elos = [1100, 1200, 1300, 1400, 1500, 1600]
+        players = [
+            _create_player(
+                db_session, f"P{start}", elo=start, created_at=datetime(2025, 1, 1, 12, 0, 0)
+            )
+            for start in start_elos
+        ]
+        target = players[0]  # start_elo 1100
+
+        # Target climbs by upsetting successively stronger players, then drops.
+        schedule = [
+            ("2025-02-01", target.name, "P1200", target.name),
+            ("2025-02-15", target.name, "P1600", target.name),
+            ("2025-03-01", target.name, "P1500", target.name),
+            ("2025-03-15", target.name, "P1200", target.name),
+            ("2025-04-01", target.name, "P1300", target.name),
+            ("2025-04-15", target.name, "P1400", target.name),
+            ("2025-05-01", target.name, "P1500", target.name),
+            ("2025-05-15", target.name, "P1600", target.name),
+            ("2025-06-01", "P1200", target.name, "P1200"),  # target loses
+        ]
+        by_name = {p.name: p for p in players}
+        for match_date, a_name, b_name, winner_name in schedule:
+            _create_match(
+                client,
+                by_name[a_name].id,
+                by_name[b_name].id,
+                by_name[winner_name].id,
+                match_date,
+            )
+
+        # Ground truth: the daily position of the target on each date they
+        # played, taken from the public ranking endpoint.
+        daily_positions: list[int] = []
+        daily_dates: list[str] = []
+        for match_date, _, _, _ in schedule:
+            resp = _get_ranking(client, match_date, match_date, include_inactive=True)
+            entries = resp.json()["entries"]
+            entry = next(e for e in entries if e["player_name"] == target.name)
+            daily_positions.append(entry["position"])
+            daily_dates.append(match_date)
+
+        # Non-vacuous: the history must actually vary.
+        assert len(set(daily_positions)) > 1
+
+        expected_best = min(daily_positions)
+        expected_date = daily_dates[daily_positions.index(expected_best)]
+
+        ath = client.get(f"/rankings/player-stats/{target.id}/ath").json()
+        assert ath["ath_rank"]["best_rank"] == expected_best
+        assert ath["ath_rank"]["date_reached"] == expected_date
 
 
 class TestNewPlayerNotInRanking:
