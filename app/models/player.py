@@ -26,6 +26,12 @@ class Player(Base):
     current_elo: Mapped[float] = mapped_column(
         Float, nullable=False, default=lambda: float(settings.default_elo)
     )
+    # Fix #3 II: when the player joined the club (member-since date). This is
+    # the authoritative "entry date" used by historical rankings: a player is
+    # only a competitor from entry_date onwards, and every non-disabled
+    # player entered by a date counts on that date (ranked by their Elo as of
+    # that date). NULL falls back to the creation date for legacy rows.
+    entry_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, default=None)
     active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     disabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     last_match_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True, default=None)

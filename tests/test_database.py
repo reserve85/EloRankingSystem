@@ -130,6 +130,31 @@ class TestPlayerModel:
         assert player.start_elo == 1600
         assert player.current_elo == 1600.0
 
+    def test_create_player_with_entry_date(self, db_session):
+        """Fix #3 II: the member-since (entry) date is stored and round-trips."""
+        from datetime import date
+
+        player = Player(
+            name="Veteran",
+            start_elo=1200,
+            current_elo=1200.0,
+            entry_date=date(2020, 3, 15),
+        )
+        db_session.add(player)
+        db_session.commit()
+        db_session.refresh(player)
+
+        assert player.entry_date == date(2020, 3, 15)
+
+    def test_create_player_entry_date_defaults_to_none(self, db_session):
+        """Model-level default: entry_date is NULL unless provided (the
+        service layer sets it on API/UI creation)."""
+        player = Player(name="Plain")
+        db_session.add(player)
+        db_session.commit()
+        db_session.refresh(player)
+        assert player.entry_date is None
+
     def test_create_player_custom_elo(self, db_session):
         """Test creating a player with custom start Elo."""
         player = Player(name="Pro Player", start_elo=1500, current_elo=1500.0)

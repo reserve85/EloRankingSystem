@@ -27,16 +27,26 @@ def _login_as(client, db_session, username, password, role):
 
 
 def _create_player(
-    db_session, name="Player", elo=1200, active=True, last_match=None, created_at=None
+    db_session,
+    name="Player",
+    elo=1200,
+    active=True,
+    last_match=None,
+    created_at=None,
+    entry_date=None,
 ):
     """Create a player directly in the database.
 
-    ``created_at`` is the player's entry date (Fix #2). The default backdates
-    it so ranking tests with 2025-06 windows treat the player as already
-    existing; explicit per-test values are used for entry-date scenarios.
+    ``entry_date`` is the player's member-since date (the authoritative
+    "entry date" for ranking eligibility, Fix #3 II). It defaults to the
+    ``created_at`` date, which itself is backdated by default so ranking tests
+    with 2025-06 windows treat the player as already existing. Explicit
+    per-test values are used for entry-date scenarios.
     """
     if created_at is None:
         created_at = datetime(2025, 5, 1, 12, 0, 0)
+    if entry_date is None:
+        entry_date = created_at.date()
     player = Player(
         name=name,
         start_elo=elo,
@@ -45,6 +55,7 @@ def _create_player(
         disabled=False,
         last_match_date=last_match,
         created_at=created_at,
+        entry_date=entry_date,
     )
     db_session.add(player)
     db_session.commit()
@@ -79,16 +90,17 @@ def _get_ranking(client, from_date=None, to_date=None, include_inactive=False):
 
 
 def _backdate_created_at(db_session, when=None):
-    """Backdate every player's entry date (creation date) to ``when``.
+    """Backdate every player's entry date and creation date to ``when``.
 
     Fixtures that create players via the API and then register matches with
     earlier dates need this so the players count as already existing on those
-    match dates (Fix #2: entry-date eligibility).
+    match dates (the ranking uses the explicit entry_date).
     """
     if when is None:
         when = datetime(2026, 1, 1, 12, 0, 0)
     for p in db_session.query(Player).all():
         p.created_at = when
+        p.entry_date = when.date()
     db_session.commit()
 
 
@@ -494,11 +506,11 @@ class TestInactivePlayers:
 
 
 class TestEntryDateFiltering:
-    """Fix #2: players must only appear in rankings after their entry date.
+    """Fix #2 + Fix #3 II: players must only appear in rankings from their
+    entry date (member-since) onwards.
 
-    A player is considered to exist from their creation date ("entry date")
-    onwards, so ranking periods ending before it must not list them.
-    Rule: entry_date <= selected_period_end.
+    Rule: entry_date <= selected_period_end. The explicit ``entry_date`` is
+    the authority - matches no longer imply existence.
     """
 
     # Entry date used for the "joined club" scenarios below.
@@ -512,6 +524,7 @@ class TestEntryDateFiltering:
             elo=1500,
             active=False,
             created_at=datetime(2025, 9, 9, 12, 0, 0),  # on ENTRY_ON
+            entry_date=date(2025, 9, 9),  # = the entry / member-since date
         )
         veteran = _create_player(db_session, "Veteran", elo=1400)
         rookie = _create_player(db_session, "Rookie", elo=1200)
@@ -546,18 +559,9 @@ class TestEntryDateFiltering:
         names = [e["player_name"] for e in resp.json()["entries"]]
         assert "Jasmin Störmer" in names
 
-    def test_player_with_matches_before_creation_is_eligible_from_first_match(
-        self, client, db_session
-    ):
-        """A recorded match proves existence (Fix #4).
-
-        Imported rosters often hold historical matches dated before the row's
-        created_at (the private livesystem DB bulk-imported every player on
-        2026-07-24 although they played in May 2026). Such a player is
-        considered to exist from their earliest recorded match, so they are
-        rankable there - otherwise a whole season of history would vanish.
-        They remain invisible for periods ending before that first match.
-        """
+    def test_entry_date_is_authoritative_regardless_of_matches(self, client, db_session):
+        """Matches dated before the entry date do NOT make a player eligible
+        earlier; the explicit entry date is the only thing that matters."""
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         jasmin = _create_player(
             db_session,
@@ -565,19 +569,43 @@ class TestEntryDateFiltering:
             elo=1500,
             active=False,
             created_at=datetime(2025, 9, 9, 12, 0, 0),
+            entry_date=date(2025, 9, 9),
         )
         veteran = _create_player(db_session, "Veteran", elo=1400)
         rookie = _create_player(db_session, "Rookie", elo=1200)
         _create_match(client, veteran.id, rookie.id, veteran.id, "2025-09-05")
-        # Backdated/imported match dated BEFORE the creation date.
+        # A match dated BEFORE the entry date (retroactive historical entry).
         _create_match(client, jasmin.id, rookie.id, jasmin.id, "2025-08-20")
 
-        # Visible from the earliest recorded match onwards...
         resp = _get_ranking(client, "2025-08-01", "2025-08-31", include_inactive=True)
         names = [e["player_name"] for e in resp.json()["entries"]]
-        assert "Jasmin Störmer" in names
+        assert "Jasmin Störmer" not in names
+        assert "Veteran" in names
+        assert "Rookie" in names
 
-        # ...but not for periods ending before that match.
+    def test_legacy_import_member_uses_backfilled_entry_date(self, client, db_session):
+        """Imported rosters: the migration backfills entry_date to the first
+        recorded match date, so a member who "played since May" but was bulk
+        imported on 07-24 is eligible from that backfilled entry date."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        jasmin = _create_player(
+            db_session,
+            "Jasmin Störmer",
+            elo=1500,
+            active=False,
+            created_at=datetime(2025, 9, 9, 12, 0, 0),  # bulk import date
+            entry_date=date(2025, 8, 20),  # backfilled from first recorded match
+        )
+        veteran = _create_player(db_session, "Veteran", elo=1400)
+        rookie = _create_player(db_session, "Rookie", elo=1200)
+        _create_match(client, veteran.id, rookie.id, veteran.id, "2025-09-05")
+        _create_match(client, jasmin.id, rookie.id, jasmin.id, "2025-08-20")
+
+        resp = _get_ranking(client, "2025-08-01", "2025-08-31", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert "Jasmin Störmer" in names  # entry_date (08-20) reached
+
+        # Still invisible for periods ending before the entry date.
         resp = _get_ranking(client, "2025-06-01", "2025-08-19", include_inactive=True)
         names = [e["player_name"] for e in resp.json()["entries"]]
         assert "Jasmin Störmer" not in names
@@ -1062,20 +1090,39 @@ class TestHistoricalBestRankImmutability:
         """Ingo #32/32 on 2026-05-06 stays #32 after Jasmin joins 2026-09-09.
 
         Mirrors the live-data situation: every existing player was bulk
-        imported on 2026-07-24 (created_at AFTER the historical matches), so
-        their existence is proven by their recorded matches; Jasmin joins
-        later WITHOUT any match and must not be inserted retroactively.
+        imported on 2026-07-24 (created_at AFTER the historical matches) and
+        the migration backfilled their entry_date to the first recorded match
+        date. Jasmin joins later WITHOUT any match and must not be inserted
+        retroactively - her entry_date is 2026-09-09.
         """
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
 
         import_date = datetime(2026, 7, 24, 14, 0, 0)  # legacy bulk import
         # 30 members, all on 2000. Pair them up: each plays once on 2026-05-04.
         members = [
-            _create_player(db_session, f"Member_{i:02d}", elo=2000, created_at=import_date)
+            _create_player(
+                db_session,
+                f"Member_{i:02d}",
+                elo=2000,
+                created_at=import_date,
+                entry_date=date(2026, 5, 4),  # migration backfill: first match
+            )
             for i in range(30)
         ]
-        ingo = _create_player(db_session, "Ingo Hohm", elo=1200, created_at=import_date)
-        sparring = _create_player(db_session, "Sparring", elo=1200, created_at=import_date)
+        ingo = _create_player(
+            db_session,
+            "Ingo Hohm",
+            elo=1200,
+            created_at=import_date,
+            entry_date=date(2026, 5, 6),  # backfilled from his first match
+        )
+        sparring = _create_player(
+            db_session,
+            "Sparring",
+            elo=1200,
+            created_at=import_date,
+            entry_date=date(2026, 5, 6),
+        )
 
         # 15 matches on 2026-05-04 pair the 30 members; all stay >= ~1984.
         for i in range(0, 30, 2):
@@ -1101,6 +1148,7 @@ class TestHistoricalBestRankImmutability:
             elo=1500,
             active=False,
             created_at=datetime(2026, 9, 9, 12, 0, 0),
+            entry_date=date(2026, 9, 9),
         )
 
         # Historical rank on 06/05 is immutable: still 32 players, Ingo #32.
@@ -1241,6 +1289,215 @@ class TestBestRankUsesMinimum:
         ath = client.get(f"/rankings/player-stats/{target.id}/ath").json()
         assert ath["ath_rank"]["best_rank"] == expected_best
         assert ath["ath_rank"]["date_reached"] == expected_date
+
+
+class TestDateOnlySemantics:
+    """Date-based entry semantics (Fix #3 follow-up).
+
+    A player's entry date is their CALENDAR day - the time-of-day of
+    created_at is irrelevant, and position on a date is always decided by
+    Elo, never by creation order or insertion id.
+    """
+
+    def test_same_day_creation_times_are_equal_and_ranked_by_elo(self, client, db_session):
+        """Players created 23:59 vs 00:01 on the same day are equally eligible
+        for that day; Elo decides the order, not the creation time."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        _create_player(db_session, "LowElo", elo=1000, created_at=datetime(2025, 9, 9, 23, 59))
+        _create_player(db_session, "HighElo", elo=2000, created_at=datetime(2025, 9, 9, 0, 1))
+
+        resp = _get_ranking(client, "2025-09-09", "2025-09-09", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert names == ["HighElo", "LowElo"]
+
+    def test_same_day_entrants_count_position_by_elo_not_creation_order(self, client, db_session):
+        """User scenario: player 1 (elo 1000) entered first, then higher-elo
+        players entered on the SAME day. The day-ranking includes all of them,
+        so player 1's best rank is NOT #1 - it is by Elo (last). Only players
+        entering on a LATER date would leave player 1 alone on the first day.
+        """
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        p1 = _create_player(
+            db_session, "FirstPlayer", elo=1000, created_at=datetime(2025, 6, 1, 8, 0)
+        )
+        opp = _create_player(db_session, "Opponent", elo=900, created_at=datetime(2025, 6, 1, 9, 0))
+        # Three same-day entrants with higher Elo (represents the 50 in the
+        # user's example - the rule is the same regardless of count).
+        for i, elo in enumerate((2000, 2100, 2200)):
+            _create_player(
+                db_session,
+                f"High_{i}",
+                elo=elo,
+                created_at=datetime(2025, 6, 1, 10 + i, 0),
+            )
+
+        _create_match(client, p1.id, opp.id, p1.id, "2025-06-02")
+
+        # On p1's match day all five same-day entrants exist, ordered by Elo.
+        resp = _get_ranking(client, "2025-06-02", "2025-06-02", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert names == ["High_2", "High_1", "High_0", "FirstPlayer", "Opponent"]
+
+        ath = client.get(f"/rankings/player-stats/{p1.id}/ath").json()
+        assert ath["ath_rank"]["best_rank"] == 4  # NOT #1; 3 higher-Elo entries above
+
+    def test_later_entrants_leave_earlier_best_rank_intact(self, client, db_session):
+        """Player 1 alone on 06-01 is #1; 50 higher-Elo players entered on a
+        LATER date must not change that historical rank (issue #4 immutability).
+        """
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        p1 = _create_player(
+            db_session, "FirstPlayer", elo=1000, created_at=datetime(2025, 6, 1, 8, 0)
+        )
+        opp = _create_player(db_session, "Opponent", elo=900, created_at=datetime(2025, 6, 1, 9, 0))
+        _create_match(client, p1.id, opp.id, p1.id, "2025-06-02")
+
+        ath_before = client.get(f"/rankings/player-stats/{p1.id}/ath").json()
+        assert ath_before["ath_rank"]["best_rank"] == 1
+
+        # Same-day entrants count on the 06-02 ranking...
+        resp = _get_ranking(client, "2025-06-02", "2025-06-02", include_inactive=True)
+        assert [e["player_name"] for e in resp.json()["entries"]] == [
+            "FirstPlayer",
+            "Opponent",
+        ]
+
+        # ...but higher-Elo players entered LATER do not move the 06-02 rank.
+        for i in range(3):
+            _create_player(
+                db_session,
+                f"LateHigh_{i}",
+                elo=3000,
+                active=False,
+                created_at=datetime(2025, 6, 5, 12, 0),
+            )
+
+        ath_after = client.get(f"/rankings/player-stats/{p1.id}/ath").json()
+        assert ath_after["ath_rank"]["best_rank"] == 1
+        assert ath_after["ath_rank"]["date_reached"] == "2025-06-02"
+
+
+class TestEntryDateCountsFullRoster:
+    """Fix #3 II: historical ranks and Best Rank count EVERY non-disabled
+    player whose entry_date <= date - including inactive members and members
+    who have never played. Disabled players are always excluded."""
+
+    def test_never_played_entered_members_count_in_best_rank(self, client, db_session):
+        """Ingo enters 2026-05-01, plays 2026-05-06. Three other club members
+        also entered 2026-05-01 (one never plays, one is inactive) with higher
+        start Elo. On 06/05 Ingo is #4 - NOT #1 - because the full roster that
+        existed on that date is ranked, not just the players who had played."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        _create_player(
+            db_session, "Ingo Hohm", elo=1000, created_at=datetime(2026, 5, 1, 9, 0)
+        )  # entry_date defaults to 2026-05-01
+        _create_player(
+            db_session,
+            "VeteranNeverPlayed",
+            elo=2000,
+            active=False,
+            created_at=datetime(2026, 5, 1, 10, 0),
+        )
+        _create_player(
+            db_session,
+            "InactiveMember",
+            elo=1800,
+            active=False,
+            created_at=datetime(2026, 5, 1, 11, 0),
+        )
+        _create_player(
+            db_session, "Reserve", elo=1500, active=False, created_at=datetime(2026, 5, 1, 12, 0)
+        )
+        sparring = _create_player(
+            db_session, "Sparring", elo=900, created_at=datetime(2026, 5, 1, 13, 0)
+        )
+        ingo = db_session.query(Player).filter(Player.name == "Ingo Hohm").one()
+
+        _create_match(client, ingo.id, sparring.id, ingo.id, "2026-05-06")
+
+        # The day-ranking includes all entered members (5), ordered by Elo as
+        # of that date (start_elo for never-played).
+        resp = _get_ranking(client, "2026-05-06", "2026-05-06", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert len(names) == 5
+        assert names == [
+            "VeteranNeverPlayed",
+            "InactiveMember",
+            "Reserve",
+            "Ingo Hohm",
+            "Sparring",
+        ]
+
+        ath = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
+        assert ath["ath_rank"]["best_rank"] == 4
+
+    def test_disabled_players_never_count(self, client, db_session):
+        """Disabled players are excluded from the full-roster denominator."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        ingo = _create_player(
+            db_session, "Ingo Hohm", elo=1000, created_at=datetime(2026, 5, 1, 9, 0)
+        )
+        sparring = _create_player(
+            db_session, "Sparring", elo=900, created_at=datetime(2026, 5, 1, 9, 0)
+        )
+        _create_player(
+            db_session,
+            "FormerMember",
+            elo=9999,
+            active=False,
+            created_at=datetime(2026, 5, 1, 9, 0),
+        )
+        _create_match(client, ingo.id, sparring.id, ingo.id, "2026-05-06")
+
+        # FormerMember (entry 05-01, disabled) must not shift anyone.
+        former = db_session.query(Player).filter(Player.name == "FormerMember").one()
+        former.disabled = True
+        db_session.commit()
+
+        resp = _get_ranking(client, "2026-05-06", "2026-05-06", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert names == ["Ingo Hohm", "Sparring"]
+
+        ath = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
+        assert ath["ath_rank"]["best_rank"] == 1
+
+    def test_changing_entry_date_moves_historical_rank(self, client, db_session):
+        """Admin backfilling a member's true entry date changes the
+        historical rank accordingly (the club controls member-since dates)."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        ingo = _create_player(
+            db_session, "Ingo Hohm", elo=1000, created_at=datetime(2026, 7, 24, 9, 0)
+        )
+        sparring = _create_player(
+            db_session, "Sparring", elo=900, created_at=datetime(2026, 7, 24, 9, 0)
+        )
+        high = _create_player(
+            db_session,
+            "HighElo",
+            elo=2000,
+            active=False,
+            created_at=datetime(2026, 7, 24, 9, 0),
+        )
+        _create_match(client, ingo.id, sparring.id, ingo.id, "2026-05-06")
+
+        # Currently everyone's entry_date = 2026-07-24 (import) -> on 06/05 no
+        # one exists, Ingo has no best rank yet.
+        ath = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
+        assert ath["ath_rank"]["best_rank"] is None
+
+        # Admin backfills the true member-since dates; Ingo joined 05-01.
+        client.put(f"/players/{ingo.id}", json={"entry_date": "2026-05-01"})
+        # HighElo joined 04-01 (before Ingo), Sparring on 05-02.
+        client.put(f"/players/{high.id}", json={"entry_date": "2026-04-01"})
+        client.put(f"/players/{sparring.id}", json={"entry_date": "2026-05-02"})
+
+        resp = _get_ranking(client, "2026-05-06", "2026-05-06", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert names == ["HighElo", "Ingo Hohm", "Sparring"]
+
+        ath = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
+        assert ath["ath_rank"]["best_rank"] == 2
+        assert ath["ath_rank"]["date_reached"] == "2026-05-06"
 
 
 class TestNewPlayerNotInRanking:

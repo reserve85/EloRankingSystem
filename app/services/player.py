@@ -1,5 +1,7 @@
 """Player service - business logic for player management."""
 
+from datetime import date
+
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
@@ -35,11 +37,15 @@ class PlayerService:
             )
 
         start_elo = data.start_elo if data.start_elo is not None else settings.default_elo
+        # Fix #3 II: member-since date. Defaults to today's date when omitted
+        # so new players become rankable from the day they are created.
+        entry_date = data.entry_date if data.entry_date is not None else date.today()
 
         player = Player(
             name=data.name,
             start_elo=start_elo,
             current_elo=float(start_elo),
+            entry_date=entry_date,
             active=False,
             disabled=False,
         )
@@ -122,6 +128,9 @@ class PlayerService:
         if data.start_elo is not None and data.start_elo != player.start_elo:
             player.start_elo = data.start_elo
             start_elo_changed = True
+
+        if data.entry_date is not None:
+            player.entry_date = data.entry_date
 
         player = self.repo.update(player)
 

@@ -28,7 +28,7 @@
       </div>
       <div class="card-body">
         <table id="players-table" class="table table-vcenter table-hover table-striped" style="width:100%">
-          <thead><tr><th>ID</th><th>Name</th><th>Start Elo</th><th>Current Elo</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>ID</th><th>Name</th><th>Start Elo</th><th>Current Elo</th><th>Entry</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody></tbody>
         </table>
       </div>
@@ -298,6 +298,7 @@
       <input type="hidden" id="player-edit-id">
       <div class="mb-3"><label class="form-label">Name</label><input type="text" id="player-name" class="form-control" required></div>
       <div class="mb-3"><label class="form-label">Start Elo</label><input type="number" id="player-start-elo" class="form-control" value="{{ default_elo }}"></div>
+      <div class="mb-3"><label class="form-label">Entry Date <span class="text-muted small">(member since)</span></label><input type="date" id="player-entry-date" class="form-control"></div>
     </form>
   </div>
   <div class="modal-footer"><button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button><button type="button" class="btn btn-primary" onclick="savePlayer()">Save</button></div>
@@ -478,7 +479,7 @@ function fmtDate(d) {
   return parts.find(p=>p.type==='year').value+'-'+parts.find(p=>p.type==='month').value+'-'+parts.find(p=>p.type==='day').value;
 }
 // --- Players ---
-function resetPlayerForm() { document.getElementById('player-edit-id').value=''; document.getElementById('player-name').value=''; document.getElementById('player-start-elo').value='{{ default_elo }}'; document.getElementById('player-modal-title').textContent='Add Player'; }
+function resetPlayerForm() { document.getElementById('player-edit-id').value=''; document.getElementById('player-name').value=''; document.getElementById('player-start-elo').value='{{ default_elo }}'; document.getElementById('player-entry-date').value=''; document.getElementById('player-modal-title').textContent='Add Player'; }
 async function loadPlayers() {
   const resp = await fetch('/players/?include_disabled=true');
   if (!resp.ok) return;
@@ -487,7 +488,7 @@ async function loadPlayers() {
   const tbody = document.querySelector('#players-table tbody'); tbody.innerHTML = '';
   players.forEach(p => {
     const status = p.disabled ? '<span class="badge bg-red">Disabled</span>' : (p.active ? '<span class="badge bg-green">Active</span>' : '<span class="badge bg-yellow">Inactive</span>');
-    tbody.innerHTML += '<tr><td>'+p.id+'</td><td>'+escapeHtml(p.name)+'</td><td>'+p.start_elo+'</td><td>'+p.current_elo.toFixed(1)+'</td><td>'+status+'</td><td>'
+    tbody.innerHTML += '<tr><td>'+p.id+'</td><td>'+escapeHtml(p.name)+'</td><td>'+p.start_elo+'</td><td>'+p.current_elo.toFixed(1)+'</td><td>'+(p.entry_date || '-')+'</td><td>'+status+'</td><td>'
       +'<button class="btn btn-sm btn-ghost-blue" onclick="editPlayer('+p.id+')">Edit</button> '
       +(p.disabled ? '<button class="btn btn-sm btn-ghost-green" onclick="reactivatePlayer('+p.id+')">Reactivate</button>'
         : '<button class="btn btn-sm btn-ghost-red" onclick="disablePlayer('+p.id+')">Disable</button>')
@@ -499,10 +500,14 @@ async function savePlayer() {
   const id = document.getElementById('player-edit-id').value;
   const name = document.getElementById('player-name').value;
   const startElo = parseInt(document.getElementById('player-start-elo').value) || {{ default_elo }};
+  const entryDate = document.getElementById('player-entry-date').value;
   const action = id ? 'Update' : 'Create';
   const confirmed = await showConfirmDialog(`${action} player "${name}"?`, `${action} Player`);
   if (!confirmed) return;
   const body = { name: name, start_elo: startElo };
+  // Entry date: only sent when the admin set/changed it. On create the backend
+  // defaults it to today; on update an empty value means "keep current".
+  if (entryDate) body.entry_date = entryDate;
   const url = id ? '/players/'+id : '/players/';
   const method = id ? 'PUT' : 'POST';
   const resp = await apiFetch(url, { method, headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) });
@@ -513,6 +518,7 @@ function editPlayer(id) {
     document.getElementById('player-edit-id').value = p.id;
     document.getElementById('player-name').value = p.name;
     document.getElementById('player-start-elo').value = p.start_elo;
+    document.getElementById('player-entry-date').value = p.entry_date || (p.created_at || '').substring(0,10);
     document.getElementById('player-modal-title').textContent = 'Edit Player';
     new bootstrap.Modal(document.getElementById('player-modal')).show();
   });

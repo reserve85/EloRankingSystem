@@ -178,6 +178,22 @@ class TestAdminPage:
         resp = client.get("/ui/admin")
         assert 'id="player-start-elo" class="form-control" value="1200"' in resp.text
 
+    def test_admin_has_entry_date_field(self, client, db_session):
+        """Fix #3 II: the Add/Edit player form has an entry-date (member-since)
+        input and the players table shows the Entry column."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        # Modal input.
+        assert 'id="player-entry-date"' in resp.text
+        # The table header has the Entry column.
+        assert "<th>Entry</th>" in resp.text
+        # resetPlayerForm clears the field.
+        assert "player-entry-date').value=''" in resp.text
+        # savePlayer sends it when set.
+        assert "body.entry_date = entryDate" in resp.text
+        # editPlayer prefills it.
+        assert "player-entry-date').value = p.entry_date" in resp.text
+
     def test_admin_contains_user_modal(self, client, db_session):
         """Admin page should contain user management modal."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)

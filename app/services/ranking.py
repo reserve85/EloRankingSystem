@@ -169,29 +169,20 @@ class RankingService:
         """
         query = self.db.query(Player).filter(Player.disabled.is_(False))
 
-        # Fix #2 + Fix #4: a player is only a competitor from their effective
-        # entry date onwards (rule: entry_date <= selected_period_end). The
-        # effective entry date is the earlier of:
-        #   - their creation date, and
-        #   - their earliest recorded match date.
-        # Imported rosters often register historical matches before the row's
-        # created_at (e.g. the private livesystem DB: every player was bulk
-        # imported on 2026-07-24 although they had matches in May 2026). Those
-        # players demonstrably existed when those matches were played, so they
-        # must stay rankable there - otherwise a whole season of history would
-        # disappear. A brand-new player without any match (e.g. Jasmin, created
-        # 09.09.) only exists from their creation date and must not appear in
-        # an 01.08.-31.08. ranking. Adding one day turns the inclusive date
-        # comparison into a portable datetime comparison that works on SQLite,
-        # PostgreSQL and MySQL without SQL date functions.
-        from sqlalchemy import exists, or_
+        # Fix #3 II (replaces Fix #2/#4 heuristics): a player is a competitor
+        # from their explicit entry date (member-since) onwards
+        # (rule: entry_date <= selected_period_end). Every non-disabled player
+        # entered by a date counts on that date, ranked by their Elo as of
+        # that date - whether or not they had played by then. Adding one day
+        # turns the inclusive date comparison into a portable datetime
+        # comparison (SQLite / PostgreSQL / MySQL) for the created_at
+        # fallback (legacy rows with a NULL entry_date).
+        from sqlalchemy import or_
 
         entry_cutoff = datetime.combine(as_of_date, time.min) + timedelta(days=1)
-        played_by_as_of = exists().where(
-            or_(Match.player_a_id == Player.id, Match.player_b_id == Player.id),
-            Match.date <= as_of_date,
-        )
-        query = query.filter(or_(Player.created_at < entry_cutoff, played_by_as_of))
+        has_entry_date = (Player.entry_date.isnot(None)) & (Player.entry_date <= as_of_date)
+        legacy_fallback = (Player.entry_date.is_(None)) & (Player.created_at < entry_cutoff)
+        query = query.filter(or_(has_entry_date, legacy_fallback))
 
         if not include_inactive:
             # Include players who have at least 1 match in the interval OR are active
@@ -594,13 +585,14 @@ class RankingService:
         0 matches) at each date the player played a match. This ensures that
         players with high start_elo but no matches are counted in rankings.
 
-        Only players who were already part of the club on that date may be
-        counted (Fix #2 + Fix #4). A player is considered to exist from their
-        effective entry date - the earlier of their creation date and their
-        first recorded match. This keeps joined-later players (e.g. Jasmin,
-        created 09.09.) out of earlier rankings (06.05.) while preserving
-        imported rosters whose historical matches precede their created_at.
-        Adding a player today therefore never mutates historical ranks.
+        Only players who were already members on that date may be counted
+        (Fix #3 II). Membership is decided by the player's EXPLICIT entry date
+        (member-since, ``entry_date``), with a fallback to the creation date
+        for legacy rows with a NULL ``entry_date``. EVERY non-disabled player
+        entered by a date counts on that date - including inactive and
+        never-yet-played members, who rank by their start Elo - while players
+        who entered later (e.g. Jasmin, created 09.09.) stay out of earlier
+        dates. Adding a player today therefore never mutates historical ranks.
 
         Args:
             player_id: The player's ID.
@@ -637,23 +629,19 @@ class RankingService:
         # Initialize all players to their start_elo
         current_elos: dict[int, float] = {p.id: float(p.start_elo) for p in all_players}
 
-        # Fix #2 + Fix #4: a player is only a competitor once their effective
-        # entry date has been reached - the earlier of their creation date and
-        # their earliest recorded match. Matches are processed in date order,
-        # so players become eligible monotonically: sort by effective entry
-        # date and advance a pointer as the walking date passes it.
-        earliest_match: dict[int, date] = {}
-        for m in all_matches:
-            earliest_match.setdefault(m.player_a_id, m.date)
-            earliest_match.setdefault(m.player_b_id, m.date)
+        # Fix #3 II: a player is a competitor from their explicit entry date
+        # onwards (fallback: creation date for legacy NULLs). Date-only by
+        # design - the time-of-day of created_at or entry_date never counts;
+        # a player who joined at 23:59 exists just as much as one at 00:01 on
+        # the same calendar day. Matches are processed in date order, so
+        # players become eligible monotonically: sort by entry date and
+        # advance a pointer as the walking date passes it.
+        def _entry_date(player: Player) -> date:
+            if player.entry_date is not None:
+                return player.entry_date
+            return player.created_at.date()
 
-        def _effective_entry(player: Player) -> date:
-            first = earliest_match.get(player.id)
-            if first is None:
-                return player.created_at.date()
-            return min(player.created_at.date(), first)
-
-        players_by_entry = sorted(all_players, key=_effective_entry)
+        players_by_entry = sorted(all_players, key=_entry_date)
         next_entry = 0
         eligible_ids: set[int] = set()
 
@@ -677,7 +665,7 @@ class RankingService:
             # rankable now.
             while (
                 next_entry < len(players_by_entry)
-                and _effective_entry(players_by_entry[next_entry]) <= m.date
+                and _entry_date(players_by_entry[next_entry]) <= m.date
             ):
                 eligible_ids.add(players_by_entry[next_entry].id)
                 next_entry += 1

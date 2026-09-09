@@ -40,6 +40,7 @@ def _create_player(db_session, name, elo=1200, active=True):
         active=active,
         disabled=False,
         created_at=datetime(2024, 12, 1, 12, 0, 0),
+        entry_date=date(2024, 12, 1),
     )
     db_session.add(player)
     db_session.commit()
@@ -66,23 +67,17 @@ def _create_match(client, pa_id, pb_id, winner_id, match_date, **stats):
 
 def _reference_ranking(db_session, from_date, to_date, include_inactive):
     """Re-implementation of the pre-optimization (per-player query) algorithm."""
-    # Eligible players - mirrors the old _get_eligible_players. Fix #2: the
-    # entry-date rule (entry date <= to_date) is mirrored here as well.
-    from datetime import datetime as _datetime, time as _time, timedelta as _timedelta
 
-    entry_cutoff = _datetime.combine(to_date, _time.min) + _timedelta(days=1)
-
-    def _any_match_by(player, target_date):
-        """Whether the player has any recorded match up to ``target_date``."""
-        query = db_session.query(Match).filter(
-            (Match.player_a_id == player.id) | (Match.player_b_id == player.id)
-        )
-        return query.filter(Match.date <= target_date).first() is not None
+    # Eligible players - mirrors ``_get_eligible_players``. Fix #3 II: a
+    # player is a competitor from their explicit entry date onwards
+    # (fallback: created_at date for legacy rows with a NULL entry_date).
+    def _entry(player):
+        if player.entry_date is not None:
+            return player.entry_date
+        return player.created_at.date()
 
     players = db_session.query(Player).filter(Player.disabled.is_(False)).all()
-    # Fix #2 + Fix #4: effective entry date = earlier of creation date and
-    # first recorded match; the player must be existing by ``to_date``.
-    players = [p for p in players if p.created_at < entry_cutoff or _any_match_by(p, to_date)]
+    players = [p for p in players if _entry(p) <= to_date]
     if not include_inactive:
         period_matches = (
             db_session.query(Match).filter(Match.date >= from_date, Match.date <= to_date).all()

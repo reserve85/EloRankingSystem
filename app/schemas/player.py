@@ -11,6 +11,9 @@ class PlayerCreate(BaseModel):
 
     name: str = Field(..., min_length=1, max_length=200)
     start_elo: Optional[int] = Field(default=None, ge=0)
+    # Member-since date (Fix #3 II). Defaults to the creation date when
+    # omitted; historical rankings only count a player from this date on.
+    entry_date: Optional[date] = None
 
 
 class PlayerUpdate(BaseModel):
@@ -18,6 +21,8 @@ class PlayerUpdate(BaseModel):
 
     name: Optional[str] = Field(default=None, min_length=1, max_length=200)
     start_elo: Optional[int] = Field(default=None, ge=0)
+    # None = leave unchanged (entry_date is set on creation / migration).
+    entry_date: Optional[date] = None
 
 
 class PlayerResponse(BaseModel):
@@ -30,6 +35,7 @@ class PlayerResponse(BaseModel):
     active: bool
     disabled: bool
     last_match_date: Optional[date] = None
+    entry_date: Optional[date] = None
     created_at: datetime
     updated_at: datetime
 

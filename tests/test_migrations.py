@@ -68,6 +68,10 @@ class TestMigrations:
             assert expected_cols.issubset(columns), (
                 f"Missing columns in matches: {expected_cols - columns}"
             )
+
+            # Fix #3 II: players table has the member-since entry_date column.
+            player_cols = {col["name"] for col in inspector.get_columns("players")}
+            assert "entry_date" in player_cols, f"Missing entry_date in players: {player_cols}"
         finally:
             engine.dispose()
 
@@ -190,6 +194,62 @@ class TestMigrations:
             assert "player_b_high_finishes" in columns
             assert "player_a_low_darts" in columns
             assert "player_b_low_darts" in columns
+        finally:
+            engine.dispose()
+
+    def test_player_entry_date_migration_backfills_existing_rows(self, tmp_path):
+        """Fix #3 II: the migration adds entry_date and backfills it to
+        min(creation date, first recorded match date)."""
+        from sqlalchemy import text
+
+        db_path = tmp_path / "entry.db"
+        db_url = f"sqlite:///{db_path}"
+
+        engine = create_engine(db_url, connect_args={"check_same_thread": False})
+        alembic_cfg = self._get_alembic_config()
+        alembic_cfg.set_main_option("sqlalchemy.url", db_url)
+
+        try:
+            # Old head: players/matches exist WITHOUT entry_date.
+            command.upgrade(alembic_cfg, "e3f0b5d6c7a8")
+
+            with engine.begin() as conn:
+                for name in ("LegacyA", "LegacyB", "Newbie"):
+                    conn.execute(
+                        text(
+                            "INSERT INTO players "
+                            "(name, start_elo, current_elo, active, disabled, created_at, updated_at) "
+                            "VALUES (:name, 1200, 1200, 1, 0, '2026-07-24 12:00:00', '2026-07-24 12:00:00')"
+                        ),
+                        {"name": name},
+                    )
+                # A historical match on 2026-05-06 (LegacyA vs LegacyB) BEFORE
+                # the bulk import date - the import scenario from the live DB.
+                conn.execute(
+                    text(
+                        "INSERT INTO matches "
+                        "(date, player_a_id, player_b_id, winner_id, loser_id, "
+                        "elo_before_a, elo_before_b, elo_after_a, elo_after_b, "
+                        "elo_change_a, elo_change_b, created_at, updated_at, "
+                        "player_a_180s, player_b_180s, best_of_legs, k_factor) "
+                        "VALUES ('2026-05-06', 1, 2, 1, 2, 1200, 1200, 1216, 1184, "
+                        "16, -16, '2026-07-24 12:00:00', '2026-07-24 12:00:00', 0, 0, 5, 32.0)"
+                    )
+                )
+
+            command.upgrade(alembic_cfg, "head")
+
+            with engine.connect() as conn:
+                rows = conn.execute(
+                    text("SELECT name, entry_date FROM players ORDER BY id")
+                ).mappings()
+                by_name = {r["name"]: str(r["entry_date"]) for r in rows}
+
+            # Players with a match: backfilled to the earliest match date.
+            assert by_name["LegacyA"] == "2026-05-06"
+            assert by_name["LegacyB"] == "2026-05-06"
+            # Never-played player: backfilled to the creation date.
+            assert by_name["Newbie"] == "2026-07-24"
         finally:
             engine.dispose()
 

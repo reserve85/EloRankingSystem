@@ -1,5 +1,7 @@
 """Tests for player management - service, repository, routes, and permissions."""
 
+from datetime import date
+
 import pytest
 
 from app.models.player import Player
@@ -73,6 +75,28 @@ class TestPlayerServiceCreate:
 
         assert player.start_elo == 1500
         assert player.current_elo == 1500.0
+
+    def test_create_player_defaults_entry_date_to_today(self, db_session, monkeypatch):
+        """Fix #3 II: without an explicit entry_date, the creation date is used."""
+        monkeypatch.setattr("app.services.player.settings.default_elo", 1200)
+        from datetime import date
+
+        from app.services.player import PlayerService
+
+        service = PlayerService(db_session)
+        player = service.create_player(PlayerCreate(name="Newbie"))
+        assert player.entry_date == date.today()
+
+    def test_create_player_with_explicit_entry_date(self, db_session, monkeypatch):
+        """Fix #3 II: an explicit member-since date is stored as-is."""
+        monkeypatch.setattr("app.services.player.settings.default_elo", 1200)
+        from datetime import date
+
+        from app.services.player import PlayerService
+
+        service = PlayerService(db_session)
+        player = service.create_player(PlayerCreate(name="Veteran", entry_date=date(2020, 3, 15)))
+        assert player.entry_date == date(2020, 3, 15)
 
     def test_create_player_duplicate_name_raises(self, db_session, monkeypatch):
         """Creating player with duplicate name should raise 409."""
@@ -250,6 +274,34 @@ class TestPlayerRoutesAsAdmin:
         data = response.json()
         assert data["start_elo"] == 1500
         assert data["current_elo"] == 1500.0
+
+    def test_create_player_with_entry_date(self, client, db_session):
+        """Fix #3 II: entry_date can be sent on creation and round-trips."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+
+        response = client.post(
+            "/players/", json={"name": "Veteran", "start_elo": 1500, "entry_date": "2020-03-15"}
+        )
+        assert response.status_code == 201
+        data = response.json()
+        assert data["entry_date"] == "2020-03-15"
+
+    def test_create_player_defaults_entry_date(self, client, db_session):
+        """Fix #3 II: without an entry_date, the API defaults to today."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+
+        response = client.post("/players/", json={"name": "Newbie"})
+        assert response.status_code == 201
+        assert response.json()["entry_date"] == str(date.today())
+
+    def test_update_player_entry_date(self, client, db_session):
+        """Fix #3 II: admin can backfill a player's member-since date."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        player = _create_player_db(db_session, "Backfill Me")
+
+        response = client.put(f"/players/{player.id}", json={"entry_date": "2026-05-01"})
+        assert response.status_code == 200
+        assert response.json()["entry_date"] == "2026-05-01"
 
     def test_list_players(self, client, db_session):
         """ADMIN should be able to list players."""
