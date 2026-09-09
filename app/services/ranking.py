@@ -5,7 +5,7 @@ Default range is the current month.
 """
 
 import calendar
-from datetime import date, datetime, timezone
+from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
 
 from sqlalchemy.orm import Session
@@ -168,6 +168,14 @@ class RankingService:
             List of eligible players.
         """
         query = self.db.query(Player).filter(Player.disabled.is_(False))
+
+        # Fix #2: a player only exists from their entry date (their creation
+        # date) onwards. Ranking periods ending before that must not list them
+        # (rule: entry_date <= selected_period_end). Adding one day turns the
+        # inclusive date comparison into a portable datetime comparison that
+        # works on SQLite, PostgreSQL and MySQL without SQL date functions.
+        entry_cutoff = datetime.combine(as_of_date, time.min) + timedelta(days=1)
+        query = query.filter(Player.created_at < entry_cutoff)
 
         if not include_inactive:
             # Include players who have at least 1 match in the interval OR are active
@@ -568,6 +576,11 @@ class RankingService:
         0 matches) at each date the player played a match. This ensures that
         players with high start_elo but no matches are counted in rankings.
 
+        Only players who had already entered the club by that date (entry
+        date, i.e. their creation date, <= the match date) are counted
+        (Fix #2). Players who joined later are not yet existing competitors
+        on earlier dates and are therefore ignored.
+
         Args:
             player_id: The player's ID.
 
@@ -603,6 +616,14 @@ class RankingService:
         # Initialize all players to their start_elo
         current_elos: dict[int, float] = {p.id: float(p.start_elo) for p in all_players}
 
+        # Fix #2: a player is only a real competitor once their entry date
+        # (creation date) has been reached. Matches are processed in date
+        # order, so players become eligible monotonically: sort by entry date
+        # and advance a pointer as the walking date passes their entry date.
+        players_by_entry = sorted(all_players, key=lambda p: p.created_at.date())
+        next_entry = 0
+        eligible_ids: set[int] = set()
+
         # Collect unique dates where the target player played
         target_match_dates: list[date] = []
         for m in all_matches:
@@ -619,6 +640,14 @@ class RankingService:
         # Walk through all matches, updating Elo, and check ranking at
         # every date the target player played
         for m in all_matches:
+            # Players whose entry date has been reached become rankable now.
+            while (
+                next_entry < len(players_by_entry)
+                and players_by_entry[next_entry].created_at.date() <= m.date
+            ):
+                eligible_ids.add(players_by_entry[next_entry].id)
+                next_entry += 1
+
             # Update elos for this match
             if m.player_a_id in current_elos:
                 current_elos[m.player_a_id] = m.elo_after_a
@@ -626,10 +655,10 @@ class RankingService:
                 current_elos[m.player_b_id] = m.elo_after_b
 
             # Only compute ranking at dates the target player played
-            if m.date in target_date_set:
-                # Rank ALL non-disabled players by their current Elo
+            if m.date in target_date_set and player_id in eligible_ids:
+                # Rank all players who had entered by this date, by current Elo
                 rankings = sorted(
-                    current_elos.items(),
+                    ((pid, elo) for pid, elo in current_elos.items() if pid in eligible_ids),
                     key=lambda x: (-x[1], x[0]),
                 )
                 for rank, (pid, _) in enumerate(rankings, 1):

@@ -1,6 +1,6 @@
 """Tests for ranking generation."""
 
-from datetime import date
+from datetime import date, datetime
 
 
 from app.models.player import Player
@@ -26,8 +26,17 @@ def _login_as(client, db_session, username, password, role):
     return user
 
 
-def _create_player(db_session, name="Player", elo=1200, active=True, last_match=None):
-    """Create a player directly in the database."""
+def _create_player(
+    db_session, name="Player", elo=1200, active=True, last_match=None, created_at=None
+):
+    """Create a player directly in the database.
+
+    ``created_at`` is the player's entry date (Fix #2). The default backdates
+    it so ranking tests with 2025-06 windows treat the player as already
+    existing; explicit per-test values are used for entry-date scenarios.
+    """
+    if created_at is None:
+        created_at = datetime(2025, 5, 1, 12, 0, 0)
     player = Player(
         name=name,
         start_elo=elo,
@@ -35,6 +44,7 @@ def _create_player(db_session, name="Player", elo=1200, active=True, last_match=
         active=active,
         disabled=False,
         last_match_date=last_match,
+        created_at=created_at,
     )
     db_session.add(player)
     db_session.commit()
@@ -66,6 +76,20 @@ def _get_ranking(client, from_date=None, to_date=None, include_inactive=False):
     if to_date:
         params["to_date"] = to_date
     return client.get("/rankings/", params=params)
+
+
+def _backdate_created_at(db_session, when=None):
+    """Backdate every player's entry date (creation date) to ``when``.
+
+    Fixtures that create players via the API and then register matches with
+    earlier dates need this so the players count as already existing on those
+    match dates (Fix #2: entry-date eligibility).
+    """
+    if when is None:
+        when = datetime(2026, 1, 1, 12, 0, 0)
+    for p in db_session.query(Player).all():
+        p.created_at = when
+    db_session.commit()
 
 
 # ── Tests ───────────────────────────────────────────────────────────────
@@ -469,6 +493,86 @@ class TestInactivePlayers:
         assert "Bob" in names
 
 
+class TestEntryDateFiltering:
+    """Fix #2: players must only appear in rankings after their entry date.
+
+    A player is considered to exist from their creation date ("entry date")
+    onwards, so ranking periods ending before it must not list them.
+    Rule: entry_date <= selected_period_end.
+    """
+
+    # Entry date used for the "joined club" scenarios below.
+    ENTRY_ON = date(2025, 9, 9)
+
+    def _create_seeded_members(self, client, db_session):
+        """Jasmin (entry 2025-09-09, no matches) + two veteran players."""
+        _create_player(
+            db_session,
+            "Jasmin Störmer",
+            elo=1500,
+            active=False,
+            created_at=datetime(2025, 9, 9, 12, 0, 0),  # on ENTRY_ON
+        )
+        veteran = _create_player(db_session, "Veteran", elo=1400)
+        rookie = _create_player(db_session, "Rookie", elo=1200)
+        _create_match(client, veteran.id, rookie.id, veteran.id, "2025-09-05")
+        return veteran, rookie
+
+    def test_player_not_visible_before_entry_date(self, client, db_session):
+        """Period ending before the entry date must not list the player."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        self._create_seeded_members(client, db_session)
+
+        resp = _get_ranking(client, "2025-09-01", "2025-09-08", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert "Jasmin Störmer" not in names
+        assert "Veteran" in names
+
+    def test_player_visible_on_entry_date(self, client, db_session):
+        """Period ending ON the entry date must list the player."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        self._create_seeded_members(client, db_session)
+
+        resp = _get_ranking(client, "2025-09-01", "2025-09-09", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert "Jasmin Störmer" in names
+
+    def test_player_visible_after_entry_date(self, client, db_session):
+        """Period ending after the entry date must list the player."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        self._create_seeded_members(client, db_session)
+
+        resp = _get_ranking(client, "2025-09-01", "2025-09-30", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert "Jasmin Störmer" in names
+
+    def test_historical_matches_before_entry_date_do_not_make_player_visible(
+        self, client, db_session
+    ):
+        """Even with a match dated before the entry date, the player stays
+        invisible for periods ending before they joined the club (acceptance:
+        ranking calculations ignore not-yet-existing players)."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        jasmin = _create_player(
+            db_session,
+            "Jasmin Störmer",
+            elo=1500,
+            active=False,
+            created_at=datetime(2025, 9, 9, 12, 0, 0),
+        )
+        veteran = _create_player(db_session, "Veteran", elo=1400)
+        rookie = _create_player(db_session, "Rookie", elo=1200)
+        _create_match(client, veteran.id, rookie.id, veteran.id, "2025-09-05")
+        # A match dated BEFORE the entry date (retroactive historical entry).
+        _create_match(client, jasmin.id, rookie.id, jasmin.id, "2025-08-20")
+
+        resp = _get_ranking(client, "2025-08-01", "2025-08-31", include_inactive=True)
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert "Jasmin Störmer" not in names
+        assert "Veteran" in names
+        assert "Rookie" in names
+
+
 class TestRankingPermissions:
     """Tests for ranking endpoint permissions."""
 
@@ -708,6 +812,11 @@ class TestAllTimeHighRanking:
         )
         assert resp_match.status_code == 201
 
+        # All players were created via the API today, but their matches are
+        # dated 2026-07-20. Backdate their entry dates so they count as
+        # existing competitors on that date (Fix #2).
+        _backdate_created_at(db_session)
+
         # Get best rank for NewPlayer
         resp = client.get(f"/rankings/player-stats/{new_player_id}/ath")
         assert resp.status_code == 200
@@ -770,6 +879,11 @@ class TestAllTimeHighRanking:
                 "player2_score": 0,
             },
         )
+
+        # All players were created via the API today, but their matches are
+        # dated 2026-07-20. Backdate their entry dates so they count as
+        # existing competitors on that date (Fix #2).
+        _backdate_created_at(db_session)
 
         # Get best rank
         resp = client.get(f"/rankings/player-stats/{new_id}/ath")
@@ -838,6 +952,11 @@ class TestAllTimeHighRanking:
             },
         )
 
+        # All players were created via the API today, but their matches are
+        # dated 2026-07-20. Backdate their entry dates so they count as
+        # existing competitors on that date (Fix #2).
+        _backdate_created_at(db_session)
+
         # Get best rank
         resp = client.get(f"/rankings/player-stats/{new_id}/ath")
         data = resp.json()
@@ -896,6 +1015,11 @@ class TestAllTimeHighRanking:
                 "player2_score": 3,
             },
         )
+
+        # All players were created via the API today, but their matches are
+        # dated 2026-07-10..2026-07-20. Backdate their entry dates so they
+        # count as existing competitors on those dates (Fix #2).
+        _backdate_created_at(db_session)
 
         resp = client.get(f"/rankings/player-stats/{a_id}/ath")
         data = resp.json()

@@ -8,7 +8,7 @@ algorithm from scratch and assert the API output - especially the ranking
 positions - is identical, so the optimization can never change the order.
 """
 
-from datetime import date
+from datetime import date, datetime
 
 from app.models.player import Player
 from app.models.user import User, UserRole
@@ -32,13 +32,14 @@ def _login_as(client, db_session, username, password, role):
 
 
 def _create_player(db_session, name, elo=1200, active=True):
-    """Create a player directly in the database."""
+    """Create a player directly in the database (entered before 2025)."""
     player = Player(
         name=name,
         start_elo=elo,
         current_elo=float(elo),
         active=active,
         disabled=False,
+        created_at=datetime(2024, 12, 1, 12, 0, 0),
     )
     db_session.add(player)
     db_session.commit()
@@ -65,8 +66,13 @@ def _create_match(client, pa_id, pb_id, winner_id, match_date, **stats):
 
 def _reference_ranking(db_session, from_date, to_date, include_inactive):
     """Re-implementation of the pre-optimization (per-player query) algorithm."""
-    # Eligible players - mirrors the old _get_eligible_players.
+    # Eligible players - mirrors the old _get_eligible_players. Fix #2: the
+    # entry-date rule (entry date <= to_date) is mirrored here as well.
+    from datetime import datetime as _datetime, time as _time, timedelta as _timedelta
+
     players = db_session.query(Player).filter(Player.disabled.is_(False)).all()
+    entry_cutoff = _datetime.combine(to_date, _time.min) + _timedelta(days=1)
+    players = [p for p in players if p.created_at < entry_cutoff]
     if not include_inactive:
         period_matches = (
             db_session.query(Match).filter(Match.date >= from_date, Match.date <= to_date).all()

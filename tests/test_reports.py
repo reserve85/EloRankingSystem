@@ -1,6 +1,6 @@
 """Tests for PDF ranking report export."""
 
-from datetime import date
+from datetime import date, datetime
 
 
 from app.models.player import Player
@@ -32,6 +32,8 @@ def _create_player(db_session, name="Player", elo=1200):
         current_elo=float(elo),
         active=True,
         disabled=False,
+        # Fix #2: entry date (creation date) before the 2025-06 PDF windows.
+        created_at=datetime(2025, 5, 1, 12, 0, 0),
     )
     db_session.add(player)
     db_session.commit()
