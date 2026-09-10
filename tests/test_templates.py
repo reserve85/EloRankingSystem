@@ -1303,6 +1303,20 @@ class TestDashboardRanking:
         assert "refreshDataTable('#match-table'" in resp.text
         assert "lengthChange: false" not in resp.text
 
+    def test_mobile_search_toggle_layout(self, client, db_session):
+        """On phones the length picker + magnifier share one line and the search
+        box pops open on tap (markup lives in base.html, shared by all tables)."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # JS helper injected into refreshDataTable
+        assert "setupMobileTableSearch(tableSel)" in resp.text
+        # Magnifier button class + open/close state classes
+        assert "dt-search-toggle" in resp.text
+        assert "dt-filter-open" in resp.text
+        assert "dt-filter-col" in resp.text
+        # Flex toolbar CSS class
+        assert "dt-toolbar" in resp.text
+
 
 class TestMatchHistory:
     """Tests for Task 7: Dashboard / Match History."""
