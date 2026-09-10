@@ -731,11 +731,7 @@ class RankingService:
                 # Rank every player who had entered by this date by their
                 # current Elo - disabled players stay in the field.
                 rankings = sorted(
-                    (
-                        (pid, elo)
-                        for pid, elo in current_elos.items()
-                        if pid in eligible_ids
-                    ),
+                    ((pid, elo) for pid, elo in current_elos.items() if pid in eligible_ids),
                     key=lambda x: (-x[1], x[0]),
                 )
                 for rank, (pid, _) in enumerate(rankings, 1):

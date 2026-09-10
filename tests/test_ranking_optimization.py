@@ -104,8 +104,7 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
         players = [
             p
             for p in players
-            if p.id in active_ids
-            or (p.last_match_date is not None and p.last_match_date >= cutoff)
+            if p.id in active_ids or (p.last_match_date is not None and p.last_match_date >= cutoff)
         ]
         # Disabled players are hidden without the "include inactive / disabled" flag.
         players = [p for p in players if not p.disabled]

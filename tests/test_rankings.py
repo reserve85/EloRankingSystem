@@ -490,9 +490,7 @@ class TestInactivePlayers:
     def test_disabled_player_hidden_without_include_flag(self, client, db_session):
         """Disabled players follow the "include inactive / disabled" toggle."""
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        pd = _create_player(
-            db_session, "Disabled Dave", elo=1200, entry_date=date(2025, 6, 1)
-        )
+        pd = _create_player(db_session, "Disabled Dave", elo=1200, entry_date=date(2025, 6, 1))
         pd.disabled = True
         db_session.commit()
 
@@ -508,9 +506,7 @@ class TestInactivePlayers:
     def test_disabled_player_stays_in_ranking(self, client, db_session):
         """Disabled players stay in the ranking when included (struck through)."""
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        pd = _create_player(
-            db_session, "Disabled Dave", elo=1200, entry_date=date(2025, 6, 1)
-        )
+        pd = _create_player(db_session, "Disabled Dave", elo=1200, entry_date=date(2025, 6, 1))
         pd.disabled = True
         db_session.commit()
 
