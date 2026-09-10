@@ -7,7 +7,6 @@ from app.models.player import Player
 from app.models.player_disable_period import PlayerDisablePeriod
 from app.models.user import User, UserRole
 from app.auth.password import hash_password
-from app.services.ranking import RankingService
 
 
 # ── Helpers ─────────────────────────────────────────────────────────────
@@ -468,11 +467,50 @@ class TestInactivePlayers:
         entries = resp.json()["entries"]
         names = [e["player_name"] for e in entries]
         assert "Inactive Charlie" in names
+        # Shown with the (inactive) marker in the UI.
+        charlie = next(e for e in entries if e["player_name"] == "Inactive Charlie")
+        assert charlie["inactive"] is True
 
-    def test_disabled_player_always_excluded(self, client, db_session):
-        """Disabled players should always be excluded."""
+    def test_active_player_not_flagged_inactive(self, client, db_session, monkeypatch):
+        """A player with a recent match has inactive=False in the ranking."""
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
+
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
-        pd = _create_player(db_session, "Disabled Dave", elo=1200)
+        _create_player(db_session, "Alice", elo=1200, last_match=date.today())
+
+        resp = _get_ranking(
+            client,
+            from_date=str(date.today().replace(day=1)),
+            to_date=str(date.today()),
+            include_inactive=True,
+        )
+        entry = next(e for e in resp.json()["entries"] if e["player_name"] == "Alice")
+        assert entry["inactive"] is False
+
+    def test_disabled_player_hidden_without_include_flag(self, client, db_session):
+        """Disabled players follow the "include inactive / disabled" toggle."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pd = _create_player(
+            db_session, "Disabled Dave", elo=1200, entry_date=date(2025, 6, 1)
+        )
+        pd.disabled = True
+        db_session.commit()
+
+        resp = _get_ranking(
+            client,
+            "2025-06-01",
+            "2025-06-30",
+            include_inactive=False,
+        )
+        names = [e["player_name"] for e in resp.json()["entries"]]
+        assert "Disabled Dave" not in names
+
+    def test_disabled_player_stays_in_ranking(self, client, db_session):
+        """Disabled players stay in the ranking when included (struck through)."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        pd = _create_player(
+            db_session, "Disabled Dave", elo=1200, entry_date=date(2025, 6, 1)
+        )
         pd.disabled = True
         db_session.commit()
 
@@ -483,8 +521,47 @@ class TestInactivePlayers:
             include_inactive=True,
         )
         entries = resp.json()["entries"]
-        names = [e["player_name"] for e in entries]
-        assert "Disabled Dave" not in names
+        entry = next(e for e in entries if e["player_name"] == "Disabled Dave")
+        assert entry["disabled"] is True
+
+    def test_legacy_active_flag_does_not_leak_inactive_player(
+        self, client, db_session, monkeypatch
+    ):
+        """Regression: an ``active=True`` flag with a stale last match must not
+        leak the player into the default table.
+
+        This reproduces the reported live-DB symptom (Dominik/Max/Alessandro):
+        ``active`` is a legacy "ever played" flag, so an inactive player used
+        to appear in the table even with the include-checkbox off, labelled
+        ``(inactive)``. The hide rule must equal the label rule.
+        """
+        monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
+
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        _create_player(
+            db_session,
+            "Legacy Active",
+            elo=1500,
+            active=True,
+            last_match=date.today() - timedelta(days=200),
+        )
+
+        hidden = _get_ranking(
+            client,
+            str(date.today().replace(day=1)),
+            str(date.today()),
+            include_inactive=False,
+        )
+        assert "Legacy Active" not in [e["player_name"] for e in hidden.json()["entries"]]
+
+        shown = _get_ranking(
+            client,
+            str(date.today().replace(day=1)),
+            str(date.today()),
+            include_inactive=True,
+        )
+        entry = next(e for e in shown.json()["entries"] if e["player_name"] == "Legacy Active")
+        assert entry["inactive"] is True
 
     def test_active_player_with_recent_match_included(self, client, db_session, monkeypatch):
         """Player with recent match should be included."""
@@ -736,6 +813,7 @@ class TestAllTimeEloChart:
             assert "max_elo" in entry
             assert "date_reached" in entry
             assert "inactive" in entry
+            assert "disabled" in entry
 
     def test_all_time_elo_max_elo_correct(self, client, db_session, monkeypatch):
         """Max Elo should reflect the highest value reached."""
@@ -754,8 +832,8 @@ class TestAllTimeEloChart:
         # Alice won first match, so max_elo should be after first match
         assert alice["max_elo"] > 1200
 
-    def test_all_time_elo_disabled_excluded(self, client, db_session, monkeypatch):
-        """Disabled players should always be excluded."""
+    def test_all_time_elo_disabled_stays(self, client, db_session, monkeypatch):
+        """Disabled players stay in the all-time chart (flagged disabled)."""
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 999)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
@@ -768,8 +846,9 @@ class TestAllTimeEloChart:
 
         resp = client.get("/rankings/all-time-elo?include_inactive=true")
         data = resp.json()
-        names = [p["player_name"] for p in data]
-        assert "Disabled Dave" not in names
+        dave = next(p for p in data if p["player_name"] == "Disabled Dave")
+        assert dave["disabled"] is True
+        assert dave["max_elo"] == 1200.0
 
     def test_all_time_elo_requires_auth(self, client, db_session):
         """Unauthenticated request should return 401."""
@@ -1023,10 +1102,11 @@ class TestAllTimeHighRanking:
             f"expected #11, got #{data['ath_rank']['best_rank']}"
         )
 
-        # The ranking as of today excludes the (now) disabled top players.
+        # The ranking as of today still contains the (now) disabled top players:
+        # they stay in the field, marked disabled, so no one moves up.
         resp = _get_ranking(client, str(date.today()), str(date.today()), include_inactive=True)
         names_today = [e["player_name"] for e in resp.json()["entries"]]
-        assert all(n not in names_today for n in top_names), names_today
+        assert all(n in names_today for n in top_names), names_today
 
     def test_best_rank_normal_scenario(self, client, db_session, monkeypatch):
         """Best rank works correctly in a normal scenario with active players."""
@@ -1107,60 +1187,13 @@ class TestAllTimeHighRanking:
         assert data["ath_rank"]["date_reached"] is None
 
 
-class TestDisabledOnDate:
-    """Unit tests for the period-aware disable predicate (Fix #5)."""
-
-    def test_never_disabled(self):
-        assert RankingService._is_disabled_on(False, [], date(2026, 6, 1)) is False
-
-    def test_legacy_disabled_flag_without_period_is_excluded_everywhere(self):
-        # A player flipped to disabled directly in the DB (no recorded period)
-        # keeps the old behavior: excluded on every date.
-        assert RankingService._is_disabled_on(True, [], date(2026, 6, 1)) is True
-        assert RankingService._is_disabled_on(True, [], date(2020, 1, 1)) is True
-
-    def test_inside_closed_window_excluded(self):
-        periods = [(date(2026, 1, 10), date(2026, 2, 20))]
-        assert RankingService._is_disabled_on(False, periods, date(2026, 1, 10)) is True
-        assert RankingService._is_disabled_on(False, periods, date(2026, 2, 1)) is True
-        assert RankingService._is_disabled_on(False, periods, date(2026, 2, 20)) is True
-
-    def test_outside_closed_window_included(self):
-        periods = [(date(2026, 1, 10), date(2026, 2, 20))]
-        assert RankingService._is_disabled_on(False, periods, date(2026, 1, 9)) is False
-        assert RankingService._is_disabled_on(False, periods, date(2026, 2, 21)) is False
-
-    def test_open_window_runs_until_today(self):
-        periods = [(date(2026, 4, 1), None)]
-        assert RankingService._is_disabled_on(False, periods, date(2026, 3, 31)) is False
-        assert RankingService._is_disabled_on(False, periods, date(2026, 4, 1)) is True
-        assert RankingService._is_disabled_on(False, periods, date(2026, 12, 31)) is True
-
-    def test_multiple_windows_each_apply(self):
-        periods = [
-            (date(2026, 1, 10), date(2026, 2, 20)),
-            (date(2026, 4, 1), date(2026, 11, 30)),
-        ]
-        assert RankingService._is_disabled_on(False, periods, date(2026, 2, 5)) is True
-        assert RankingService._is_disabled_on(False, periods, date(2026, 3, 15)) is False
-        assert RankingService._is_disabled_on(False, periods, date(2026, 6, 1)) is True
-        assert RankingService._is_disabled_on(False, periods, date(2026, 12, 15)) is False
-
-    def test_recorded_windows_override_flag(self):
-        # Recorded periods are authoritative for the dates; the boolean only
-        # matters as a fallback for rows with no period at all.
-        periods = [(date(2026, 1, 10), date(2026, 2, 20))]
-        assert RankingService._is_disabled_on(True, periods, date(2026, 3, 1)) is False
-
-
 class TestDisablePeriodRanking:
-    """Fix #5: disablement is date-aware in the rankings.
+    """Disable periods are recorded for auditing; the ranking always counts the player.
 
-    A player is only excluded on dates inside a recorded disable period, so
-    the reported bug (disabling the top 10 improves Ingo's Best Rank) cannot
-    happen: disabling someone today never rewrites the past. A player can be
-    disabled several times (Jan-Feb, then Apr-Nov, ...) and each window is
-    honored individually.
+    The "disable the top 10" exploit is closed by construction: disabling a
+    player never shrinks the ranking field - live or historically. The
+    recorded windows (and the same-day toggle semantics) still flow through
+    the player service, but they must never affect any ranking.
     """
 
     @staticmethod
@@ -1218,14 +1251,22 @@ class TestDisablePeriodRanking:
         resp = _get_ranking(client, "2026-05-06", "2026-05-06", include_inactive=True)
         assert len(resp.json()["entries"]) == 7
 
-        # Today's ranking excludes the five disabled players.
+        # Today's ranking still contains the five disabled players (struck out) -
+        # and Ingo stays at #6 that day too: the field never shrinks.
         resp = _get_ranking(client, str(date.today()), str(date.today()), include_inactive=True)
-        names_today = [e["player_name"] for e in resp.json()["entries"]]
-        assert not any(n.startswith("Top_") for n in names_today), names_today
+        entries_today = resp.json()["entries"]
+        names_today = [e["player_name"] for e in entries_today]
+        assert any(n.startswith("Top_") for n in names_today[:5]), names_today
+        ingo_today = next(e for e in entries_today if e["player_name"] == "Ingo")
+        assert ingo_today["position"] == 6
 
-    def test_multiple_disable_windows_evaluated_per_date(self, client, db_session):
-        """Flo is disabled Jan 10-Feb 20 and Apr 1-Nov 30. Every day the
-        ranking counts her exactly when she was actually disabled."""
+    def test_disable_windows_never_remove_player_from_ranking(self, client, db_session):
+        """Disable periods are audit-only: the ranking always counts the player.
+
+        Flo is disabled Jan 10-Feb 20 and Apr 1-Nov 30; she is part of the
+        ranking field on every one of those days (struck out in the UI), so
+        disabling her can never inflate Ingo's Best Rank.
+        """
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         flp = _create_player(db_session, "Flo", elo=5000, created_at=datetime(2025, 1, 1, 9, 0))
         ingo = _create_player(db_session, "Ingo", elo=1000, created_at=datetime(2025, 1, 1, 9, 0))
@@ -1236,33 +1277,25 @@ class TestDisablePeriodRanking:
         self._add_period(db_session, flp.id, date(2026, 4, 1), date(2026, 11, 30))
 
         play_days = [
-            "2026-01-05",  # before first window   -> Flo counts,  Ingo #2
-            "2026-02-01",  # inside first window   -> Flo excluded, Ingo #1
-            "2026-03-15",  # between windows       -> Flo counts,  Ingo #2
-            "2026-06-01",  # inside second window  -> Flo excluded, Ingo #1
-            "2026-12-15",  # after second window   -> Flo counts,  Ingo #2
+            "2026-01-05",  # before first window
+            "2026-02-01",  # inside first window
+            "2026-03-15",  # between windows
+            "2026-06-01",  # inside second window
+            "2026-12-15",  # after second window
         ]
         for day in play_days:
             _create_match(client, ingo.id, sparring.id, ingo.id, day)
 
-        expected = {
-            "2026-01-05": ["Flo", "Ingo", "Sparring"],
-            "2026-02-01": ["Ingo", "Sparring"],
-            "2026-03-15": ["Flo", "Ingo", "Sparring"],
-            "2026-06-01": ["Ingo", "Sparring"],
-            "2026-12-15": ["Flo", "Ingo", "Sparring"],
-        }
-        for day, names in expected.items():
+        # Flo is ranked on every day, the windows make no difference.
+        for day in play_days:
             resp = _get_ranking(client, day, day, include_inactive=True)
             assert resp.status_code == 200
             got = [e["player_name"] for e in resp.json()["entries"]]
-            assert got == names, f"{day}: expected {names}, got {got}"
+            assert got == ["Flo", "Ingo", "Sparring"], f"{day}: got {got}"
 
-        # Best Rank #1 was genuinely reached - but only on days Flo was
-        # disabled (2026-02-01, before her second window started).
+        # Flo stays above Ingo on every day -> Best Rank is #2, never #1.
         ath = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
-        assert ath["ath_rank"]["best_rank"] == 1
-        assert ath["ath_rank"]["date_reached"] == "2026-02-01"
+        assert ath["ath_rank"]["best_rank"] == 2
 
     def test_disable_reactivate_disable_cycle_records_separate_windows(self, client, db_session):
         """Disable -> re-enable -> disable on the same day leaves ONE open window.
@@ -1299,9 +1332,10 @@ class TestDisablePeriodRanking:
         ath = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
         assert ath["ath_rank"]["best_rank"] == 2, ath
 
-        # The current ranking excludes Flo (an open window covers today).
+        # The current ranking still contains Flo (an open window only records
+        # the disable for audit - the ranking keeps counting her).
         resp = _get_ranking(client, str(date.today()), str(date.today()), include_inactive=True)
-        assert "Flo" not in [e["player_name"] for e in resp.json()["entries"]]
+        assert "Flo" in [e["player_name"] for e in resp.json()["entries"]]
 
     def test_reactivate_same_day_player_visible_in_ranking(self, client, db_session):
         """Fix #5 regression: disable + immediate re-enable on the same day
@@ -1642,9 +1676,10 @@ class TestDateOnlySemantics:
 
 
 class TestEntryDateCountsFullRoster:
-    """Fix #3 II: historical ranks and Best Rank count EVERY non-disabled
-    player whose entry_date <= date - including inactive members and members
-    who have never played. Disabled players are always excluded."""
+    """Fix #3 II: historical ranks and Best Rank count EVERY player whose
+    entry_date <= date - including inactive members, members who have never
+    played, and members who are disabled (they stay in the field, struck
+    through)."""
 
     def test_never_played_entered_members_count_in_best_rank(self, client, db_session):
         """Ingo enters 2026-05-01, plays 2026-05-06. Three other club members
@@ -1695,11 +1730,9 @@ class TestEntryDateCountsFullRoster:
         ath = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
         assert ath["ath_rank"]["best_rank"] == 4
 
-    def test_disabled_players_never_count(self, client, db_session):
-        """A player whose ``disabled`` flag is set directly (no recorded
-        disable period, e.g. a legacy/DB-level toggle) is excluded from the
-        full-roster denominator on every date - the pre-Fix #5 fallback.
-        Players disabled through the app get date-aware windows instead."""
+    def test_disabled_players_always_count(self, client, db_session):
+        """Disabled players stay in the full-roster denominator - even a
+        direct DB toggle: disabling never shrinks the ranking field."""
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         ingo = _create_player(
             db_session, "Ingo Hohm", elo=1000, created_at=datetime(2026, 5, 1, 9, 0)
@@ -1716,17 +1749,17 @@ class TestEntryDateCountsFullRoster:
         )
         _create_match(client, ingo.id, sparring.id, ingo.id, "2026-05-06")
 
-        # FormerMember (entry 05-01, disabled) must not shift anyone.
+        # FormerMember (entry 05-01) is disabled directly - still ranks #1.
         former = db_session.query(Player).filter(Player.name == "FormerMember").one()
         former.disabled = True
         db_session.commit()
 
         resp = _get_ranking(client, "2026-05-06", "2026-05-06", include_inactive=True)
         names = [e["player_name"] for e in resp.json()["entries"]]
-        assert names == ["Ingo Hohm", "Sparring"]
+        assert names == ["FormerMember", "Ingo Hohm", "Sparring"]
 
         ath = client.get(f"/rankings/player-stats/{ingo.id}/ath").json()
-        assert ath["ath_rank"]["best_rank"] == 1
+        assert ath["ath_rank"]["best_rank"] == 2
 
     def test_changing_entry_date_moves_historical_rank(self, client, db_session):
         """Admin backfilling a member's true entry date changes the

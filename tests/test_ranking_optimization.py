@@ -65,6 +65,20 @@ def _create_match(client, pa_id, pb_id, winner_id, match_date, **stats):
     return resp.json()
 
 
+def _inactive_cutoff(as_of_date):
+    """Cutoff date for inactivity - mirrors ``RankingService._inactive_cutoff``."""
+    import calendar
+
+    months = 3  # default settings.inactivity_months (tests use the default)
+    year = as_of_date.year
+    month = as_of_date.month - months
+    while month <= 0:
+        month += 12
+        year -= 1
+    day = min(as_of_date.day, calendar.monthrange(year, month)[1])
+    return date(year, month, day)
+
+
 def _reference_ranking(db_session, from_date, to_date, include_inactive):
     """Re-implementation of the pre-optimization (per-player query) algorithm."""
 
@@ -76,7 +90,7 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
             return player.entry_date
         return player.created_at.date()
 
-    players = db_session.query(Player).filter(Player.disabled.is_(False)).all()
+    players = db_session.query(Player).all()
     players = [p for p in players if _entry(p) <= to_date]
     if not include_inactive:
         period_matches = (
@@ -86,7 +100,15 @@ def _reference_ranking(db_session, from_date, to_date, include_inactive):
         for m in period_matches:
             active_ids.add(m.player_a_id)
             active_ids.add(m.player_b_id)
-        players = [p for p in players if p.id in active_ids or p.active]
+        cutoff = _inactive_cutoff(to_date)
+        players = [
+            p
+            for p in players
+            if p.id in active_ids
+            or (p.last_match_date is not None and p.last_match_date >= cutoff)
+        ]
+        # Disabled players are hidden without the "include inactive / disabled" flag.
+        players = [p for p in players if not p.disabled]
 
     def elo_at(player, target_date, before):
         query = db_session.query(Match).filter(
@@ -250,9 +272,10 @@ class TestBatchedRankingEquivalence:
         # After the period
         _create_match(client, bob.id, alice.id, alice.id, "2025-07-10")
 
-        # Eve played only before the period -> mark her inactive so she is
-        # excluded when include_inactive=False and included when True.
-        eve.active = False
+        # Eve played only before the period -> push her last match before the
+        # inactivity cutoff so she is excluded when include_inactive=False
+        # and included when True.
+        eve.last_match_date = date(2025, 1, 1)
         db_session.commit()
         return alice, bob, carol, dan, eve
 

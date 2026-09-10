@@ -2,6 +2,8 @@
 
 from datetime import datetime
 from io import BytesIO
+from typing import Optional
+from xml.sax.saxutils import escape as _xml_escape
 
 from reportlab.lib import colors
 from reportlab.lib.pagesizes import A4
@@ -10,7 +12,7 @@ from reportlab.lib.units import mm
 from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
 from reportlab.lib.enums import TA_CENTER, TA_LEFT
 
-from app.schemas.ranking import RankingResponse
+from app.schemas.ranking import RankingEntry, RankingResponse, status_suffixes
 
 
 DATE_FORMAT_MAP = {
@@ -19,6 +21,130 @@ DATE_FORMAT_MAP = {
     "yyyy-MM-dd": "%Y-%m-%d",
     "dd.MM.yyyy": "%d.%m.%Y",
 }
+
+# Column layout. The widths add up to the A4 usable width (210mm minus the
+# two 15mm margins); the old 201mm layout silently clipped the last column.
+COLUMN_HEADERS = ["#", "Player", "Elo Rating", "Elo Change", "Pos. Change", "180", "HF", "LD"]
+COLUMN_WIDTHS = [16 * mm, 56 * mm, 26 * mm, 23 * mm, 23 * mm, 12 * mm, 12 * mm, 12 * mm]
+
+# The player-name cell contains markup, so it needs a real paragraph style -
+# TableStyle FONTNAME/FONTSIZE commands only apply to plain string cells.
+_PLAYER_CELL_STYLE = ParagraphStyle(
+    "PlayerCell",
+    fontName="Helvetica",
+    fontSize=9,
+    leading=11,
+)
+
+
+def _format_elo_change(change: float) -> str:
+    """Format an Elo change with an explicit ``+`` for positive values."""
+    sign = "+" if change > 0 else ""
+    return f"{sign}{change:.1f}"
+
+
+def _format_position_change(position_change: Optional[int]) -> str:
+    """Format a position change like the dashboard: ``+1``, ``-1`` or ``-``.
+
+    ``None`` (no previous ranking position) and 0 both render as ``-`` so the
+    PDF stays consistent with the ranking table.
+    """
+    if position_change is None or position_change == 0:
+        return "-"
+    return f"{position_change:+d}"
+
+
+def _format_count(value: int) -> str:
+    """Counts render as ``-`` when zero, matching the dashboard table."""
+    return str(value) if value else "-"
+
+
+def _player_markup(entry: RankingEntry) -> str:
+    """ReportLab markup for a player's name cell.
+
+    Mirrors the dashboard ranking table: a disabled name gets a real
+    strikethrough, and the ``(inactive)``/``(disabled)`` markers are appended
+    in muted grey *outside* the strikethrough.
+    """
+    name = _xml_escape(entry.player_name)
+    if entry.disabled:
+        name = f"<strike>{name}</strike>"
+    suffixes = status_suffixes(inactive=entry.inactive, disabled=entry.disabled)
+    if suffixes:
+        name += f' <font color="#6c757d">{_xml_escape(" ".join(suffixes))}</font>'
+    return name
+
+
+def _player_cell(entry: RankingEntry) -> Paragraph:
+    """Player-name table cell."""
+    return Paragraph(_player_markup(entry), _PLAYER_CELL_STYLE)
+
+
+def _build_table_data(ranking: RankingResponse) -> list[list]:
+    """Table rows (header included); the name column holds a Paragraph."""
+    data = [list(COLUMN_HEADERS)]
+    for entry in ranking.entries:
+        data.append(
+            [
+                str(entry.position),
+                _player_cell(entry),
+                f"{entry.elo_rating:.1f}",
+                _format_elo_change(entry.elo_change),
+                _format_position_change(entry.position_change),
+                _format_count(entry.total_180s),
+                _format_count(len(entry.high_finishes or [])),
+                _format_count(len(entry.low_darts or [])),
+            ]
+        )
+    return data
+
+
+def _change_color_commands(entries: list[RankingEntry]) -> list:
+    """Colour the Elo-change and position-change columns green/red per row."""
+    green = colors.HexColor("#2fb344")
+    red = colors.HexColor("#d63939")
+    commands = []
+    for i, entry in enumerate(entries):
+        row = i + 1  # +1 for the header row
+
+        if entry.elo_change > 0:
+            commands.append(("TEXTCOLOR", (3, row), (3, row), green))
+        elif entry.elo_change < 0:
+            commands.append(("TEXTCOLOR", (3, row), (3, row), red))
+
+        # None = no previous position; nothing to colour.
+        if entry.position_change is not None and entry.position_change > 0:
+            commands.append(("TEXTCOLOR", (4, row), (4, row), green))
+        elif entry.position_change is not None and entry.position_change < 0:
+            commands.append(("TEXTCOLOR", (4, row), (4, row), red))
+    return commands
+
+
+def _base_table_style() -> list:
+    """Base TableStyle commands shared by header, body and grid."""
+    return [
+        # Header
+        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#206bc4")),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTSIZE", (0, 0), (-1, 0), 10),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
+        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+        ("TOPPADDING", (0, 0), (-1, 0), 8),
+        # Body (applies to plain string cells; the player column styles itself)
+        ("FONTSIZE", (0, 1), (-1, -1), 9),
+        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
+        ("ALIGN", (0, 1), (0, -1), "CENTER"),
+        ("ALIGN", (2, 1), (-1, -1), "CENTER"),
+        ("ALIGN", (1, 1), (1, -1), "LEFT"),
+        ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
+        ("TOPPADDING", (0, 1), (-1, -1), 6),
+        # Grid
+        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
+        ("LINEBELOW", (0, 0), (-1, 0), 1, colors.HexColor("#1a5fb4")),
+        # Alternating row colors
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
+    ]
 
 
 def _format_date(d, date_format: str = "dd/MM/yyyy") -> str:
@@ -137,84 +263,10 @@ def generate_ranking_pdf(
     elements.append(Paragraph(export_text, info_style))
     elements.append(Spacer(1, 6 * mm))
 
-    # Table header
-    header = ["#", "Player", "Elo Rating", "Elo Change", "Pos. Change", "180", "HF", "LD"]
-
-    # Table data
-    data = [header]
-    for entry in ranking.entries:
-        # Zero change is shown without a "+" prefix. Position change zero uses
-        # a bare "-" exactly like the dashboard so both surfaces agree (Fix L5);
-        # None (no previous ranking position, Fix #1) also renders as "-".
-        elo_sign = "+" if entry.elo_change > 0 else ""
-        if entry.position_change is None:
-            pos_txt = "-"
-        elif entry.position_change > 0:
-            pos_txt = f"+{entry.position_change}"
-        elif entry.position_change < 0:
-            pos_txt = str(entry.position_change)
-        else:
-            pos_txt = "-"
-        hf_count = len(entry.high_finishes) if entry.high_finishes else 0
-        ld_count = len(entry.low_darts) if entry.low_darts else 0
-        data.append(
-            [
-                str(entry.position),
-                entry.player_name,
-                f"{entry.elo_rating:.1f}",
-                f"{elo_sign}{entry.elo_change:.1f}",
-                pos_txt,
-                str(entry.total_180s) if entry.total_180s else "-",
-                str(hf_count) if hf_count else "-",
-                str(ld_count) if ld_count else "-",
-            ]
-        )
-
-    # Create table
-    col_widths = [18 * mm, 45 * mm, 28 * mm, 28 * mm, 28 * mm, 18 * mm, 18 * mm, 18 * mm]
-    table = Table(data, colWidths=col_widths, repeatRows=1)
-
-    # Base style
-    style_commands = [
-        # Header
-        ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#206bc4")),
-        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-        ("FONTSIZE", (0, 0), (-1, 0), 10),
-        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
-        ("ALIGN", (0, 0), (-1, 0), "CENTER"),
-        ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
-        ("TOPPADDING", (0, 0), (-1, 0), 8),
-        # Body
-        ("FONTSIZE", (0, 1), (-1, -1), 9),
-        ("FONTNAME", (0, 1), (-1, -1), "Helvetica"),
-        ("ALIGN", (0, 1), (0, -1), "CENTER"),
-        ("ALIGN", (2, 1), (-1, -1), "CENTER"),
-        ("ALIGN", (1, 1), (1, -1), "LEFT"),
-        ("BOTTOMPADDING", (0, 1), (-1, -1), 6),
-        ("TOPPADDING", (0, 1), (-1, -1), 6),
-        # Grid
-        ("GRID", (0, 0), (-1, -1), 0.5, colors.HexColor("#dee2e6")),
-        ("LINEBELOW", (0, 0), (-1, 0), 1, colors.HexColor("#1a5fb4")),
-        # Alternating row colors
-        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#f8f9fa")]),
-    ]
-
-    # Color rules for Elo Change and Position Change columns
-    for i, entry in enumerate(ranking.entries):
-        row = i + 1  # +1 for header row
-
-        # Elo Change coloring
-        if entry.elo_change > 0:
-            style_commands.append(("TEXTCOLOR", (3, row), (3, row), colors.HexColor("#2fb344")))
-        elif entry.elo_change < 0:
-            style_commands.append(("TEXTCOLOR", (3, row), (3, row), colors.HexColor("#d63939")))
-
-        # Position Change coloring (skip None = no previous position)
-        if entry.position_change is not None and entry.position_change > 0:
-            style_commands.append(("TEXTCOLOR", (4, row), (4, row), colors.HexColor("#2fb344")))
-        elif entry.position_change is not None and entry.position_change < 0:
-            style_commands.append(("TEXTCOLOR", (4, row), (4, row), colors.HexColor("#d63939")))
-
+    # Ranking table
+    table = Table(_build_table_data(ranking), colWidths=COLUMN_WIDTHS, repeatRows=1)
+    style_commands = _base_table_style()
+    style_commands += _change_color_commands(ranking.entries)
     table.setStyle(TableStyle(style_commands))
     elements.append(table)
 

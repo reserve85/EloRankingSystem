@@ -1022,10 +1022,10 @@ class TestInactivePlayerCheckbox:
         assert "checked" in resp.text
 
     def test_ranking_checkbox_label_exists(self, client, db_session):
-        """Ranking include inactive checkbox should have correct label."""
+        """Ranking include checkbox should have the inactive/disabled label."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        assert "Include inactive players in this interval" in resp.text
+        assert "Include inactive / disabled players in this interval" in resp.text
 
     def test_ranking_checkbox_triggers_load_ranking(self, client, db_session):
         """Ranking checkbox change should trigger loadRanking via AJAX."""
@@ -1035,10 +1035,11 @@ class TestInactivePlayerCheckbox:
         assert "loadRanking()" in resp.text
 
     def test_ath_checkbox_checked_by_default(self, client, db_session):
-        """ATH chart include inactive checkbox should be checked by default."""
+        """ATH chart include inactive/disabled checkbox should be checked by default."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
         assert 'id="ath-include-inactive"' in resp.text
+        assert "Include inactive / disabled players" in resp.text
 
     def test_ath_checkbox_triggers_load_chart(self, client, db_session):
         """ATH checkbox change should trigger loadAllTimeEloChart via AJAX."""
@@ -1051,6 +1052,26 @@ class TestInactivePlayerCheckbox:
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
         assert "include_inactive=true" in resp.text
+
+    def test_disabled_players_struck_through_in_ranking_table(self, client, db_session):
+        """Disabled names in the ranking table get a real strikethrough on
+        the name only - the ``(disabled)``/``(inactive)`` suffix stays
+        normal.
+        """
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # The name is wrapped in a span that gets the line-through class.
+        assert "text-decoration-line-through" in resp.text
+        assert "<span class=" in resp.text
+        assert "escapeHtml(e.player_name)" in resp.text
+
+    def test_ath_chart_strikes_disabled_players(self, client, db_session):
+        """The All Time Elo canvas chart draws a strikethrough for disabled
+        players via a Chart.js plugin (canvas has no CSS text-decoration)."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "strikethroughDisabled" in resp.text
+        assert "chart.scales.y" in resp.text
 
 
 class TestAdminMobileLayout:

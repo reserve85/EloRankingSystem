@@ -1,13 +1,15 @@
 """Tests for PDF ranking report export."""
 
-from datetime import date, datetime
+import base64
+import zlib
+from datetime import date, datetime, timezone
 
 
 from app.models.player import Player
 from app.models.user import User, UserRole
 from app.auth.password import hash_password
 from app.reports.pdf import generate_ranking_pdf
-from app.schemas.ranking import RankingEntry, RankingResponse
+from app.schemas.ranking import RankingEntry, RankingResponse, status_suffixes
 
 
 def _login_as(client, db_session, username, password, role):
@@ -241,6 +243,135 @@ class TestPdfGeneration:
         assert pdf[:4] == b"%PDF"
 
 
+def _entry(name="Alice", *, disabled=False, inactive=False):
+    """RankingEntry stub for rendering tests."""
+    return RankingEntry(
+        player_id=1,
+        player_name=name,
+        position=1,
+        elo_rating=1200.0,
+        elo_change=0.0,
+        position_change=0,
+        disabled=disabled,
+        inactive=inactive,
+    )
+
+
+def _extract_pdf_text(pdf_bytes: bytes) -> bytes:
+    """Return the decompressed page content of a generated PDF.
+
+    ReportLab writes page content ASCII85 + Flate compressed (and without a
+    newline before ``endstream``), so names and status markers cannot be
+    looked up in the raw PDF bytes.
+    """
+    parts = []
+    idx = 0
+    while True:
+        start = pdf_bytes.find(b"stream", idx)
+        if start < 0:
+            break
+        end = pdf_bytes.find(b"endstream", start)
+        if end < 0:
+            break
+        blob = pdf_bytes[start + len(b"stream") : end].strip(b"\r\n")
+        for decode in (
+            lambda b: zlib.decompress(base64.a85decode(b, adobe=False)),
+            lambda b: zlib.decompress(base64.a85decode(b, adobe=True)),
+            lambda b: zlib.decompress(b),
+            lambda b: b,
+        ):
+            try:
+                parts.append(decode(blob))
+                break
+            except Exception:
+                continue
+        idx = end + len(b"endstream")
+    return b"\n".join(parts)
+
+
+class TestRankingEntryDisplayName:
+    """Ranking entries expose the table's display name (single source)."""
+
+    def test_display_name_plain(self):
+        assert _entry().display_name == "Alice"
+
+    def test_display_name_inactive(self):
+        assert _entry(inactive=True).display_name == "Alice (inactive)"
+
+    def test_display_name_disabled(self):
+        assert _entry(disabled=True).display_name == "Alice (disabled)"
+
+    def test_display_name_both_in_table_order(self):
+        assert _entry(inactive=True, disabled=True).display_name == "Alice (inactive) (disabled)"
+
+    def test_status_suffixes_order(self):
+        assert status_suffixes(inactive=True, disabled=True) == ("(inactive)", "(disabled)")
+        assert status_suffixes(inactive=False, disabled=False) == ()
+        assert status_suffixes(inactive=True, disabled=False) == ("(inactive)",)
+        assert status_suffixes(inactive=False, disabled=True) == ("(disabled)",)
+
+
+class TestPdfPlayerNaming:
+    """PDF player names match the ranking table: suffix + strikethrough."""
+
+    def _ranking(self, *entries):
+        return RankingResponse(
+            from_date=date(2025, 6, 1),
+            to_date=date(2025, 6, 30),
+            entries=list(entries),
+            generated_at=datetime(2025, 7, 1, tzinfo=timezone.utc),
+        )
+
+    def test_pdf_plain_name_has_no_suffix(self):
+        pdf = generate_ranking_pdf(self._ranking(_entry()), club_name="Club")
+        text = _extract_pdf_text(pdf)
+        assert b"Alice" in text
+        assert b"inactive" not in text
+        assert b"disabled" not in text
+
+    def test_pdf_shows_inactive_suffix(self):
+        pdf = generate_ranking_pdf(self._ranking(_entry("Ina", inactive=True)), club_name="Club")
+        text = _extract_pdf_text(pdf)
+        assert b"Ina" in text
+        assert b"inactive" in text
+
+    def test_pdf_shows_disabled_suffix(self):
+        pdf = generate_ranking_pdf(self._ranking(_entry("Dis", disabled=True)), club_name="Club")
+        text = _extract_pdf_text(pdf)
+        assert b"Dis" in text
+        assert b"disabled" in text
+
+    def test_pdf_shows_both_suffixes(self):
+        pdf = generate_ranking_pdf(
+            self._ranking(_entry("Al", inactive=True, disabled=True)),
+            club_name="Club",
+        )
+        text = _extract_pdf_text(pdf)
+        assert b"Al" in text
+        assert b"inactive" in text
+        assert b"disabled" in text
+
+    def test_player_markup_strikes_name_only(self):
+        from app.reports.pdf import _player_markup
+
+        markup = _player_markup(_entry("Alice", disabled=True, inactive=True))
+        # The name is struck through; the markers stay outside the strike.
+        assert "<strike>Alice</strike>" in markup
+        assert "(inactive) (disabled)" in markup
+        assert markup.index("</strike>") < markup.index("(inactive)")
+
+    def test_player_markup_plain_name_not_struck(self):
+        from app.reports.pdf import _player_markup
+
+        assert _player_markup(_entry("Alice")) == "Alice"
+
+    def test_player_markup_escapes_name(self):
+        from app.reports.pdf import _player_markup
+
+        markup = _player_markup(_entry("Tim & Co <3>", disabled=True))
+        assert "<strike>Tim &amp; Co &lt;3&gt;</strike>" in markup
+
+
 # ── PDF Export Route Tests ─────────────────────────────────────────────
 
 
@@ -315,6 +446,22 @@ class TestPdfExportRoute:
         )
         assert resp.status_code == 200
         assert resp.content[:4] == b"%PDF"
+
+    def test_pdf_shows_status_markers_like_ranking_table(self, client, db_session):
+        """Disabled players in the PDF carry (inactive)/(disabled) markers."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        player = _create_player(db_session, "Rita", elo=1200)
+        player.disabled = True
+        db_session.commit()
+
+        resp = client.get(
+            "/reports/ranking/pdf?from_date=2025-06-01&to_date=2025-06-30&include_inactive=true"
+        )
+        assert resp.status_code == 200
+        text = _extract_pdf_text(resp.content)
+        assert b"Rita" in text
+        assert b"disabled" in text
+        assert b"inactive" in text
 
     def test_pdf_is_valid(self, client, db_session):
         """PDF response should be a valid PDF file."""

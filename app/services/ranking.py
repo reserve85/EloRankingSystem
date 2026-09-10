@@ -13,7 +13,6 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.match import Match
 from app.models.player import Player
-from app.models.player_disable_period import PlayerDisablePeriod
 from app.schemas.ranking import RankingEntry, RankingResponse
 
 
@@ -23,63 +22,43 @@ class RankingService:
     def __init__(self, db: Session):
         self.db = db
 
-    # ── Disable-period awareness (Fix #5) ──────────────────────────────────
+    # Disabled players remain a permanent part of the ranking field. They are
+    # simply not allowed to play new matches (the match service layer rejects
+    # them), and the UI renders their names struck out. Disabling therefore
+    # never shrinks the total ranking denominator, so it cannot inflate any
+    # position statistic (Best Rank, ranking positions, position changes) -
+    # live or historical. The ``PlayerDisablePeriod`` rows written by the
+    # player service are kept purely as an audit trail of when someone was
+    # disabled.
     #
-    # The ``players.disabled`` boolean is a current-state flag. It alone is
-    # useless for historical rankings: a player disabled today would vanish
-    # from every past ranking, retroactively moving everyone below them up
-    # (e.g. "disable the top 10" improving Ingo's Best Rank day by day).
-    # The recorded ``PlayerDisablePeriod`` intervals fix that - a player is
-    # only excluded on dates that lie inside one of their disable windows.
+    # The lists follow the same "include inactive / disabled" checkbox: when
+    # it is unticked, both inactive and disabled players are hidden from the
+    # shown table; when ticked, both appear (labelled ``(inactive)`` /
+    # ``(disabled)``). The underlying statistics always use the full field.
 
     @staticmethod
-    def _is_disabled_on(
-        disabled: bool,
-        periods: list[tuple[date, Optional[date]]],
-        day: date,
-    ) -> bool:
-        """Return True when the player is excluded on ``day`` by disablement.
+    def _inactive_cutoff(as_of_date: date) -> date:
+        """Cutoff date for inactivity: ``inactivity_months`` before ``as_of_date``."""
+        inactivity_months = settings.inactivity_months
+        cutoff_year = as_of_date.year
+        cutoff_month = as_of_date.month - inactivity_months
+        while cutoff_month <= 0:
+            cutoff_month += 12
+            cutoff_year -= 1
+        max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
+        cutoff_day = min(as_of_date.day, max_day)
+        return date(cutoff_year, cutoff_month, cutoff_day)
 
-        A player is excluded exactly on the days covered by one of their
-        recorded disable periods (``disabled_from`` .. ``disabled_to``, with
-        NULL ``disabled_to`` = still disabled). Days before the first period
-        and between two periods keep counting the player, so disabling
-        someone is a forward-only action. Legacy rows whose ``disabled`` flag
-        was flipped directly in the database (no period recorded) keep the
-        pre-Fix #5 behavior and are excluded on every date.
+    @staticmethod
+    def _is_inactive(player: Player, as_of_date: date) -> bool:
+        """Whether ``player`` counts as inactive at ``as_of_date``.
+
+        A player is inactive when they have never played or their last match
+        is older than ``settings.inactivity_months``.
         """
-        for disabled_from, disabled_to in periods:
-            if disabled_from <= day and (disabled_to is None or day <= disabled_to):
-                return True
-        # Legacy fallback: flag set without a period -> excluded everywhere.
-        if disabled and not periods:
+        if player.last_match_date is None:
             return True
-        return False
-
-    @staticmethod
-    def _disabled_player_ids_on(
-        players: list[Player],
-        periods: dict[int, list[tuple[date, Optional[date]]]],
-        day: date,
-    ) -> set[int]:
-        """Return the ids of ``players`` that are disabled on ``day``."""
-        return {
-            p.id
-            for p in players
-            if RankingService._is_disabled_on(p.disabled, periods.get(p.id, []), day)
-        }
-
-    def _load_disable_periods(self) -> dict[int, list[tuple[date, Optional[date]]]]:
-        """Load every disable interval, keyed by player id (start-date sorted)."""
-        periods: dict[int, list[tuple[date, Optional[date]]]] = {}
-        rows = (
-            self.db.query(PlayerDisablePeriod)
-            .order_by(PlayerDisablePeriod.disabled_from.asc(), PlayerDisablePeriod.id.asc())
-            .all()
-        )
-        for row in rows:
-            periods.setdefault(row.player_id, []).append((row.disabled_from, row.disabled_to))
-        return periods
+        return player.last_match_date < RankingService._inactive_cutoff(as_of_date)
 
     def generate_ranking(
         self,
@@ -92,7 +71,7 @@ class RankingService:
         Args:
             from_date: Start of ranking period. Defaults to first day of current month.
             to_date: End of ranking period. Defaults to today.
-            include_inactive: If True, include inactive players.
+            include_inactive: If True, also include inactive and disabled players.
 
         Returns:
             RankingResponse with entries sorted by position.
@@ -125,6 +104,7 @@ class RankingService:
         players_with_matches = set(records.keys())
 
         for player in players:
+            is_inactive = RankingService._is_inactive(player, to_date)
             rec = records.get(player.id)
             if rec is None:
                 # No matches up to to_date -> start_elo at both boundaries.
@@ -150,6 +130,8 @@ class RankingService:
                 {
                     "player_id": player.id,
                     "player_name": player.name,
+                    "disabled": player.disabled,
+                    "inactive": is_inactive,
                     "elo_rating": elo_at_end,
                     "elo_change": elo_at_end - elo_at_start,
                     "start_elo": elo_at_start,
@@ -189,6 +171,8 @@ class RankingService:
                 RankingEntry(
                     player_id=entry["player_id"],
                     player_name=entry["player_name"],
+                    disabled=entry["disabled"],
+                    inactive=entry["inactive"],
                     position=end_position,
                     elo_rating=entry["elo_rating"],
                     elo_change=entry["elo_change"],
@@ -216,32 +200,27 @@ class RankingService:
         """Get players eligible for ranking.
 
         If include_inactive is False, only players with at least 1 match
-        in the selected date interval are included.
+        in the selected date interval or flagged active are included - and
+        disabled players are hidden like inactive ones, because the lists
+        follow the same "include inactive / disabled" toggle.
 
         Args:
-            include_inactive: If True, include inactive players.
+            include_inactive: If True, also include inactive and disabled
+                players.
             as_of_date: Date to check inactivity against.
-            from_date: Start of interval for activity check.
+            from_date: Starting from interval for activity check.
 
         Returns:
             List of eligible players.
         """
-        # Fix #5: a disable only hides a player from a ranking snapshot on the
-        # days the disable was actually active. A player whose disable window
-        # has ended (or not started yet) stays in the ranking for that date.
-        all_players = self.db.query(Player).all()
-        periods = self._load_disable_periods()
-        disabled_on_as_of = RankingService._disabled_player_ids_on(all_players, periods, as_of_date)
-
         query = self.db.query(Player)
-        if disabled_on_as_of:
-            query = query.filter(Player.id.notin_(disabled_on_as_of))
 
         # Fix #3 II (replaces Fix #2/#4 heuristics): a player is a competitor
         # from their explicit entry date (member-since) onwards
-        # (rule: entry_date <= selected_period_end). Every non-disabled player
-        # entered by a date counts on that date, ranked by their Elo as of
-        # that date - whether or not they had played by then. Adding one day
+        # (rule: entry_date <= selected_period_end). Every player
+        # entered by a date counts on that date - disabled players included -
+        # ranked by their Elo as of that date, whether or not they had played
+        # by then. Adding one day
         # turns the inclusive date comparison into a portable datetime
         # comparison (SQLite / PostgreSQL / MySQL) for the created_at
         # fallback (legacy rows with a NULL entry_date).
@@ -253,7 +232,12 @@ class RankingService:
         query = query.filter(or_(has_entry_date, legacy_fallback))
 
         if not include_inactive:
-            # Include players who have at least 1 match in the interval OR are active
+            # Include players who had a match in the interval OR who played
+            # recently (within the inactivity window). The ``active`` DB flag
+            # is deliberately NOT used here: it is a legacy "ever played"
+            # flag, so players who last matched months ago would otherwise
+            # leak back into the table even though they are inactive - the
+            # same rule that labels them ``(inactive)`` must also hide them.
             interval_start = from_date or as_of_date
             active_player_ids = (
                 self.db.query(Match.player_a_id)
@@ -266,10 +250,20 @@ class RankingService:
                 .distinct()
                 .subquery()
             )
+            cutoff = RankingService._inactive_cutoff(as_of_date)
+            played_recently = (Player.last_match_date.isnot(None)) & (
+                Player.last_match_date >= cutoff
+            )
 
             query = query.filter(
-                or_(Player.id.in_(active_player_ids.select()), Player.active.is_(True))
+                or_(
+                    Player.id.in_(active_player_ids.select()),
+                    played_recently,
+                )
             )
+            # Disabled players are hidden from the table unless the "include
+            # inactive / disabled" flag is set (they follow ``include_inactive``).
+            query = query.filter(Player.disabled.is_(False))
 
         return query.all()
 
@@ -559,16 +553,20 @@ class RankingService:
     def get_all_players_all_time_high_elo(self, include_inactive: bool = False) -> list[dict]:
         """Get the highest Elo rating ever reached for all players.
 
-        Includes all non-disabled players, even those with 0 matches (shows start_elo).
-        Optimized: loads all matches in a single query and computes ATH in memory.
+        Includes every player except inactive/disabled ones when the flag is
+        off (disabled players are flagged ``disabled``), even those with 0
+        matches (shows start_elo). Optimized: loads all matches in a single
+        query and computes ATH in memory.
 
         Args:
-            include_inactive: If True, include inactive players.
+            include_inactive: If True, also include inactive and disabled
+                players.
 
         Returns:
-            List of dicts with player_id, player_name, max_elo, date_reached, inactive.
+            List of dicts with player_id, player_name, max_elo, date_reached,
+            inactive, disabled.
         """
-        players = {p.id: p for p in self.db.query(Player).filter(Player.disabled.is_(False)).all()}
+        players = {p.id: p for p in self.db.query(Player).all()}
 
         # Load ALL matches in one query, sorted chronologically
         all_matches = (
@@ -602,29 +600,15 @@ class RankingService:
             if pid not in player_ath:
                 player_ath[pid] = {"max_elo": float(p.start_elo), "date": None}
 
-        # Determine inactive cutoff
-        inactivity_months = settings.inactivity_months
         today = date.today()
-        cutoff_year = today.year
-        cutoff_month = today.month - inactivity_months
-        while cutoff_month <= 0:
-            cutoff_month += 12
-            cutoff_year -= 1
-        max_day = calendar.monthrange(cutoff_year, cutoff_month)[1]
-        cutoff_day = min(today.day, max_day)
-        cutoff_date = date(cutoff_year, cutoff_month, cutoff_day)
 
         result = []
         for pid, p in players.items():
-            # Determine inactive status
-            is_inactive = False
-            if p.last_match_date is None:
-                is_inactive = True
-            elif p.last_match_date < cutoff_date:
-                is_inactive = True
+            is_inactive = RankingService._is_inactive(p, today)
 
-            # Filter by include_inactive
-            if not include_inactive and is_inactive:
+            # Disabled and inactive players are only shown when the
+            # "include inactive / disabled" flag is set.
+            if not include_inactive and (p.disabled or is_inactive):
                 continue
 
             ath = player_ath.get(pid, {"max_elo": float(p.start_elo), "date": None})
@@ -635,6 +619,7 @@ class RankingService:
                     "max_elo": ath["max_elo"],
                     "date_reached": ath["date"],
                     "inactive": is_inactive,
+                    "disabled": p.disabled,
                 }
             )
 
@@ -649,16 +634,13 @@ class RankingService:
         implementation tracks the minimum rank seen on each date the player
         played; MAX is never used (Fix #4).
 
-        The denominator on each date is the full roster that existed on that
-        date: every member entered by then (entry_date, Fix #3 II) - whether
-        or not they had played yet and regardless of inactivity - minus the
-        players that were disabled *on that date* (Fix #5). Each date's rank
-        is therefore exactly what the day-ranking would have shown. A player
-        disabled today only disappears from today onwards; the historical
-        ranks (and with them Best Rank) stay untouched, so "disable the top
-        10" can never retroactively boost anyone's Best Rank. Players with
-        the legacy ``disabled`` flag but no recorded disable period stay out
-        of every date (pre-Fix #5 behavior).
+        The denominator for each date is the full roster that existed on
+        that date: every member entered by then (entry_date, Fix #3 II) -
+        whether or not they had played yet, regardless of inactivity, and
+        including players who are currently disabled. Disabled players stay
+        in place (they are merely forbidden to play new matches), so
+        disabling top players can never inflate anyone's Best Rank - live or
+        historically.
 
         Args:
             player_id: The player's ID.
@@ -672,9 +654,9 @@ class RankingService:
         if a much larger dataset ever shows up, precompute the all-time
         per-player best rank in a background job instead of per request.
         """
-        # Load ALL players - disabled players included. A player is only
-        # excluded on dates inside a recorded disable period (Fix #5), so the
-        # whole roster's history must be available to rank the target against.
+        # Load the entire roster (disabled players included): disabled players are
+        # a permanent part of the historical field, so the full history is
+        # needed to rank the target against.
         all_players = self.db.query(Player).all()
         if not all_players:
             return {"best_rank": None, "date_reached": None}
@@ -682,8 +664,6 @@ class RankingService:
         player_map = {p.id: p for p in all_players}
         if player_id not in player_map:
             return {"best_rank": None, "date_reached": None}
-
-        periods = self._load_disable_periods()
 
         # Load all matches sorted chronologically
         all_matches = (
@@ -728,17 +708,7 @@ class RankingService:
         best_rank = None
         best_date = None
 
-        # Cache the set of player ids disabled on each date the target played.
-        # Disablement is evaluated per date (Fix #5): it is NOT monotonic like
-        # the entry date, so it cannot be folded into the walking pointer.
-        ban_cache: dict[date, set[int]] = {}
-
-        def _banned(day: date) -> set[int]:
-            if day not in ban_cache:
-                ban_cache[day] = RankingService._disabled_player_ids_on(all_players, periods, day)
-            return ban_cache[day]
-
-        # Walk through all matches, updating Elo, and check ranking at
+        # Walk through all the matches, updating Elo, and check ranking at
         # every date the target player played
         for m in all_matches:
             # Players whose effective entry date has been reached become
@@ -758,14 +728,13 @@ class RankingService:
 
             # Only compute ranking at dates the target player played
             if m.date in target_date_set and player_id in eligible_ids:
-                banned = _banned(m.date)
-                # Rank all players who had entered by this date (and were not
-                # disabled that day) by their current Elo
+                # Rank every player who had entered by this date by their
+                # current Elo - disabled players stay in the field.
                 rankings = sorted(
                     (
                         (pid, elo)
                         for pid, elo in current_elos.items()
-                        if pid in eligible_ids and pid not in banned
+                        if pid in eligible_ids
                     ),
                     key=lambda x: (-x[1], x[0]),
                 )

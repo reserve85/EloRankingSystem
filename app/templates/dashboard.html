@@ -155,7 +155,7 @@
         <h3 class="card-title">Ranking</h3>
         <label class="form-check">
           <input type="checkbox" id="ranking-include-inactive" class="form-check-input" checked>
-          <span class="form-check-label small">Include inactive players in this interval</span>
+          <span class="form-check-label small">Include inactive / disabled players in this interval</span>
         </label>
       </div>
       <div class="card-body">
@@ -224,7 +224,7 @@
         <h3 class="card-title">All Time Elo Rating</h3>
         <label class="form-check">
           <input type="checkbox" id="ath-include-inactive" class="form-check-input" checked>
-          <span class="form-check-label small">Include inactive players</span>
+          <span class="form-check-label small">Include inactive / disabled players</span>
         </label>
       </div>
       <div class="card-body">
@@ -760,7 +760,7 @@ async function loadRanking() {
     const hfCount = Array.isArray(e.high_finishes) ? e.high_finishes.length : 0;
     const ldCount = Array.isArray(e.low_darts) ? e.low_darts.length : 0;
     const trophy = e.position <= 3 ? trophies[e.position - 1] : '';
-    tbody.innerHTML += '<tr><td>'+(trophy || e.position)+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+escapeHtml(e.player_name)+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+(hfCount||'-')+'</td><td>'+(ldCount||'-')+'</td><td>'+e.total_matches+'</td></tr>';
+    tbody.innerHTML += '<tr><td>'+(trophy || e.position)+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+'<span class="'+(e.disabled?'text-decoration-line-through':'')+'">'+escapeHtml(e.player_name)+'</span>'+(e.inactive?' <span class="text-muted small">(inactive)</span>':'')+(e.disabled?' <span class="text-muted small">(disabled)</span>':'')+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+(hfCount||'-')+'</td><td>'+(ldCount||'-')+'</td><td>'+e.total_matches+'</td></tr>';
   });
 }
 
@@ -1114,13 +1114,15 @@ function renderAthChart() {
   const labels = athData.map((p, i) => {
     const trophy = i < 3 ? trophies[i] + ' ' : '';
     const inactive = p.inactive ? ' (inactive)' : '';
-    return trophy + p.player_name + inactive;
+    const disabled = p.disabled ? ' (disabled)' : '';
+    return trophy + p.player_name + inactive + disabled;
   });
   const elos = athData.map(p => p.max_elo);
   const dates = athData.map(p => p.date_reached ? fmtDisplay(p.date_reached) : '-');
 
-  // Color bars: top 3 get special colors, inactive get grey
+  // Color bars: disabled/inactive get grey, top 3 get special colors
   const barColors = athData.map((p, i) => {
+    if (p.disabled) return '#c9c9c9';
     if (p.inactive) return '#c3c3c3';
     if (i === 0) return '#f5a623'; // gold
     if (i === 1) return '#a0a0a0'; // silver
@@ -1141,6 +1143,37 @@ function renderAthChart() {
   const xMin = Math.floor(minElo - range * 0.125);
   const xMax = Math.ceil(maxElo + range * 0.125);
 
+  // Canvas has no CSS text-decoration, so disabled players get a real
+  // strikethrough via a tiny Chart.js plugin. Only the player name is
+  // struck - the trophy prefix and the "(disabled)" suffix stay untouched.
+  const strikethroughDisabled = {
+    id: 'strikethroughDisabled',
+    afterDraw(chart) {
+      const yScale = chart.scales.y;
+      if (!yScale || !athData) return;
+      const ctx = chart.ctx;
+      const tickOpts = (yScale.options && yScale.options.ticks) || {};
+      const font = tickOpts.font || {};
+      ctx.font = (font.size || 13) + 'px ' + (font.family || 'sans-serif');
+      ctx.strokeStyle = '#c74b4b';
+      ctx.lineWidth = 1.5;
+      yScale.ticks.forEach(function (tick) {
+        const p = athData[tick.value];
+        if (!p || !p.disabled) return;
+        const yPix = yScale.getPixelForValue(tick.value);
+        const trophy = tick.value < 3 ? trophies[tick.value] + ' ' : '';
+        const suffix = (p.inactive ? ' (inactive)' : '') + ' (disabled)';
+        const nameW = ctx.measureText(trophy + p.player_name).width;
+        const suffixW = ctx.measureText(suffix).width;
+        const xRight = chart.chartArea.left - (tickOpts.padding || 8);
+        ctx.beginPath();
+        ctx.moveTo(xRight - nameW, yPix);
+        ctx.lineTo(xRight - suffixW, yPix);
+        ctx.stroke();
+      });
+    }
+  };
+
   athChart = new Chart(canvas, {
     type: 'bar',
     data: {
@@ -1155,6 +1188,7 @@ function renderAthChart() {
         categoryPercentage: 0.8,
       }]
     },
+    plugins: [strikethroughDisabled],
     options: {
       indexAxis: 'y',
       responsive: true,

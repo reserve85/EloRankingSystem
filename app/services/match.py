@@ -97,6 +97,19 @@ class MatchService:
                 status_code=400, detail="Player A and Player B cannot be the same player"
             )
 
+        # Disabled players can never play: the assignment is enforced here at
+        # the API layer, not just in the UI dropdowns.
+        if player_a.disabled:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Player A '{player_a.name}' is disabled and cannot play matches",
+            )
+        if player_b.disabled:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Player B '{player_b.name}' is disabled and cannot play matches",
+            )
+
         # Determine winner from scores
         bol = data.best_of_legs if data.best_of_legs > 0 else settings.best_of_legs
         winner_label = determine_winner(data.player1_score, data.player2_score, bol)

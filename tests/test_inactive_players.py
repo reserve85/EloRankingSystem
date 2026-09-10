@@ -330,10 +330,14 @@ class TestInactivePlayerReactivated:
 class TestDisabledVsInactive:
     """Tests that disabled and inactive are different concepts."""
 
-    def test_disabled_player_not_in_ranking_even_with_include_inactive(
-        self, client, db_session, monkeypatch
-    ):
-        """Disabled player should NOT appear even with include_inactive=True."""
+    def test_disabled_player_visibility_follows_include_flag(self, client, db_session, monkeypatch):
+        """Disabled players are hidden with the flag off and included with it on.
+
+        The player is marked ``disabled`` when shown (struck through in the
+        UI). Disabling never shrinks the underlying field, so positions/Best
+        Rank of everyone else stay intact; the player is only excluded from
+        match selection.
+        """
         monkeypatch.setattr("app.services.ranking.settings.inactivity_months", 3)
 
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
@@ -341,14 +345,22 @@ class TestDisabledVsInactive:
         disabled.disabled = True
         db_session.commit()
 
-        resp = _get_ranking(
+        hidden = _get_ranking(
+            client,
+            str(date.today().replace(day=1)),
+            str(date.today()),
+            include_inactive=False,
+        )
+        assert "Disabled" not in [e["player_name"] for e in hidden.json()["entries"]]
+
+        shown = _get_ranking(
             client,
             str(date.today().replace(day=1)),
             str(date.today()),
             include_inactive=True,
         )
-        names = [e["player_name"] for e in resp.json()["entries"]]
-        assert "Disabled" not in names
+        entry = next(e for e in shown.json()["entries"] if e["player_name"] == "Disabled")
+        assert entry["disabled"] is True
 
     def test_inactive_player_in_ranking_with_include_inactive(
         self, client, db_session, monkeypatch
@@ -396,18 +408,25 @@ class TestDisabledVsInactive:
         assert "Inactive" in names
 
     def test_disabled_cannot_play_match(self, client, db_session):
-        """Disabled player should not be selectable for new matches (by default)."""
+        """Disabled players are rejected by the match API, not just the UI."""
         _login_as(client, db_session, "u1", "pass", UserRole.USER)
         disabled = _create_player(db_session, "Disabled", elo=1200)
         disabled.disabled = True
         db_session.commit()
-        _create_player(db_session, "Opponent", elo=1200)
+        opponent = _create_player(db_session, "Opponent", elo=1200)
 
-        # Disabled player can still technically be sent in API,
-        # but the business rule is enforced by UI/service layer
-        # Here we just verify disabled flag is True
-        resp = client.get(f"/players/{disabled.id}")
-        assert resp.json()["disabled"] is True
+        resp = client.post(
+            "/matches/",
+            json={
+                "date": str(date.today()),
+                "player_a_id": disabled.id,
+                "player_b_id": opponent.id,
+                "player1_score": 3,
+                "player2_score": 0,
+            },
+        )
+        assert resp.status_code == 400
+        assert "disabled" in resp.json()["detail"].lower()
 
     def test_inactive_player_disabled_flag_false(self, client, db_session, monkeypatch):
         """Inactive player should have disabled=False."""
