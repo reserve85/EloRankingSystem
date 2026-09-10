@@ -1255,6 +1255,23 @@ class TestDashboardRanking:
         resp = client.get("/ui/dashboard")
         # No "Filter" button for ranking
         assert "Filter</button>" not in resp.text or "loadRanking" in resp.text
+    def test_ranking_table_sortable_like_admin_matches(self, client, db_session):
+        """Ranking table uses the same DataTables sort mechanism as Admin -> Match History."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "refreshDataTable('#ranking-table'" in resp.text
+
+    def test_ranking_table_default_sort_elo_desc(self, client, db_session):
+        """Ranking table defaults to Elo descending (rank ascending as tie-breaker)."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "order: [[2, 'desc'], [0, 'asc']]" in resp.text
+
+    def test_ranking_table_numeric_sort_attributes(self, client, db_session):
+        """Ranking cells carry numeric data-order attributes so sorting is numeric."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "data-order" in resp.text
 
 
 class TestMatchHistory:

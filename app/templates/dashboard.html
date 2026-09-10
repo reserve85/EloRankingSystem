@@ -750,18 +750,19 @@ async function loadRanking() {
   const resp = await fetch(url);
   if (!resp.ok) return;
   const data = await resp.json();
-  const tbody = document.querySelector('#ranking-table tbody');
-  tbody.innerHTML = '';
+  // Sortable table (same mechanism as Admin -> Match History): click a column header to sort asc/desc.
+  // Default order: Elo descending, with rank ascending as a tie-breaker.
   const trophies = ['🥇', '🥈', '🥉'];
-  data.entries.forEach(e => {
+  refreshDataTable('#ranking-table', { paging: true, pageLength: 25, order: [[2, 'desc'], [0, 'asc']], searching: true, lengthChange: false, info: false, columnDefs: [{ type: 'num', targets: [0, 2, 3, 4, 5, 6, 7, 8] }] }, tbody => { data.entries.forEach(e => {
     const eloCls = e.elo_change > 0 ? 'text-green' : e.elo_change < 0 ? 'text-red' : '';
     const posCls = e.position_change > 0 ? 'text-green' : e.position_change < 0 ? 'text-red' : '';
     const posStr = e.position_change > 0 ? '+' + e.position_change : e.position_change < 0 ? '' + e.position_change : '-';
     const hfCount = Array.isArray(e.high_finishes) ? e.high_finishes.length : 0;
     const ldCount = Array.isArray(e.low_darts) ? e.low_darts.length : 0;
     const trophy = e.position <= 3 ? trophies[e.position - 1] : '';
-    tbody.innerHTML += '<tr><td>'+(trophy || e.position)+'</td><td><a href="#" onclick="showPlayerStats('+e.player_id+'); return false;" class="text-decoration-none">'+'<span class="'+(e.disabled?'text-decoration-line-through':'')+'">'+escapeHtml(e.player_name)+'</span>'+(e.inactive?' <span class="text-muted small">(inactive)</span>':'')+(e.disabled?' <span class="text-muted small">(disabled)</span>':'')+'</a></td><td>'+e.elo_rating.toFixed(1)+'</td><td class="'+eloCls+'">'+(e.elo_change>0?'+':'')+e.elo_change.toFixed(1)+'</td><td class="'+posCls+'">'+posStr+'</td><td>'+(e.total_180s||'-')+'</td><td>'+(hfCount||'-')+'</td><td>'+(ldCount||'-')+'</td><td>'+e.total_matches+'</td></tr>';
+    tbody.innerHTML += '<tr><td data-order="' + e.position + '">' + (trophy || e.position) + '</td><td><a href="#" onclick="showPlayerStats(' + e.player_id + '); return false;" class="text-decoration-none">' + '<span class="' + (e.disabled ? 'text-decoration-line-through' : '') + '">' + escapeHtml(e.player_name) + '</span>' + (e.inactive ? ' <span class="text-muted small">(inactive)</span>' : '') + (e.disabled ? ' <span class="text-muted small">(disabled)</span>' : '') + '</a></td><td data-order="' + e.elo_rating + '">' + e.elo_rating.toFixed(1) + '</td><td class="' + eloCls + '" data-order="' + (e.elo_change || 0) + '">' + (e.elo_change > 0 ? '+' : '') + e.elo_change.toFixed(1) + '</td><td class="' + posCls + '" data-order="' + (e.position_change || 0) + '">' + posStr + '</td><td data-order="' + (e.total_180s || 0) + '">' + (e.total_180s || '-') + '</td><td data-order="' + hfCount + '">' + (hfCount || '-') + '</td><td data-order="' + ldCount + '">' + (ldCount || '-') + '</td><td data-order="' + (e.total_matches || 0) + '">' + e.total_matches + '</td></tr>';
   });
+});
 }
 
 function countArray(val) { return Array.isArray(val) ? val.length : 0; }
