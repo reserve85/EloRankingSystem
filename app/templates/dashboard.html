@@ -155,7 +155,7 @@
         <h3 class="card-title">Ranking</h3>
         <label class="form-check">
           <input type="checkbox" id="ranking-include-inactive" class="form-check-input" checked>
-          <span class="form-check-label small">Include inactive / disabled players in this interval</span>
+          <span class="form-check-label small">Show inactive / disabled players</span>
         </label>
       </div>
       <div class="card-body">
@@ -192,14 +192,14 @@
       </div>
       <div class="card-body">
       <div class="row mb-3">
-          <div class="col-6 col-md-4">
+          <div class="col-6">
             <label class="form-label small text-muted">From</label>
             <div class="input-group input-group-sm">
               <input type="date" id="match-from" class="form-control form-control-sm">
               <button type="button" class="btn btn-outline-secondary btn-sm" onclick="jumpToToday(document.getElementById('match-from'))" title="Today">T</button>
             </div>
           </div>
-          <div class="col-6 col-md-4">
+          <div class="col-6">
             <label class="form-label small text-muted">To</label>
             <div class="input-group input-group-sm">
               <input type="date" id="match-to" class="form-control form-control-sm">
@@ -224,7 +224,7 @@
         <h3 class="card-title">All Time Elo Rating</h3>
         <label class="form-check">
           <input type="checkbox" id="ath-include-inactive" class="form-check-input" checked>
-          <span class="form-check-label small">Include inactive / disabled players</span>
+          <span class="form-check-label small">Show inactive / disabled players</span>
         </label>
       </div>
       <div class="card-body">
@@ -753,7 +753,7 @@ async function loadRanking() {
   // Sortable table (same mechanism as Admin -> Match History): click a column header to sort asc/desc.
   // Default order: Elo descending, with rank ascending as a tie-breaker.
   const trophies = ['🥇', '🥈', '🥉'];
-  refreshDataTable('#ranking-table', { paging: true, pageLength: 25, order: [[2, 'desc'], [0, 'asc']], searching: true, lengthChange: false, info: false, columnDefs: [{ type: 'num', targets: [0, 2, 3, 4, 5, 6, 7, 8] }] }, tbody => { data.entries.forEach(e => {
+  refreshDataTable('#ranking-table', { paging: true, pageLength: 100, order: [[2, 'desc'], [0, 'asc']], searching: true, info: false, columnDefs: [{ type: 'num', targets: [0, 2, 3, 4, 5, 6, 7, 8] }] }, tbody => { data.entries.forEach(e => {
     const eloCls = e.elo_change > 0 ? 'text-green' : e.elo_change < 0 ? 'text-red' : '';
     const posCls = e.position_change > 0 ? 'text-green' : e.position_change < 0 ? 'text-red' : '';
     const posStr = e.position_change > 0 ? '+' + e.position_change : e.position_change < 0 ? '' + e.position_change : '-';
@@ -833,7 +833,7 @@ function renderMatchTable(data) {
   /** Render match data into the DataTable. */
   if (Object.keys(playerMap).length === 0) { loadPlayers().then(() => renderMatchTable(data)); return; }
   matchData = data;
-  refreshDataTable('#match-table', { paging: true, pageLength: 25, order: [[0,'desc']], searching: true, lengthChange: false, info: false }, tbody => {
+  refreshDataTable('#match-table', { paging: true, pageLength: 25, order: [[0,'desc']], searching: true, info: false }, tbody => {
     data.forEach((m, idx) => {
       const winnerName = playerMap[m.winner_id] || 'Player ' + m.winner_id;
       const loserName = playerMap[m.loser_id] || 'Player ' + m.loser_id;

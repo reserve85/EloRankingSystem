@@ -1025,7 +1025,7 @@ class TestInactivePlayerCheckbox:
         """Ranking include checkbox should have the inactive/disabled label."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
-        assert "Include inactive / disabled players in this interval" in resp.text
+        assert "Show inactive / disabled players" in resp.text
 
     def test_ranking_checkbox_triggers_load_ranking(self, client, db_session):
         """Ranking checkbox change should trigger loadRanking via AJAX."""
@@ -1039,7 +1039,7 @@ class TestInactivePlayerCheckbox:
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
         assert 'id="ath-include-inactive"' in resp.text
-        assert "Include inactive / disabled players" in resp.text
+        assert "Show inactive / disabled players" in resp.text
 
     def test_ath_checkbox_triggers_load_chart(self, client, db_session):
         """ATH checkbox change should trigger loadAllTimeEloChart via AJAX."""
@@ -1194,6 +1194,14 @@ class TestDateFormat:
         resp = client.get("/ui/admin")
         assert "preventFutureDate" in resp.text
 
+    def test_admin_pdf_include_inactive_checked_by_default(self, client, db_session):
+        """Admin PDF export checkbox 'Show inactive / disabled players' should be checked by default."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert 'id="pdf-include-inactive"' in resp.text
+        assert "checked" in resp.text
+        assert "Show inactive / disabled players" in resp.text
+
     def test_admin_uses_shared_date_utilities(self, client, db_session):
         """Admin should use shared date utilities from base.html."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
@@ -1273,6 +1281,27 @@ class TestDashboardRanking:
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/ui/dashboard")
         assert "data-order" in resp.text
+
+    def test_ranking_table_default_page_length_100(self, client, db_session):
+        """Ranking table defaults to showing 100 entries per page."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "pageLength: 100" in resp.text
+
+    def test_ranking_table_shows_length_filter(self, client, db_session):
+        """Ranking table shows the 'show X entries' length filter (like Admin Match History)."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        # lengthChange must be enabled (not false) to show the length dropdown
+        assert "refreshDataTable('#ranking-table', { paging: true, pageLength: 100" in resp.text
+        assert "lengthChange: false" not in resp.text
+
+    def test_match_table_shows_length_filter(self, client, db_session):
+        """Dashboard Match History table shows the 'show X entries' length filter."""
+        _login_as(client, db_session, "user1", "pass", UserRole.USER)
+        resp = client.get("/ui/dashboard")
+        assert "refreshDataTable('#match-table'" in resp.text
+        assert "lengthChange: false" not in resp.text
 
 
 class TestMatchHistory:
