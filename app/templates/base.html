@@ -707,6 +707,50 @@
       fromEl.value = toEl.value;
     }
   }
+
+  /**
+   * Refill a DataTables table with fresh rows without resetting the user's view.
+   * Rebuilding a DataTable by destroy()+recreate() wipes the search box, the
+   * sort order, the page length and jumps back to page 1. This helper captures
+   * that state before the rebuild and restores it afterwards, so an AJAX refresh
+   * (e.g. after editing a player/match) only updates the table contents.
+   *
+   * @param tableSel   CSS selector of the table element, e.g. '#players-table'
+   * @param dtOptions  DataTables init options used when (re)initialising
+   * @param fillTbody  callback(tbodyEl) that fills the <tbody> with the rows
+   */
+  function refreshDataTable(tableSel, dtOptions, fillTbody) {
+    let state = null;
+    if ($.fn.DataTable.isDataTable(tableSel)) {
+      const oldDt = $(tableSel).DataTable();
+      const searchBox = document.querySelector(tableSel + '_filter input');
+      state = {
+        search: searchBox ? searchBox.value : (oldDt.search() || ''),
+        page: oldDt.page(),
+        length: oldDt.page.len(),
+        order: oldDt.order()
+      };
+      oldDt.destroy();
+    }
+    const tbody = document.querySelector(tableSel + ' tbody');
+    tbody.innerHTML = '';
+    fillTbody(tbody);
+    const dt = $(tableSel).DataTable(dtOptions);
+    if (state) {
+      if (state.search) {
+        // table.search() does not update the visible input, so sync it by hand.
+        const searchBox = document.querySelector(tableSel + '_filter input');
+        if (searchBox) searchBox.value = state.search;
+        dt.search(state.search);
+      }
+      dt.order(state.order);
+      if (dtOptions.lengthChange !== false) { dt.page.len(state.length); }
+      // draw(false) = "standing" redraw that keeps the chosen page. If the saved
+      // page no longer exists (e.g. rows were filtered out), DataTables resets
+      // to page 1 by itself.
+      dt.page(state.page).draw(false);
+    }
+  }
   </script>
   <!-- Mutual exclusion: close profile menu when burger opens, and vice versa -->
   <script>
