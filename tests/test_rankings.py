@@ -707,6 +707,26 @@ class TestRankingPermissions:
         assert resp.status_code == 401
 
 
+class TestInvertedDateRange:
+    """Inverted from_date > to_date ranges are rejected (review #3)."""
+
+    def test_ranking_rejects_inverted_range(self, client, db_session):
+        """Ranking endpoint returns 422 for from_date after to_date."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        resp = _get_ranking(client, "2025-06-30", "2025-06-01")
+        assert resp.status_code == 422
+
+    def test_player_stats_rejects_inverted_range(self, client, db_session):
+        """Player statistics endpoint returns 422 for an inverted range."""
+        _login_as(client, db_session, "u1", "pass", UserRole.USER)
+        player = _create_player(db_session, "Alice", elo=1200)
+        resp = client.get(
+            f"/rankings/player-stats/{player.id}",
+            params={"from_date": "2025-06-30", "to_date": "2025-06-01"},
+        )
+        assert resp.status_code == 422
+
+
 class TestAllTimeEloChart:
     """Tests for all-time Elo rating endpoint."""
 

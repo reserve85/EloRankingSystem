@@ -8,12 +8,29 @@ import calendar
 from datetime import date, datetime, time, timedelta, timezone
 from typing import Optional
 
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
 from app.models.match import Match
 from app.models.player import Player
 from app.schemas.ranking import RankingEntry, RankingResponse
+
+
+def _validate_date_range(from_date: Optional[date], to_date: Optional[date]) -> None:
+    """Reject an inverted ``from_date`` > ``to_date`` range (review #3).
+
+    Callers resolve defaults first, so both values are normally set. Without
+    this check the ranking, statistics and PDF-report endpoints silently
+    returned empty or misleading output for an inverted range; now they answer
+    422 instead. The UI already guards against this for its own inputs.
+    """
+    if from_date is not None and to_date is not None and from_date > to_date:
+        raise HTTPException(
+            status_code=422,
+            detail=f"from_date ({from_date.isoformat()}) cannot be after to_date "
+            f"({to_date.isoformat()})",
+        )
 
 
 class RankingService:
@@ -80,6 +97,8 @@ class RankingService:
             to_date = date.today()
         if from_date is None:
             from_date = date(to_date.year, to_date.month, 1)
+
+        _validate_date_range(from_date, to_date)
 
         # Get eligible players
         players = self._get_eligible_players(include_inactive, to_date, from_date)
@@ -365,6 +384,8 @@ class RankingService:
         Returns:
             Dict with 'period' and 'all_time' statistics.
         """
+        _validate_date_range(from_date, to_date)
+
         # Get all matches for this player
         all_matches = (
             self.db.query(Match)

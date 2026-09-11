@@ -408,6 +408,12 @@ class TestPdfExportRoute:
         resp = client.get("/reports/ranking/pdf?from_date=2025-06-01&to_date=2025-06-30")
         assert resp.status_code == 401
 
+    def test_inverted_date_range_rejected(self, client, db_session):
+        """PDF export returns 422 for an inverted date range (review #3)."""
+        _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
+        resp = client.get("/reports/ranking/pdf?from_date=2025-06-30&to_date=2025-06-01")
+        assert resp.status_code == 422
+
     def test_pdf_with_matches(self, client, db_session):
         """PDF should be generated with match data."""
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
