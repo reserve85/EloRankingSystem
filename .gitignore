@@ -62,9 +62,5 @@ tests/private_livesystem_test/docker-compose.yml
 implementation_plan*
 
 
-# Alembic
-alembic/versions/*.py
-!alembic/versions/.gitkeep
-
 # Type checking
 .mypy_cache/

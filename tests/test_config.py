@@ -537,3 +537,22 @@ class TestSecurityDefaultEnforcement:
         settings = get_settings(None)
         assert settings.app_env == "production"
         assert settings.jwt_secret == "0123456789abcdef0123456789abcdef"
+
+
+def test_settings_aliases_documented_in_env_example():
+    """Every Settings env alias must appear in .env.example (review #10).
+
+    The example file is the operator-facing reference; a shipped setting
+    that is missing from it will confuse deployments.
+    """
+    from pathlib import Path
+
+    from app.core.config import Settings
+
+    example = Path(".env.example").read_text(encoding="utf-8")
+    missing = [
+        field.alias
+        for field in Settings.model_fields.values()
+        if field.alias and field.alias not in example
+    ]
+    assert missing == [], f"documented but missing from .env.example: {missing}"

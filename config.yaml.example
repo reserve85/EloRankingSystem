@@ -46,6 +46,10 @@ security:
   cookie_secure: true  # Set to false for local HTTP development
   cookie_httponly: true
   cookie_samesite: strict  # Use 'lax' for local development if needed
+  # Disable CSRF / rate limiting ONLY for local development; keep enabled in
+  # production.
+  csrf_enabled: true
+  rate_limit_enabled: true
   # Comma-separated IPs of trusted reverse proxies (e.g. 127.0.0.1). When set,
   # X-Forwarded-For is honored for rate limiting and audit IPs. Leave empty to
   # always use the direct socket peer.
