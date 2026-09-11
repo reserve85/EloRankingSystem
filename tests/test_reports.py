@@ -434,13 +434,15 @@ class TestPdfExportRoute:
         assert "attachment" in resp.headers.get("content-disposition", "")
         assert "ranking_2025-06-01_2025-06-30.pdf" in resp.headers.get("content-disposition", "")
 
-    def test_pdf_default_period(self, client, db_session):
-        """PDF should use previous month as default period."""
+    def test_pdf_default_period_is_current_month(self, client, db_session):
+        """No-arg PDF default matches /rankings/ (current month to today, review #4)."""
         _login_as(client, db_session, "admin", "pass", UserRole.ADMIN)
 
         resp = client.get("/reports/ranking/pdf")
         assert resp.status_code == 200
         assert resp.content[:4] == b"%PDF"
+        # The content-disposition filename carries the resolved default window.
+        assert str(date.today()) in resp.headers.get("content-disposition", "")
 
     def test_pdf_with_include_inactive(self, client, db_session):
         """PDF should work with include_inactive flag."""

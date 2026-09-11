@@ -29,14 +29,18 @@ def export_ranking_pdf(
     current_user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ):
-    """Export ranking report as PDF. Requires ADMIN or SYSTEM role."""
-    from datetime import timedelta
+    """Export ranking report as PDF. Requires ADMIN or SYSTEM role.
 
+    No-args default matches ``GET /rankings/`` (current month up to today,
+    review #4): the admin UI picks its own period (previous completed month in
+    the filter dialog) and always passes explicit ``from_date``/``to_date``,
+    so aligning the bare-endpoint default keeps direct API calls consistent
+    with the JSON ranking surface.
+    """
     today = date.today()
 
     if to_date is None:
-        first_of_current = today.replace(day=1)
-        to_date = first_of_current - timedelta(days=1)
+        to_date = today
     if from_date is None:
         from_date = date(to_date.year, to_date.month, 1)
 
