@@ -160,7 +160,7 @@ class MatchService:
         )
         match = self.match_repo.create(match)
 
-        self._recalculate_elo_timeline({data.player_a_id, data.player_b_id}, created_by, username)
+        self.recalculate_elo_timeline({data.player_a_id, data.player_b_id}, created_by, username)
         self.db.flush()
         self.db.refresh(match)
 
@@ -268,7 +268,7 @@ class MatchService:
         if data.player_b_average is not None:
             match.player_b_average = data.player_b_average
 
-        self._recalculate_elo_timeline(affected_players, updated_by, username)
+        self.recalculate_elo_timeline(affected_players, updated_by, username)
         self.db.flush()
         self.db.refresh(match)
 
@@ -325,7 +325,7 @@ class MatchService:
         # Deletion + recalculation first. If either fails, the audit below is
         # never added and nothing is falsely recorded.
         self.match_repo.delete(match)
-        self._recalculate_elo_timeline(affected_players, deleted_by, username)
+        self.recalculate_elo_timeline(affected_players, deleted_by, username)
 
         audit = AuditLog(
             user_id=deleted_by,
@@ -339,7 +339,7 @@ class MatchService:
         self.db.add(audit)
         self.db.commit()
 
-    def _recalculate_elo_timeline(
+    def recalculate_elo_timeline(
         self,
         affected_player_ids: set[int],
         user_id: int | None = None,
@@ -502,7 +502,7 @@ class MatchService:
         """
         all_players = self.player_repo.get_all(include_disabled=True)
         all_player_ids = {p.id for p in all_players}
-        matches_count = self._recalculate_elo_timeline(all_player_ids, user_id, username)
+        matches_count = self.recalculate_elo_timeline(all_player_ids, user_id, username)
         self.db.commit()
         return {
             "matches_recalculated": matches_count,

@@ -320,7 +320,7 @@ class RankingService:
         SELECT count so a gross regression (e.g. a reintroduced N+1) fails CI
         instead of silently degrading. If a much larger dataset ever shows up,
         materialize the per-player values on write (inside
-        ``_recalculate_elo_timeline``) instead of per-request scans.
+        ``recalculate_elo_timeline``) instead of per-request scans.
         """
         matches = (
             self.db.query(Match)

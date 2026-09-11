@@ -5,7 +5,7 @@ from fastapi.responses import RedirectResponse
 
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
+from app.core.config import get_club_name, settings
 from app.core.database import get_db
 from app.core.version import get_version_info
 from app.core.templates import templates
@@ -29,15 +29,10 @@ def login_page(
         "login.html",
         {
             "app_name": settings.app_name,
-            "club_name": _get_club_name(db),
+            "club_name": get_club_name(),
             "version_info": get_version_info(settings.timezone),
         },
     )
-
-
-def _get_club_name(db: Session) -> str:
-    """Get club name from env var or config file, with app_name as fallback."""
-    return settings.club_name or settings.app_name
 
 
 @router.get("/dashboard")
@@ -54,7 +49,7 @@ def dashboard_page(
         {
             "user": current_user,
             "app_name": settings.app_name,
-            "club_name": _get_club_name(db),
+            "club_name": get_club_name(),
             "version_info": get_version_info(settings.timezone),
             "hf_min": settings.high_finish_min,
             "hf_max": settings.high_finish_max,
@@ -82,7 +77,7 @@ def admin_page(
         {
             "user": current_user,
             "app_name": settings.app_name,
-            "club_name": _get_club_name(db),
+            "club_name": get_club_name(),
             "version_info": get_version_info(settings.timezone),
             "hf_min": settings.high_finish_min,
             "hf_max": settings.high_finish_max,
@@ -110,7 +105,7 @@ def change_password_page(
         {
             "user": current_user,
             "app_name": settings.app_name,
-            "club_name": _get_club_name(db),
+            "club_name": get_club_name(),
             "version_info": get_version_info(settings.timezone),
             # True when the new password is mandatory (bootstrap/reset) - Fix H2.
             "must_change": bool(current_user.must_change_password),
@@ -131,7 +126,7 @@ def _legal_context(db: Session, current_user: User | None = None):
     }
     if current_user:
         ctx["user"] = current_user
-        ctx["club_name"] = _get_club_name(db)
+        ctx["club_name"] = get_club_name()
     return ctx
 
 

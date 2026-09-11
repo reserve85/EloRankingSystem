@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from io import BytesIO
 
 from app.core.database import get_db
-from app.core.config import settings
+from app.core.config import get_club_name, settings
 from app.auth.dependencies import require_admin
 from app.models.user import User
 from app.models.club_settings import ClubSettings
@@ -51,10 +51,8 @@ def export_ranking_pdf(
         include_inactive=include_inactive,
     )
 
-    from app.api.routes.ui import _get_club_name
-
     club_settings = db.query(ClubSettings).first()
-    club_name = _get_club_name(db)
+    club_name = get_club_name()
     # Always use light mode logo for PDF export
     logo_path = club_settings.club_logo_path if club_settings else None
 

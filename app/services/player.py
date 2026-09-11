@@ -140,7 +140,7 @@ class PlayerService:
             from app.services.match import MatchService
 
             match_service = MatchService(self.repo.db)
-            match_service._recalculate_elo_timeline({player_id})
+            match_service.recalculate_elo_timeline({player_id})
 
         # No commit here: the caller (API route) owns the transaction boundary
         # and commits once after the audit log, keeping the mutation, the Elo

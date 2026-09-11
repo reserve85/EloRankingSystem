@@ -345,7 +345,7 @@ class TestMatchAudit:
         # Simulate a failure during the Elo recalculation step. The TestClient
         # re-raises the server exception, so expect it to propagate.
         with patch(
-            "app.services.match.MatchService._recalculate_elo_timeline",
+            "app.services.match.MatchService.recalculate_elo_timeline",
             side_effect=RuntimeError("recalculation failed"),
         ):
             with pytest.raises(RuntimeError):

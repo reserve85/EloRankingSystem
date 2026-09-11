@@ -307,5 +307,14 @@ def get_settings(yaml_path: Optional[str] = None) -> Settings:
     return resolved
 
 
+def get_club_name() -> str:
+    """Resolve the display club name: ``club_name`` config or app name fallback.
+
+    Shared by the UI routes and the PDF report (review #5); lives here so
+    config-derived display values do not cross route-module boundaries.
+    """
+    return settings.club_name or settings.app_name
+
+
 # Singleton settings instance
 settings = get_settings()
