@@ -30,6 +30,14 @@ def create_user(
         raise HTTPException(status_code=409, detail=f"Username '{data.username}' already exists")
     if data.role == UserRole.SYSTEM:
         raise HTTPException(status_code=400, detail="Cannot create SYSTEM users via API")
+    # Consistent with update/delete (review #6): only SYSTEM may extend the
+    # ADMIN set. An ADMIN creating another ADMIN would be an unguarded role
+    # grant where every other path to the ADMIN role is SYSTEM-only.
+    if data.role == UserRole.ADMIN and current_user.role != UserRole.SYSTEM:
+        raise HTTPException(
+            status_code=403,
+            detail="Only SYSTEM users can create ADMIN accounts",
+        )
     strength_errors = validate_password_strength(data.password)
     if strength_errors:
         raise HTTPException(status_code=400, detail=strength_errors)
@@ -183,6 +191,14 @@ def update_user(
         raise HTTPException(
             status_code=403,
             detail="Only SYSTEM users can grant the SYSTEM role",
+        )
+
+    # 2b. Only SYSTEM may grant the ADMIN role (closes the create/update gap
+    # for the ADMIN set - review #6). Mirrors the create_user guard.
+    if data.role == UserRole.ADMIN and not is_system:
+        raise HTTPException(
+            status_code=403,
+            detail="Only SYSTEM users can grant the ADMIN role",
         )
 
     # 3. A user can never change their own role or active state.

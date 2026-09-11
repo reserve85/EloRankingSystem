@@ -459,6 +459,18 @@
 // Use shared date utilities from base.html: todayISO(), preventFutureDate(), syncDateRange()
 const fmtToday = todayISO;
 
+// Only SYSTEM may manage ADMIN accounts (review #6): an ADMIN must not be
+// offered the ADMIN role in the Add/Edit User dialog when the server would
+// reject it with 403 anyway.
+const currentUserIsSystem = {{ 'true' if user.role.value == 'SYSTEM' else 'false' }};
+(function() {
+  if (currentUserIsSystem) return;
+  const roleSelect = document.getElementById('user-role');
+  if (!roleSelect) return;
+  const adminOpt = roleSelect.querySelector('option[value="ADMIN"]');
+  if (adminOpt) adminOpt.remove();
+})();
+
 // Fix L1: HTML-escape database values interpolated into innerHTML strings to
 // close the stored-XSS window (defense-in-depth; names/values could contain
 // markup even though creation is admin-only).

@@ -259,18 +259,57 @@ class TestUserManagementAPI:
         )
         assert resp.status_code == 400
 
+    def test_admin_cannot_create_admin_user(self, client, db_session):
+        """ADMIN should not be able to create ADMIN accounts (review #6)."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.post(
+            "/users/", json={"username": "newadmin", "password": "Pass123!", "role": "ADMIN"}
+        )
+        assert resp.status_code == 403
+
+    def test_system_can_create_admin_user(self, client, db_session):
+        """SYSTEM may create ADMIN accounts."""
+        _login_as(client, db_session, "sys1", "pass", UserRole.SYSTEM)
+        resp = client.post(
+            "/users/", json={"username": "newadmin2", "password": "Pass123!", "role": "ADMIN"}
+        )
+        assert resp.status_code == 201
+        assert resp.json()["role"] == "ADMIN"
+
+    def test_admin_page_role_gate_hides_admin_option_for_admin(self, client, db_session):
+        """Non-SYSTEM admins are flagged non-system in the user dialog (review #6)."""
+        _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
+        resp = client.get("/ui/admin")
+        assert "currentUserIsSystem = false" in resp.text
+
+    def test_admin_page_role_gate_keeps_admin_option_for_system(self, client, db_session):
+        """SYSTEM is flagged as system so the ADMIN role option stays (review #6)."""
+        _login_as(client, db_session, "sys1", "pass", UserRole.SYSTEM)
+        resp = client.get("/ui/admin")
+        assert "currentUserIsSystem = true" in resp.text
+
     def test_user_cannot_list_users(self, client, db_session):
         """USER should not be able to list users."""
         _login_as(client, db_session, "user1", "pass", UserRole.USER)
         resp = client.get("/users/")
         assert resp.status_code == 403
 
-    def test_admin_can_update_user(self, client, db_session):
-        """ADMIN should be able to update a user's role."""
+    def test_admin_cannot_grant_admin_role(self, client, db_session):
+        """ADMIN should NOT be able to promote a user to ADMIN (review #6)."""
         _login_as(client, db_session, "admin1", "pass", UserRole.ADMIN)
-        # Create user first
         create_resp = client.post(
             "/users/", json={"username": "updatee", "password": "Pass123!", "role": "USER"}
+        )
+        user_id = create_resp.json()["id"]
+
+        resp = client.put(f"/users/{user_id}", json={"role": "ADMIN"})
+        assert resp.status_code == 403
+
+    def test_system_can_grant_admin_role(self, client, db_session):
+        """SYSTEM may promote a user to ADMIN."""
+        _login_as(client, db_session, "sys1", "pass", UserRole.SYSTEM)
+        create_resp = client.post(
+            "/users/", json={"username": "promotee", "password": "Pass123!", "role": "USER"}
         )
         user_id = create_resp.json()["id"]
 
@@ -884,6 +923,7 @@ class TestVersionInfo:
         """Login page footer should also have GitHub links."""
         resp = client.get("/ui/login")
         assert "github.com/reserve85/EloRankingSystem" in resp.text
+
     def test_app_version_matches_pyproject(self):
         """FastAPI app version must match the pyproject.toml version (review #2).
 
@@ -899,7 +939,6 @@ class TestVersionInfo:
         with open(pyproject_path, "rb") as f:
             pyproject_version = tomllib.load(f)["project"]["version"]
         assert app.version == pyproject_version
-
 
 
 class TestLegalPages:
