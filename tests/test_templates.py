@@ -884,6 +884,22 @@ class TestVersionInfo:
         """Login page footer should also have GitHub links."""
         resp = client.get("/ui/login")
         assert "github.com/reserve85/EloRankingSystem" in resp.text
+    def test_app_version_matches_pyproject(self):
+        """FastAPI app version must match the pyproject.toml version (review #2).
+
+        Drift here means the OpenAPI surface (/openapi.json) and packaging
+        disagree with the released tag; this guards a reoccurrence.
+        """
+        import tomllib
+        from pathlib import Path
+
+        from app.main import app
+
+        pyproject_path = Path(__file__).resolve().parent.parent / "pyproject.toml"
+        with open(pyproject_path, "rb") as f:
+            pyproject_version = tomllib.load(f)["project"]["version"]
+        assert app.version == pyproject_version
+
 
 
 class TestLegalPages:
