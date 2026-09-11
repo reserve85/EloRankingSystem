@@ -54,7 +54,7 @@ _is_production = str(settings.app_env).strip().lower() == "production"
 app = FastAPI(
     title=settings.app_name,
     description="A dart club ranking system using the Elo Rating System.",
-    version="1.0.37",
+    version="1.0.38",
     docs_url=None if _is_production else "/docs",
     redoc_url=None if _is_production else "/redoc",
     openapi_url=None if _is_production else "/openapi.json",
