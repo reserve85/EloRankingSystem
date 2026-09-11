@@ -293,6 +293,15 @@ class RankingService:
 
         Returns:
             Dict mapping ``player_id`` to an aggregation record.
+
+        Performance note (Tier 0 tripwire): this is still a full table scan
+        (``Match.date <= to_date``) on every call - fine for club-scale
+        histories (a few thousand matches). ``TestBulkScaleGuard`` in
+        tests/test_ranking_optimization.py pins an upper bound on runtime and
+        SELECT count so a gross regression (e.g. a reintroduced N+1) fails CI
+        instead of silently degrading. If a much larger dataset ever shows up,
+        materialize the per-player values on write (inside
+        ``_recalculate_elo_timeline``) instead of per-request scans.
         """
         matches = (
             self.db.query(Match)

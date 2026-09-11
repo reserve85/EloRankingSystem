@@ -8,12 +8,19 @@ algorithm from scratch and assert the API output - especially the ranking
 positions - is identical, so the optimization can never change the order.
 """
 
-from datetime import date, datetime
+import time
+from contextlib import contextmanager
+
+from datetime import date, datetime, timedelta
+
+import pytest
+from sqlalchemy import event, insert
 
 from app.models.player import Player
 from app.models.user import User, UserRole
 from app.models.match import Match
 from app.auth.password import hash_password
+from app.services.ranking import RankingService
 
 
 def _login_as(client, db_session, username, password, role):
@@ -309,3 +316,181 @@ class TestBatchedRankingEquivalence:
 
         assert first == second
         assert [e["position"] for e in first] == sorted(e["position"] for e in first)
+
+
+class TestBulkScaleGuard:
+    """Tripwire for the ranking replay cost (review finding #11, Tier 0).
+
+    ``generate_ranking`` and ``get_all_time_high_ranking`` re-scan the match
+    table on every request. That is fine at club scale but has an undocumented
+    ceiling; a regression (e.g. a reintroduced N+1 or an accidental O(N^2)
+    replay) should fail CI instead of silently degrading. These tests seed a
+    club-scale history (``N_PLAYERS`` players / ``N_MATCHES`` matches) directly
+    via bulk inserts and assert two things per call:
+
+    1. a generous wall-clock budget - a gross algorithmic regression blows
+       past it;
+    2. a deterministic SELECT-count ceiling - catches the N+1 shape that
+       wall-clock only trips flakily.
+
+    Marked ``slow`` so ``-m 'not slow'`` deselects it locally; CI (pytest
+    tests/) runs the full suite including these.
+    """
+
+    # Club-scale history: 150 players, ~10k matches across ~2 years.
+    N_PLAYERS = 150
+    N_MATCHES = 10_000
+    WINDOW_DAYS = 730
+
+    # Generous budgets: local runs of these calls take ~0.1-1.5s. The 10x+
+    # headroom keeps this a tripwire instead of a flake on slow CI runners.
+    GENERATE_RANKING_BUDGET_S = 20.0
+    ATH_RANKING_BUDGET_S = 30.0
+
+    # Reviewed SELECT shapes: generate_ranking ~= 2-3 statements (players +
+    # active-ids subquery + 1 match scan), all_time_high_ranking == 2 (players
+    # + 1 match scan). The ceilings are defensive; a per-player N+1 would
+    # issue 300+ statements.
+    GENERATE_RANKING_MAX_SELECTS = 12
+    ATH_RANKING_MAX_SELECTS = 8
+
+    def _player_rows(self) -> list[dict]:
+        """All players entered before the seeded match window."""
+        today = date.today()
+        return [
+            {
+                "id": pid,
+                "name": f"Player {pid:03d}",
+                "start_elo": 1200,
+                "current_elo": float(1200 + (pid * 7) % 400),
+                "entry_date": today - timedelta(days=800 - (pid % 700)),
+                "active": True,
+                "disabled": pid == self.N_PLAYERS,
+                "last_match_date": None,
+            }
+            for pid in range(1, self.N_PLAYERS + 1)
+        ]
+
+    def _schedule(self) -> list[tuple[int, int, int, bool]]:
+        """Deterministic (days_ago, player_a, player_b, pa_wins) schedule.
+
+        - Every player plays once in the final 30 days, so all of them are
+          in-period active players for ``include_inactive=False``.
+        - Player 1 (the ATH target) plays once per day across the whole
+          window, giving ``get_all_time_high_ranking`` ~730 distinct dates to
+          re-rank.
+        - The rest is rotating pairs across the window.
+        """
+        schedule: list[tuple[int, int, int, bool]] = []
+        for i in range(self.N_PLAYERS):
+            a = i + 1
+            b = (i + 1) % self.N_PLAYERS + 1
+            schedule.append((i % 30, a, b, i % 2 == 0))
+        for day in range(self.WINDOW_DAYS):
+            schedule.append((day, 1, 2 + day % (self.N_PLAYERS - 1), day % 2 == 0))
+        remaining = self.N_MATCHES - len(schedule)
+        for idx in range(remaining):
+            a = idx % self.N_PLAYERS + 1
+            b = (idx * 37 + 3) % self.N_PLAYERS + 1
+            if b == a:
+                b = a % self.N_PLAYERS + 1
+            schedule.append((idx % self.WINDOW_DAYS, a, b, idx % 3 != 0))
+        return schedule
+
+    def _seed_bulk(self, db_session) -> None:
+        """Insert players + matches with Core bulk inserts (fast, no ORM)."""
+        match_rows: list[dict] = []
+        today = date.today()
+        for match_id, (days_ago, a, b, pa_wins) in enumerate(self._schedule(), start=1):
+            d = today - timedelta(days=days_ago)
+            base = 1000.0 + (match_id % 400)
+            before_b = base + 40.0 + (match_id // 3) % 120
+            change_a = 8.0 if pa_wins else -8.0
+            match_rows.append(
+                {
+                    "id": match_id,
+                    "date": d,
+                    "player_a_id": a,
+                    "player_b_id": b,
+                    "best_of_legs": 5,
+                    "player1_score": 3 if pa_wins else 0,
+                    "player2_score": 0 if pa_wins else 3,
+                    "winner_id": a if pa_wins else b,
+                    "loser_id": b if pa_wins else a,
+                    "elo_before_a": base,
+                    "elo_before_b": before_b,
+                    "elo_after_a": base + change_a,
+                    "elo_after_b": before_b - change_a,
+                    "elo_change_a": change_a,
+                    "elo_change_b": -change_a,
+                    "k_factor": 32.0,
+                    "player_a_180s": match_id % 3,
+                    "player_b_180s": match_id % 2,
+                }
+            )
+        db_session.execute(insert(Player), self._player_rows())
+        db_session.execute(insert(Match), match_rows)
+        db_session.commit()
+
+    @contextmanager
+    def _count_selects(self, db_session):
+        """Count SELECT statements executed against the test engine."""
+
+        engine = db_session.get_bind()
+        counter = {"selects": 0}
+
+        def _before_execute(conn, clauseelement, multiparams, params, execution_options):
+            if str(clauseelement).lstrip().upper().startswith("SELECT"):
+                counter["selects"] += 1
+
+        event.listen(engine, "before_execute", _before_execute)
+        try:
+            yield counter
+        finally:
+            event.remove(engine, "before_execute", _before_execute)
+
+    @pytest.mark.slow
+    def test_generate_ranking_scale_and_query_budget(self, db_session):
+        """The monthly ranking path stays bounded at club-scale data."""
+        self._seed_bulk(db_session)
+        service = RankingService(db_session)
+        to_date = date.today()
+        from_date = to_date - timedelta(days=365)
+
+        t0 = time.perf_counter()
+        with self._count_selects(db_session) as counter:
+            ranking = service.generate_ranking(from_date=from_date, to_date=to_date)
+        elapsed = time.perf_counter() - t0
+
+        # Every non-disabled player played in the last 30 days -> all 149 are
+        # in the field (the disabled one is hidden without the flag).
+        assert len(ranking.entries) == self.N_PLAYERS - 1
+        assert elapsed < self.GENERATE_RANKING_BUDGET_S, (
+            f"generate_ranking over {self.N_MATCHES} matches took {elapsed:.2f}s "
+            f"(budget {self.GENERATE_RANKING_BUDGET_S}s)"
+        )
+        assert counter["selects"] <= self.GENERATE_RANKING_MAX_SELECTS, (
+            f"generate_ranking issued {counter['selects']} SELECTs "
+            f"(ceiling {self.GENERATE_RANKING_MAX_SELECTS}); N+1 regression?"
+        )
+
+    @pytest.mark.slow
+    def test_all_time_high_ranking_scale_and_query_budget(self, db_session):
+        """The all-time-high ranking path stays bounded at club-scale data."""
+        self._seed_bulk(db_session)
+        service = RankingService(db_session)
+
+        t0 = time.perf_counter()
+        with self._count_selects(db_session) as counter:
+            result = service.get_all_time_high_ranking(1)
+        elapsed = time.perf_counter() - t0
+
+        assert result["best_rank"] is not None
+        assert elapsed < self.ATH_RANKING_BUDGET_S, (
+            f"get_all_time_high_ranking over {self.N_MATCHES} matches took "
+            f"{elapsed:.2f}s (budget {self.ATH_RANKING_BUDGET_S}s)"
+        )
+        assert counter["selects"] <= self.ATH_RANKING_MAX_SELECTS, (
+            f"get_all_time_high_ranking issued {counter['selects']} SELECTs "
+            f"(ceiling {self.ATH_RANKING_MAX_SELECTS}); N+1 regression?"
+        )
