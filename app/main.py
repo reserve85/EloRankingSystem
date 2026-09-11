@@ -6,7 +6,6 @@ from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import HTTPException as FastAPIHTTPException
 from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 from sqlalchemy.orm import Session
@@ -15,7 +14,7 @@ from app.core.config import BASE_DIR, settings
 from app.core.database import SessionLocal, init_db
 from app.core.csrf import CSRFMiddleware
 from app.core.logging import RequestLoggingMiddleware, configure_logging
-from app.core.rate_limit import limiter
+from app.core.rate_limit import limiter, rate_limit_exceeded_handler
 from app.api.routes.health import router as health_router
 from app.api.routes.auth import router as auth_router
 from app.api.routes.players import router as players_router
@@ -68,7 +67,7 @@ app.add_middleware(CSRFMiddleware)
 
 # Register rate limiting (brute-force protection for auth endpoints).
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, rate_limit_exceeded_handler)
 app.add_middleware(SlowAPIMiddleware)
 
 # Structured request logging with correlation IDs (Fix L11). Added last so it

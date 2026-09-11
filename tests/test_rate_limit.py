@@ -44,6 +44,8 @@ class TestLoginRateLimit:
 
         resp = client.post("/auth/login", data={"username": "nobody", "password": "nope"})
         assert resp.status_code == 429
+        # Custom handler (review #8) keeps the default body shape.
+        assert "Rate limit exceeded" in resp.json()["error"]
 
 
 class TestAutoLoginRateLimit:

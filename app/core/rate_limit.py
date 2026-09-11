@@ -11,6 +11,9 @@ and re-enable it for dedicated rate-limit tests.
 """
 
 from slowapi import Limiter
+from slowapi.errors import RateLimitExceeded
+from fastapi import Request
+from fastapi.responses import JSONResponse
 
 from app.core.config import settings
 from app.core.request import get_client_ip
@@ -30,3 +33,28 @@ limiter = Limiter(
 LOGIN_LIMIT = "20/minute"
 AUTO_LOGIN_LIMIT = "30/minute"
 PASSWORD_LIMIT = "5/minute"
+
+
+def rate_limit_exceeded_handler(request: Request, exc: RateLimitExceeded) -> JSONResponse:
+    """429 JSON response, decoupled from slowapi internals (review #8).
+
+    Replaces the previous ``slowapi._rate_limit_exceeded_handler`` import (a
+    private, unpinned symbol that would break startup if slowapi renamed it).
+    Reproduces the default response body; ``Retry-After`` is added best-effort
+    when the underlying limit exposes a reset timestamp.
+    """
+    headers = None
+    resets_at = getattr(getattr(exc, "limit", None), "resets_at", None)
+    if resets_at is not None:
+        try:
+            from datetime import datetime, timezone
+
+            retry_after = (resets_at - datetime.now(timezone.utc)).total_seconds()
+            headers = {"Retry-After": str(max(0, int(retry_after)))}
+        except Exception:  # noqa: BLE001 - header is best-effort only
+            headers = None
+    return JSONResponse(
+        status_code=429,
+        content={"error": f"Rate limit exceeded: {exc.detail}"},
+        headers=headers,
+    )
