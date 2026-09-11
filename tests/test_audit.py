@@ -1,6 +1,7 @@
 """Tests for audit logging."""
 
 import json
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import pytest
@@ -653,3 +654,57 @@ class TestSecretRedaction:
         assert new_value["user"]["name"] == "Bob"
         old_value = json.loads(log.old_value)
         assert old_value["admin"]["token"] == "[REDACTED]"
+
+
+class TestAuditPruning:
+    """Audit log retention / pruning (review #7)."""
+
+    def _make_audit(self, db_session, action, age_days):
+        """Add an audit entry with a timestamp ``age_days`` in the past."""
+        from app.services.audit import log_event
+
+        log_event(
+            db_session,
+            action=action,
+            entity_type="user",
+        )
+        log = (
+            db_session.query(AuditLog)
+            .filter(AuditLog.action == action)
+            .order_by(AuditLog.id.desc())
+            .first()
+        )
+        log.timestamp = datetime.now(timezone.utc) - timedelta(days=age_days)
+        return log
+
+    def test_prune_removes_old_keeps_recent(self, db_session):
+        """Entries older than the retention window are deleted, newer kept."""
+        from app.services.audit import prune_audit_log
+
+        self._make_audit(db_session, "OLD_ONE", age_days=400)
+        self._make_audit(db_session, "OLD_TWO", age_days=400)
+        self._make_audit(db_session, "RECENT", age_days=10)
+        db_session.commit()
+
+        deleted = prune_audit_log(db_session, retention_days=365)
+
+        assert deleted == 2
+        remaining = {a.action for a in db_session.query(AuditLog).all()}
+        assert remaining == {"RECENT"}
+
+    def test_prune_disabled_with_non_positive_retention(self, db_session):
+        """Retention <= 0 disables pruning entirely."""
+        from app.services.audit import prune_audit_log
+
+        self._make_audit(db_session, "OLD", age_days=400)
+        db_session.commit()
+
+        assert prune_audit_log(db_session, retention_days=0) == 0
+        assert prune_audit_log(db_session, retention_days=-1) == 0
+        assert db_session.query(AuditLog).count() == 1
+
+    def test_retention_default_is_configured(self):
+        """The shipped default keeps 365 days of audit history."""
+        from app.core.config import settings
+
+        assert settings.audit_retention_days == 365

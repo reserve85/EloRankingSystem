@@ -1,10 +1,12 @@
 """Audit logging service - centralized audit event recording."""
 
 import json
+from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.request import get_client_ip
 from app.models.audit_log import AuditLog
 
@@ -64,6 +66,34 @@ def log_event(
     # here and the pending row is visible within the current transaction.
     db.flush()
     return audit
+
+
+def prune_audit_log(db: Session, retention_days: Optional[int] = None) -> int:
+    """Delete audit entries older than ``retention_days`` (review #7).
+
+    The audit log otherwise grows without bound - failed logins alone
+    accumulate quickly. Called on application startup so the table is bounded
+    without a scheduler; ``retention_days`` defaults to the configured
+    ``AUDIT_RETENTION_DAYS``. A value <= 0 disables pruning (returns 0).
+
+    Args:
+        db: Database session.
+        retention_days: Maximum age in days to keep. None = configuration.
+
+    Returns:
+        Number of audit entries deleted.
+    """
+    if retention_days is None:
+        retention_days = settings.audit_retention_days
+    if retention_days <= 0:
+        return 0
+
+    cutoff = datetime.now(timezone.utc) - timedelta(days=retention_days)
+    deleted = (
+        db.query(AuditLog).filter(AuditLog.timestamp < cutoff).delete(synchronize_session=False)
+    )
+    db.commit()
+    return deleted
 
 
 def _safe_serialize(value: Any) -> Optional[str]:

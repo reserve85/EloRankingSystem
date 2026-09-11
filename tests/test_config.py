@@ -191,6 +191,13 @@ class TestYamlToEnvDefaults:
         assert result["DATA_DIR"] == "/custom/data"
         assert result["UPLOAD_DIR"] == "/custom/uploads"
 
+    def test_audit_section_mapping(self, monkeypatch):
+        """Test audit section YAML → env var mapping (review #7)."""
+        monkeypatch.delenv("AUDIT_RETENTION_DAYS", raising=False)
+        yaml_config = {"audit": {"retention_days": 90}}
+        result = _yaml_to_env_defaults(yaml_config)
+        assert result["AUDIT_RETENTION_DAYS"] == "90"
+
     def test_env_vars_not_overwritten(self, monkeypatch):
         """Test that existing env vars are NOT overwritten by YAML."""
         monkeypatch.setenv("APP_NAME", "Env Club")

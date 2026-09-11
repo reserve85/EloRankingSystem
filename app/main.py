@@ -29,16 +29,19 @@ from app.api.routes.password import router as password_router
 from app.api.routes.ui import router as ui_router
 from app.auth.dependencies import ensure_password_changed
 from app.auth.service import provision_system_user
+from app.services.audit import prune_audit_log
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler for startup and shutdown events."""
-    # Startup: create tables and provision system user
+    # Startup: create tables, provision system user and bound the audit log.
     init_db()
     db: Session = SessionLocal()
     try:
         provision_system_user(db)
+        # Review #7: prune audit entries older than the configured retention.
+        prune_audit_log(db)
     finally:
         db.close()
 

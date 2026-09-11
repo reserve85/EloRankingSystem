@@ -54,3 +54,8 @@ security:
 storage:
   data_dir: /data
   upload_dir: /uploads
+
+audit:
+  # Audit log retention in days. Entries older than this are pruned on
+  # application startup (0 or negative disables pruning).
+  retention_days: 365

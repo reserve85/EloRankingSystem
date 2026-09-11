@@ -112,6 +112,7 @@ def _yaml_to_env_defaults(yaml_config: dict) -> dict[str, str]:
         ("security", "csrf_enabled", "CSRF_ENABLED"),
         ("security", "rate_limit_enabled", "RATE_LIMIT_ENABLED"),
         ("security", "trusted_proxies", "TRUSTED_PROXIES"),
+        ("audit", "retention_days", "AUDIT_RETENTION_DAYS"),
         ("storage", "data_dir", "DATA_DIR"),
         ("storage", "upload_dir", "UPLOAD_DIR"),
     ]
@@ -185,6 +186,10 @@ class Settings(BaseSettings):
     # peer matches, ``X-Forwarded-For`` is honored for rate-limiting keys and
     # audit IPs (Fix M6). Parsed into a list by ``get_client_ip``.
     trusted_proxies: str = Field(default="", alias="TRUSTED_PROXIES")
+
+    # Audit log retention in days (review #7). Entries older than this are
+    # pruned on startup. 0 or negative disables pruning.
+    audit_retention_days: int = Field(default=365, alias="AUDIT_RETENTION_DAYS")
 
     # ── Timezone & Date Format
     timezone: str = Field(default="UTC", alias="TIMEZONE")

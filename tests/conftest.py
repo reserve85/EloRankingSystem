@@ -129,8 +129,10 @@ def client(db_session):
     app.dependency_overrides[get_db] = override_get_db
     original_init_db = main_module.init_db
     original_provision = main_module.provision_system_user
+    original_prune = main_module.prune_audit_log
     main_module.init_db = lambda *args, **kwargs: None
     main_module.provision_system_user = lambda *args, **kwargs: None
+    main_module.prune_audit_log = lambda *args, **kwargs: None
     try:
         with TestClient(app) as test_client:
             yield test_client
@@ -138,3 +140,4 @@ def client(db_session):
         app.dependency_overrides.clear()
         main_module.init_db = original_init_db
         main_module.provision_system_user = original_provision
+        main_module.prune_audit_log = original_prune
